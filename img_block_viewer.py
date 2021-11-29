@@ -3,12 +3,23 @@
 # Usage:
 # python img_block_viewer.py --filename '/media/xyy/DATA/RM006_related/clip/RM006_s128_c13_f8906-9056.tif'
 
+# TODO: vtkVRRenderWindow
+
+import numpy as np
+from numpy import sin, cos, pi
+
+import tifffile
+
+import vtk
+
 # noinspection PyUnresolvedReferences
 import vtkmodules.vtkInteractionStyle
 from vtkmodules.vtkCommonColor import vtkNamedColors
 from vtkmodules.vtkCommonDataModel import vtkPiecewiseFunction
 from vtkmodules.vtkIOImage import vtkPNGWriter
 from vtkmodules.vtkInteractionStyle import vtkInteractorStyleTrackballCamera
+from vtkmodules.vtkRenderingAnnotation import vtkAxesActor
+from vtkmodules.vtkCommonTransforms import vtkTransform
 from vtkmodules.vtkRenderingCore import (
     vtkColorTransferFunction,
     vtkRenderWindow,
@@ -24,12 +35,6 @@ from vtkmodules.vtkRenderingVolume import (
 )
 # noinspection PyUnresolvedReferences
 from vtkmodules.vtkRenderingVolumeOpenGL2 import vtkOpenGLRayCastImageDisplayHelper
-from vtk import vtkTIFFReader, vtkImageReader
-import vtk
-
-import numpy as np
-import tifffile
-from numpy import sin, cos, pi
 
 # copy from volumeio.py
 # Read tiff file, return images and meta data
@@ -74,6 +79,69 @@ class MyInteractorStyle(vtkInteractorStyleTrackballCamera):
         print('Middle Button released')
         self.OnMiddleButtonUp()
         return
+
+# Ref: Demonstrates the use of two renderers. Notice that the second (and subsequent) renderers will have a transparent background.
+# https://kitware.github.io/vtk-examples/site/Python/Rendering/TransparentBackground/
+def KeypressCallbackFunction(caller, ev):
+    iren = caller
+    renderers = iren.GetRenderWindow().GetRenderers()
+#    if renderers.GetNumberOfItems() < 2:
+#        print('We need at least two renderers, we have only', renderers.GetNumberOfItems())
+#        return
+#    renderers.InitTraversal()
+#    # Top item
+#    ren0 = renderers.GetNextItem()
+#    # Bottom item
+#    ren1 = renderers.GetNextItem()
+
+    key = iren.GetKeySym()
+
+    if key == '0':
+        print('Pressed:', key)
+#        iren.GetRenderWindow().GetInteractor().GetInteractorStyle().SetDefaultRenderer(ren0)
+#        ren0.InteractiveOn()
+#        ren1.InteractiveOff()
+    if key == '1':
+        print('Pressed:', key)
+#        iren.GetRenderWindow().GetInteractor().GetInteractorStyle().SetDefaultRenderer(ren1)
+#        ren0.InteractiveOff()
+#        ren1.InteractiveOn()
+
+def ModifiedCallbackFunction(caller, ev):
+#    print(caller)
+    print(ev)
+    if ev == 'StartRotateEvent':
+        pass
+    elif ev == 'EndRotateEvent':
+        pass
+    elif ev == 'RotateEvent':
+        pass
+    
+    rens = caller.GetRenderWindow().GetRenderers()
+    rens.InitTraversal()
+    ren1 = rens.GetNextItem()
+    ren2 = rens.GetNextItem()
+    view_mat = ren1.GetActiveCamera().GetModelViewTransformMatrix()
+    print(view_mat)
+    
+    cam1 = ren1.GetActiveCamera()
+    
+#    print(cam1.)
+    
+#    ren2.GetActiveCamera().SetUseExplicitProjectionTransformMatrix(True)
+#    ren2.GetActiveCamera().SetModelTransformMatrix(view_mat)
+#    ren2.GetActiveCamera().SetExplicitProjectionTransformMatrix(view_mat)
+#    ren2.GetActiveCamera().
+    #ren2.GetActiveCamera().SetModelTransformMatrix(view_mat)
+#    ren2.GetActiveCamera().SetObliqueAngles(10.0, 10.0)
+    ren2.GetActiveCamera().SetRoll(cam1.GetRoll())
+#    ren2.GetActiveCamera().SetPosition(0.0, 0.0, 0.0)
+#    ren2.GetActiveCamera().SetViewUp(0, 1, 0)
+#    ren2.GetActiveCamera().ApplyTransform(view_mat)
+#    ren2.SetFocalPoint(0.0, 0.0, 0.0)  # no
+#    ren2.SetDistance(100.0)            # no
+    
+    return
 
 # import image to vtkImageImport() to have a connection
 def ImportImage(file_name):
@@ -125,15 +193,18 @@ def ImportImage(file_name):
 
     return img_importer
 
-def ShotScreen(ren_win):
+def ShotScreen(render_window):
     # Take a screenshot
     # From: https://kitware.github.io/vtk-examples/site/Python/Utilities/Screenshot/
     win2if = vtkWindowToImageFilter()
-    win2if.SetInput(ren_win)
+    win2if.SetInput(render_window)
     win2if.SetInputBufferTypeToRGB()
     win2if.ReadFrontBufferOff()
     win2if.Update()
 
+    # If need transparency in a screenshot
+    # https://stackoverflow.com/questions/34789933/vtk-setting-transparent-renderer-background
+    
     writer = vtkPNGWriter()
     writer.SetFileName('TestScreenshot.png')
     writer.SetInputConnection(win2if.GetOutputPort())
@@ -190,31 +261,68 @@ def main():
 
     # Create the standard renderer, render window
     # and interactor.
-    ren1 = vtkRenderer()
-
-    ren_win = vtkRenderWindow()
-    ren_win.AddRenderer(ren1)
+    renderer1 = vtkRenderer()
+    renderer1.SetLayer(0)
+    # https://kitware.github.io/vtk-examples/site/Python/Rendering/TransparentBackground/
+    renderer2 = vtkRenderer()  # for axes
+    renderer2.SetLayer(1)
+    renderer2.SetViewport(0.0, 0.0, 0.2, 0.2)
+    
+    # vtkAssembly
+    # https://vtk.org/doc/nightly/html/classvtkAssembly.html#details
+    
+    render_window = vtkRenderWindow()
+#    render_window = vtkSynchronizedRenderWindows()
+    render_window.AddRenderer(renderer1)
+    render_window.AddRenderer(renderer2)
 
     interactor = vtkRenderWindowInteractor()
     interactor.SetInteractorStyle(MyInteractorStyle())
-    interactor.SetRenderWindow(ren_win)
+    interactor.AddObserver('KeyPressEvent', KeypressCallbackFunction)
+#    interactor.AddObserver('ModifiedEvent', ModifiedCallbackFunction)
+    interactor.AddObserver('InteractionEvent', ModifiedCallbackFunction)
+    interactor.SetRenderWindow(render_window)
 
     img_importer = ImportImage(file_name)
 
     volume = SetupVolumeRender(img_importer)
 
-    ren1.AddVolume(volume)
-    ren1.SetBackground(colors.GetColor3d('Wheat'))
-    ren1.GetActiveCamera().Azimuth(45)
-    ren1.GetActiveCamera().Elevation(30)
-    ren1.ResetCameraClippingRange()
-    ren1.ResetCamera()
+    # vtkCubeAxesActor()
+    # https://kitware.github.io/vtk-examples/site/Python/Visualization/CubeAxesActor/
 
-    ren_win.SetSize(2400, 1800)
-    ren_win.SetWindowName('SimpleRayCast')
-    ren_win.Render()
+    # Dynamically change position of Axes
+    # https://discourse.vtk.org/t/dynamically-change-position-of-axes/691
+#    transform = vtkTransform()
+#    transform.Translate(100.0, 100.0, 100.0)
+    axes = vtkAxesActor()
+#    axes.SetUserTransform(transform)
+    axes.SetTotalLength([100.0, 100.0, 100.0])
+#    axes.GetXAxisCaptionActor2D().GetCaptionTextProperty().SetColor(colors.GetColor3d('Red'))
+#    axes.SetXAxisLabelText('test')
+    axes.SetAxisLabels(False)
 
-    ShotScreen(ren_win)
+    renderer1.AddVolume(volume)
+    renderer1.SetBackground(colors.GetColor3d('Wheat'))
+    renderer1.GetActiveCamera().Azimuth(45)
+    renderer1.GetActiveCamera().Elevation(30)
+    renderer1.ResetCameraClippingRange()
+    renderer1.ResetCamera()
+
+    renderer2.AddActor(axes)
+    print(renderer1.GetActiveCamera())
+    #renderer2.SetActiveCamera(renderer1.GetActiveCamera())
+    #renderer2.GetActiveCamera().ShallowCopy(renderer1.GetActiveCamera())
+    renderer2.GetActiveCamera().DeepCopy(renderer1.GetActiveCamera())
+    #renderer2.GetActiveCamera().SetFreezeFocalPoint(True)
+    #renderer2.ResetCameraClippingRange()
+    #renderer2.ResetCamera()
+
+    render_window.SetSize(2400, 1800)
+    render_window.SetWindowName('SimpleRayCast')
+    render_window.SetNumberOfLayers(2)
+    render_window.Render()
+
+    ShotScreen(render_window)
     
     interactor.Initialize()
     interactor.Start()
