@@ -76,7 +76,7 @@ class MyInteractorStyle(vtkInteractorStyleTrackballCamera):
         return
 
 # import image to vtkImageImport() to have a connection
-def ImportImage(fileName):
+def ImportImage(file_name):
     # Ref:
     # Numpy 3D array into VTK data types for volume rendering?
     # https://discourse.vtk.org/t/numpy-3d-array-into-vtk-data-types-for-volume-rendering/3455/2
@@ -88,100 +88,100 @@ def ImportImage(fileName):
     # def updateVolumeFromArray(volumeNode, img_arr):
 
     # See https://python.hotexamples.com/examples/vtk/-/vtkImageImport/python-vtkimageimport-function-examples.html
-    img_arr, img_meta = read_tiff(fileName)
+    img_arr, img_meta = read_tiff(file_name)
     print(img_meta)
     n_ch = 1
 
-    imgImporter = vtk.vtkImageImport()
+    img_importer = vtk.vtkImageImport()
     simg = np.ascontiguousarray(img_arr, img_arr.dtype)  # maybe .flatten()
     # see also: SetImportVoidPointer
-    imgImporter.CopyImportVoidPointer(simg.data, simg.nbytes)
+    img_importer.CopyImportVoidPointer(simg.data, simg.nbytes)
     if img_arr.dtype == np.uint8:
-        imgImporter.SetDataScalarTypeToUnsignedChar()
+        img_importer.SetDataScalarTypeToUnsignedChar()
     elif img_arr.dtype == np.uint16:
-        imgImporter.SetDataScalarTypeToUnsignedShort()
+        img_importer.SetDataScalarTypeToUnsignedShort()
     else:
         raise "Unsupported format"
-    imgImporter.SetNumberOfScalarComponents(n_ch)
-    imgImporter.SetDataExtent (0, simg.shape[2]-1, 0, simg.shape[1]-1, 0, simg.shape[0]-1)
-    imgImporter.SetWholeExtent(0, simg.shape[2]-1, 0, simg.shape[1]-1, 0, simg.shape[0]-1)
-    #imgImporter.setDataOrigin()
+    img_importer.SetNumberOfScalarComponents(n_ch)
+    img_importer.SetDataExtent (0, simg.shape[2]-1, 0, simg.shape[1]-1, 0, simg.shape[0]-1)
+    img_importer.SetWholeExtent(0, simg.shape[2]-1, 0, simg.shape[1]-1, 0, simg.shape[0]-1)
+    #img_importer.setDataOrigin()
 
     # the 3x3 matrix to rotate the coordinates from index space (ijk) to physical space (xyz)
     b_45d_correction = True
     if b_45d_correction:
-        imgImporter.SetDataSpacing(1.0, 1.0, 3.5)
+        img_importer.SetDataSpacing(1.0, 1.0, 3.5)
         rotMat = [ \
             1.0, 0.0,            0.0,
             0.0, cos(45/180*pi), 0.0,
             0.0,-sin(45/180*pi), 1.0
         ]
-        imgImporter.SetDataDirection(rotMat)
+        img_importer.SetDataDirection(rotMat)
     else:
-        imgImporter.SetDataSpacing(1.0, 1.0, 2.5)
+        img_importer.SetDataSpacing(1.0, 1.0, 2.5)
 
-    print(imgImporter.GetDataDirection())
-    print(imgImporter.GetDataSpacing())
+    print(img_importer.GetDataDirection())
+    print(img_importer.GetDataSpacing())
 
-    return imgImporter
+    return img_importer
 
-def ShotScreen(renWin):
+def ShotScreen(ren_win):
     # Take a screenshot
     # From: https://kitware.github.io/vtk-examples/site/Python/Utilities/Screenshot/
-    w2if = vtkWindowToImageFilter()
-    w2if.SetInput(renWin)
-    w2if.SetInputBufferTypeToRGB()
-    w2if.ReadFrontBufferOff()
-    w2if.Update()
+    win2if = vtkWindowToImageFilter()
+    win2if.SetInput(ren_win)
+    win2if.SetInputBufferTypeToRGB()
+    win2if.ReadFrontBufferOff()
+    win2if.Update()
 
     writer = vtkPNGWriter()
     writer.SetFileName('TestScreenshot.png')
-    writer.SetInputConnection(w2if.GetOutputPort())
+    writer.SetInputConnection(win2if.GetOutputPort())
     writer.Write()
 
-def SetupVolumeRender(imgImporter):
+def SetupVolumeRender(img_importer):
     # Create transfer mapping scalar value to opacity.
     opacity_scale = 40.0
-    opacityTransferFunction = vtkPiecewiseFunction()
-    opacityTransferFunction.AddPoint(opacity_scale*20, 0.0)
-    opacityTransferFunction.AddPoint(opacity_scale*255, 0.2)
+    opacity_transfer_function = vtkPiecewiseFunction()
+    opacity_transfer_function.AddPoint(opacity_scale*20, 0.0)
+    opacity_transfer_function.AddPoint(opacity_scale*255, 0.2)
 
     # Create transfer mapping scalar value to color.
     trans_scale = 40.0
-    colorTransferFunction = vtkColorTransferFunction()
-    colorTransferFunction.AddRGBPoint(trans_scale*0.0, 0.0, 0.0, 0.0)
-    colorTransferFunction.AddRGBPoint(trans_scale*64.0, 1.0, 0.0, 0.0)
-    colorTransferFunction.AddRGBPoint(trans_scale*128.0, 0.0, 0.0, 1.0)
-    colorTransferFunction.AddRGBPoint(trans_scale*192.0, 0.0, 1.0, 0.0)
-    colorTransferFunction.AddRGBPoint(trans_scale*255.0, 0.0, 0.2, 0.0)
+    color_transfer_function = vtkColorTransferFunction()
+    color_transfer_function.AddRGBPoint(trans_scale*0.0, 0.0, 0.0, 0.0)
+    color_transfer_function.AddRGBPoint(trans_scale*64.0, 1.0, 0.0, 0.0)
+    color_transfer_function.AddRGBPoint(trans_scale*128.0, 0.0, 0.0, 1.0)
+    color_transfer_function.AddRGBPoint(trans_scale*192.0, 0.0, 1.0, 0.0)
+    color_transfer_function.AddRGBPoint(trans_scale*255.0, 0.0, 0.2, 0.0)
 
     # The property describes how the data will look.
-    volumeProperty = vtkVolumeProperty()
-    volumeProperty.SetColor(colorTransferFunction)
-    volumeProperty.SetScalarOpacity(opacityTransferFunction)
-    volumeProperty.ShadeOn()
-    #volumeProperty.SetInterpolationTypeToLinear()
-    volumeProperty.SetInterpolationType(vtk.VTK_CUBIC_INTERPOLATION)
+    volume_property = vtkVolumeProperty()
+    volume_property.SetColor(color_transfer_function)
+    volume_property.SetScalarOpacity(opacity_transfer_function)
+    volume_property.ShadeOn()
+    #volume_property.SetInterpolationTypeToLinear()
+    volume_property.SetInterpolationType(vtk.VTK_CUBIC_INTERPOLATION)
 
     # The mapper / ray cast function know how to render the data.
-    #volumeMapper = vtkFixedPointVolumeRayCastMapper()
-    volumeMapper = vtkGPUVolumeRayCastMapper()
-    #volumeMapper.SetBlendModeToComposite()
-    #volumeMapper.SetInputConnection(reader.GetOutputPort())
+    #volume_mapper = vtkFixedPointVolumeRayCastMapper()
+    volume_mapper = vtkGPUVolumeRayCastMapper()
+    #volume_mapper.SetBlendModeToComposite()
+    #volume_mapper.SetInputConnection(reader.GetOutputPort())
     # vtkVolumeMapper
     # https://vtk.org/doc/nightly/html/classvtkVolumeMapper.html
-    volumeMapper.SetInputConnection(imgImporter.GetOutputPort())
+    volume_mapper.SetInputConnection(img_importer.GetOutputPort())
 
     # The volume holds the mapper and the property and
     # can be used to position/orient the volume.
     volume = vtkVolume()
-    volume.SetMapper(volumeMapper)
-    volume.SetProperty(volumeProperty)
+    volume.SetMapper(volume_mapper)
+    volume.SetProperty(volume_property)
 
     return volume
 
 def main():
-    fileName = get_program_parameters()
+    file_name = get_program_parameters()
 
     colors = vtkNamedColors()
 
@@ -192,16 +192,16 @@ def main():
     # and interactor.
     ren1 = vtkRenderer()
 
-    renWin = vtkRenderWindow()
-    renWin.AddRenderer(ren1)
+    ren_win = vtkRenderWindow()
+    ren_win.AddRenderer(ren1)
 
-    iren = vtkRenderWindowInteractor()
-    iren.SetInteractorStyle(MyInteractorStyle())
-    iren.SetRenderWindow(renWin)
+    interactor = vtkRenderWindowInteractor()
+    interactor.SetInteractorStyle(MyInteractorStyle())
+    interactor.SetRenderWindow(ren_win)
 
-    imgImporter = ImportImage(fileName)
+    img_importer = ImportImage(file_name)
 
-    volume = SetupVolumeRender(imgImporter)
+    volume = SetupVolumeRender(img_importer)
 
     ren1.AddVolume(volume)
     ren1.SetBackground(colors.GetColor3d('Wheat'))
@@ -210,14 +210,14 @@ def main():
     ren1.ResetCameraClippingRange()
     ren1.ResetCamera()
 
-    renWin.SetSize(2400, 1800)
-    renWin.SetWindowName('SimpleRayCast')
-    renWin.Render()
+    ren_win.SetSize(2400, 1800)
+    ren_win.SetWindowName('SimpleRayCast')
+    ren_win.Render()
 
-    ShotScreen(renWin)
+    ShotScreen(ren_win)
     
-    iren.Initialize()
-    iren.Start()
+    interactor.Initialize()
+    interactor.Start()
 
 
 def get_program_parameters():
