@@ -17,7 +17,11 @@ import vtkmodules.vtkInteractionStyle
 from vtkmodules.vtkCommonColor import vtkNamedColors
 from vtkmodules.vtkCommonDataModel import vtkPiecewiseFunction
 from vtkmodules.vtkIOImage import vtkPNGWriter
-from vtkmodules.vtkInteractionStyle import vtkInteractorStyleTrackballCamera
+from vtkmodules.vtkInteractionStyle import (
+    vtkInteractorStyleTrackballCamera,
+    vtkInteractorStyleFlight,
+    vtkInteractorStyleTerrain
+)
 from vtkmodules.vtkRenderingAnnotation import vtkAxesActor
 from vtkmodules.vtkCommonTransforms import vtkTransform
 from vtkmodules.vtkRenderingCore import (
@@ -64,7 +68,9 @@ def read_tiff_meta(tif_path):
     return metadata
 
 # mouse interaction
-class MyInteractorStyle(vtkInteractorStyleTrackballCamera):
+# vtkInteractorStyleFlight
+# vtkInteractorStyleTrackballCamera
+class MyInteractorStyle(vtkInteractorStyleTerrain):
 
     def __init__(self, parent=None):
         self.AddObserver('MiddleButtonPressEvent', self.middle_button_press_event)
@@ -107,6 +113,42 @@ def KeypressCallbackFunction(caller, ev):
 #        ren0.InteractiveOff()
 #        ren1.InteractiveOn()
 
+# align cam2 by cam1
+# make cam2 dist away from origin
+def AlignCameraDirection(cam2, cam1, dist=4.0):
+    print(cam1)
+    print(cam1.GetModelViewTransformMatrix())
+
+    r = np.array(cam1.GetPosition()) - np.array(cam1.GetFocalPoint())
+    r = r / np.linalg.norm(r) * dist
+
+    # Set also up direction?
+    cam2.SetRoll(cam1.GetRoll())
+    cam2.SetPosition(r)
+    cam2.SetFocalPoint(0, 0, 0)
+    
+    # cam2.SetUserViewTransform
+    
+    print(cam2)
+    print(cam2.GetModelViewTransformMatrix())
+
+#    cam2.SetRoll(cam1.GetRoll())
+#    cam2.SetPosition(0.0, 0.0, 0.0)
+    
+#    cam2.SetUseExplicitProjectionTransformMatrix(True)
+#    cam2.SetModelTransformMatrix(view_mat)
+#    cam2.SetExplicitProjectionTransformMatrix(view_mat)
+#    cam2.
+#    cam2.SetRoll(cam1.GetRoll())
+#    cam2.SetPosition(cam1.GetPosition())
+#    cam2.SetViewUp(0, 1, 0)
+#    cam2.ApplyTransform(view_mat)
+#    ren2.SetFocalPoint(0.0, 0.0, 0.0)  # no
+#    ren2.SetDistance(100.0)            # no
+    
+#    view_mat2 = cam2.GetModelViewTransformMatrix()
+#    print(view_mat2)
+
 def ModifiedCallbackFunction(caller, ev):
 #    print(caller)
     print(ev)
@@ -121,25 +163,10 @@ def ModifiedCallbackFunction(caller, ev):
     rens.InitTraversal()
     ren1 = rens.GetNextItem()
     ren2 = rens.GetNextItem()
-    view_mat = ren1.GetActiveCamera().GetModelViewTransformMatrix()
-    print(view_mat)
-    
     cam1 = ren1.GetActiveCamera()
-    
-#    print(cam1.)
-    
-#    ren2.GetActiveCamera().SetUseExplicitProjectionTransformMatrix(True)
-#    ren2.GetActiveCamera().SetModelTransformMatrix(view_mat)
-#    ren2.GetActiveCamera().SetExplicitProjectionTransformMatrix(view_mat)
-#    ren2.GetActiveCamera().
-    #ren2.GetActiveCamera().SetModelTransformMatrix(view_mat)
-#    ren2.GetActiveCamera().SetObliqueAngles(10.0, 10.0)
-    ren2.GetActiveCamera().SetRoll(cam1.GetRoll())
-#    ren2.GetActiveCamera().SetPosition(0.0, 0.0, 0.0)
-#    ren2.GetActiveCamera().SetViewUp(0, 1, 0)
-#    ren2.GetActiveCamera().ApplyTransform(view_mat)
-#    ren2.SetFocalPoint(0.0, 0.0, 0.0)  # no
-#    ren2.SetDistance(100.0)            # no
+    cam2 = ren2.GetActiveCamera()
+
+    AlignCameraDirection(cam2, cam1)
     
     return
 
@@ -295,8 +322,7 @@ def main():
 #    transform = vtkTransform()
 #    transform.Translate(100.0, 100.0, 100.0)
     axes = vtkAxesActor()
-#    axes.SetUserTransform(transform)
-    axes.SetTotalLength([100.0, 100.0, 100.0])
+    axes.SetTotalLength([1.0, 1.0, 1.0])
 #    axes.GetXAxisCaptionActor2D().GetCaptionTextProperty().SetColor(colors.GetColor3d('Red'))
 #    axes.SetXAxisLabelText('test')
     axes.SetAxisLabels(False)
@@ -316,6 +342,11 @@ def main():
     #renderer2.GetActiveCamera().SetFreezeFocalPoint(True)
     #renderer2.ResetCameraClippingRange()
     #renderer2.ResetCamera()
+    renderer2.GetActiveCamera().SetClippingRange(0.1, 1000)
+    
+    AlignCameraDirection(renderer2.GetActiveCamera(),
+                         renderer1.GetActiveCamera())
+
 
     render_window.SetSize(2400, 1800)
     render_window.SetWindowName('SimpleRayCast')
