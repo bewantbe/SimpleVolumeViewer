@@ -2,6 +2,7 @@
 
 # Usage:
 # python img_block_viewer.py --filename '/media/xyy/DATA/RM006_related/clip/RM006_s128_c13_f8906-9056.tif'
+# python img_block_viewer.py --filename '/media/xyy/DATA/RM006_related/ims_based/z00060_c3_2.ims'
 
 # TODO: vtkVRRenderWindow
 
@@ -9,8 +10,11 @@ import numpy as np
 from numpy import sin, cos, pi
 
 import tifffile
+import h5py
 
 import vtk
+
+import pprint
 
 # noinspection PyUnresolvedReferences
 import vtkmodules.vtkInteractionStyle
@@ -55,6 +59,10 @@ def read_tiff(tif_path, as_np_array = True):
         images = []
         for page in tif.pages:
             images.append(page.asarray())
+
+    # TODO: determing this value automatically
+    metadata['oblique_image'] = True if metadata['ImageLength']==788 else False
+
     return images, metadata
 
 # Read tiff file, return images and meta data
@@ -66,6 +74,28 @@ def read_tiff_meta(tif_path):
     if hasattr(tif, 'imagej_metadata'):
         metadata['imagej'] = tif.imagej_metadata
     return metadata
+
+def read_ims(ims_path, level = 0):
+    ims = h5py.File(ims_path, 'r')
+    img = ims['DataSet']['ResolutionLevel %d'%(level)]['TimePoint 0']['Channel 0']['Data']
+    print('image shape: ', img.shape, ' dtype =', img.dtype)
+
+    # convert metadata in IMS to python dict
+    u = ims['DataSetInfo']
+    metadata = {}
+    for it in ims['DataSetInfo'].keys():
+        metadata[it] = \
+            {k:''.join([c.decode('utf-8') for c in v])
+                for k, v in u[it].attrs.items()}
+
+    #img_clip = img[:, :, :]  # actually read the data
+    #img_clip = np.transpose(np.array(img), (2,1,0))
+    img_clip = np.array(img)
+
+    metadata['imagej'] = {'voxel_size_um': '(1.0, 1.0, 1.0)'}
+    metadata['oblique_image'] = False
+
+    return img_clip, metadata
 
 # mouse interaction
 # vtkInteractorStyleFlight
@@ -116,9 +146,6 @@ def KeypressCallbackFunction(caller, ev):
 # align cam2 by cam1
 # make cam2 dist away from origin
 def AlignCameraDirection(cam2, cam1, dist=4.0):
-    print(cam1)
-    print(cam1.GetModelViewTransformMatrix())
-
     r = np.array(cam1.GetPosition()) - np.array(cam1.GetFocalPoint())
     r = r / np.linalg.norm(r) * dist
 
@@ -126,32 +153,10 @@ def AlignCameraDirection(cam2, cam1, dist=4.0):
     cam2.SetRoll(cam1.GetRoll())
     cam2.SetPosition(r)
     cam2.SetFocalPoint(0, 0, 0)
-    
-    # cam2.SetUserViewTransform
-    
-    print(cam2)
-    print(cam2.GetModelViewTransformMatrix())
-
-#    cam2.SetRoll(cam1.GetRoll())
-#    cam2.SetPosition(0.0, 0.0, 0.0)
-    
-#    cam2.SetUseExplicitProjectionTransformMatrix(True)
-#    cam2.SetModelTransformMatrix(view_mat)
-#    cam2.SetExplicitProjectionTransformMatrix(view_mat)
-#    cam2.
-#    cam2.SetRoll(cam1.GetRoll())
-#    cam2.SetPosition(cam1.GetPosition())
-#    cam2.SetViewUp(0, 1, 0)
-#    cam2.ApplyTransform(view_mat)
-#    ren2.SetFocalPoint(0.0, 0.0, 0.0)  # no
-#    ren2.SetDistance(100.0)            # no
-    
-#    view_mat2 = cam2.GetModelViewTransformMatrix()
-#    print(view_mat2)
+#    print(cam2.GetModelViewTransformMatrix())
 
 def ModifiedCallbackFunction(caller, ev):
-#    print(caller)
-    print(ev)
+    # never happed
     if ev == 'StartRotateEvent':
         pass
     elif ev == 'EndRotateEvent':
@@ -170,6 +175,16 @@ def ModifiedCallbackFunction(caller, ev):
     
     return
 
+def Import3DImage(file_name, *item, **keys):
+    # img_arr should be a numpy array with
+    #   dimension order: Z C Y X  (full form TZCYXS)
+    if file_name.endswith('.tif') or file_name.endswith('.tiff'):
+        img_arr, img_meta = read_tiff(file_name)
+    elif file_name.endswith('.ims'):
+        img_arr, img_meta = read_ims(file_name, *item, **keys)
+    pprint.pprint(img_meta)
+    return img_arr, img_meta
+
 # import image to vtkImageImport() to have a connection
 def ImportImage(file_name):
     # Ref:
@@ -183,9 +198,11 @@ def ImportImage(file_name):
     # def updateVolumeFromArray(volumeNode, img_arr):
 
     # See https://python.hotexamples.com/examples/vtk/-/vtkImageImport/python-vtkimageimport-function-examples.html
-    img_arr, img_meta = read_tiff(file_name)
-    print(img_meta)
+    img_arr, img_meta = Import3DImage(file_name, level=2)
     n_ch = 1
+
+    voxel_size_um = img_meta['imagej']['voxel_size_um'][1:-1]
+    voxel_size_um = tuple(map(float, voxel_size_um.split(', ')))
 
     img_importer = vtk.vtkImageImport()
     simg = np.ascontiguousarray(img_arr, img_arr.dtype)  # maybe .flatten()
@@ -203,9 +220,12 @@ def ImportImage(file_name):
     #img_importer.setDataOrigin()
 
     # the 3x3 matrix to rotate the coordinates from index space (ijk) to physical space (xyz)
-    b_45d_correction = True
-    if b_45d_correction:
-        img_importer.SetDataSpacing(1.0, 1.0, 3.5)
+    b_oblique_correction = img_meta['oblique_image'] \
+                               if 'oblique_image' in img_meta else False
+    print('b_oblique_correction: ', b_oblique_correction)
+    if b_oblique_correction:
+        img_importer.SetDataSpacing(voxel_size_um[0], voxel_size_um[1],
+                                    voxel_size_um[2]*np.sqrt(2))
         rotMat = [ \
             1.0, 0.0,            0.0,
             0.0, cos(45/180*pi), 0.0,
@@ -213,10 +233,10 @@ def ImportImage(file_name):
         ]
         img_importer.SetDataDirection(rotMat)
     else:
-        img_importer.SetDataSpacing(1.0, 1.0, 2.5)
+        img_importer.SetDataSpacing(voxel_size_um)
 
-    print(img_importer.GetDataDirection())
-    print(img_importer.GetDataSpacing())
+#    print(img_importer.GetDataDirection())
+#    print(img_importer.GetDataSpacing())
 
     return img_importer
 
@@ -239,13 +259,15 @@ def ShotScreen(render_window):
 
 def SetupVolumeRender(img_importer):
     # Create transfer mapping scalar value to opacity.
-    opacity_scale = 40.0
+    #opacity_scale = 40.0
+    opacity_scale = 10.0
     opacity_transfer_function = vtkPiecewiseFunction()
     opacity_transfer_function.AddPoint(opacity_scale*20, 0.0)
     opacity_transfer_function.AddPoint(opacity_scale*255, 0.2)
 
     # Create transfer mapping scalar value to color.
-    trans_scale = 40.0
+    #trans_scale = 40.0
+    trans_scale = 10.0
     color_transfer_function = vtkColorTransferFunction()
     color_transfer_function.AddRGBPoint(trans_scale*0.0, 0.0, 0.0, 0.0)
     color_transfer_function.AddRGBPoint(trans_scale*64.0, 1.0, 0.0, 0.0)
@@ -265,7 +287,6 @@ def SetupVolumeRender(img_importer):
     #volume_mapper = vtkFixedPointVolumeRayCastMapper()
     volume_mapper = vtkGPUVolumeRayCastMapper()
     #volume_mapper.SetBlendModeToComposite()
-    #volume_mapper.SetInputConnection(reader.GetOutputPort())
     # vtkVolumeMapper
     # https://vtk.org/doc/nightly/html/classvtkVolumeMapper.html
     volume_mapper.SetInputConnection(img_importer.GetOutputPort())
@@ -283,13 +304,10 @@ def main():
 
     colors = vtkNamedColors()
 
-    # This is a simple volume rendering example that
-    # uses a vtkFixedPointVolumeRayCastMapper
-
-    # Create the standard renderer, render window
-    # and interactor.
+    # Create the renderers
     renderer1 = vtkRenderer()
     renderer1.SetLayer(0)
+
     # https://kitware.github.io/vtk-examples/site/Python/Rendering/TransparentBackground/
     renderer2 = vtkRenderer()  # for axes
     renderer2.SetLayer(1)
@@ -298,11 +316,13 @@ def main():
     # vtkAssembly
     # https://vtk.org/doc/nightly/html/classvtkAssembly.html#details
     
+    # Create the renderer window
     render_window = vtkRenderWindow()
 #    render_window = vtkSynchronizedRenderWindows()
     render_window.AddRenderer(renderer1)
     render_window.AddRenderer(renderer2)
 
+    # Create the interactor (for keyboard and mouse)
     interactor = vtkRenderWindowInteractor()
     interactor.SetInteractorStyle(MyInteractorStyle())
     interactor.AddObserver('KeyPressEvent', KeypressCallbackFunction)
@@ -310,23 +330,22 @@ def main():
     interactor.AddObserver('InteractionEvent', ModifiedCallbackFunction)
     interactor.SetRenderWindow(render_window)
 
+    # Create image object
     img_importer = ImportImage(file_name)
 
     volume = SetupVolumeRender(img_importer)
 
+    # Create Axes object
     # vtkCubeAxesActor()
     # https://kitware.github.io/vtk-examples/site/Python/Visualization/CubeAxesActor/
 
     # Dynamically change position of Axes
     # https://discourse.vtk.org/t/dynamically-change-position-of-axes/691
-#    transform = vtkTransform()
-#    transform.Translate(100.0, 100.0, 100.0)
     axes = vtkAxesActor()
     axes.SetTotalLength([1.0, 1.0, 1.0])
-#    axes.GetXAxisCaptionActor2D().GetCaptionTextProperty().SetColor(colors.GetColor3d('Red'))
-#    axes.SetXAxisLabelText('test')
     axes.SetAxisLabels(False)
 
+    # Append objects to renderers
     renderer1.AddVolume(volume)
     renderer1.SetBackground(colors.GetColor3d('Wheat'))
     renderer1.GetActiveCamera().Azimuth(45)
@@ -335,19 +354,12 @@ def main():
     renderer1.ResetCamera()
 
     renderer2.AddActor(axes)
-    print(renderer1.GetActiveCamera())
-    #renderer2.SetActiveCamera(renderer1.GetActiveCamera())
-    #renderer2.GetActiveCamera().ShallowCopy(renderer1.GetActiveCamera())
     renderer2.GetActiveCamera().DeepCopy(renderer1.GetActiveCamera())
-    #renderer2.GetActiveCamera().SetFreezeFocalPoint(True)
-    #renderer2.ResetCameraClippingRange()
-    #renderer2.ResetCamera()
     renderer2.GetActiveCamera().SetClippingRange(0.1, 1000)
-    
     AlignCameraDirection(renderer2.GetActiveCamera(),
                          renderer1.GetActiveCamera())
 
-
+    # Set the render window
     render_window.SetSize(2400, 1800)
     render_window.SetWindowName('SimpleRayCast')
     render_window.SetNumberOfLayers(2)
