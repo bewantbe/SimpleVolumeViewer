@@ -6,6 +6,9 @@
 
 # TODO: vtkVRRenderWindow
 
+import os
+import json
+
 import numpy as np
 from numpy import sin, cos, pi
 
@@ -44,6 +47,92 @@ from vtkmodules.vtkRenderingVolume import (
 # noinspection PyUnresolvedReferences
 from vtkmodules.vtkRenderingVolumeOpenGL2 import vtkOpenGLRayCastImageDisplayHelper
 
+def DefaultGUIConfigure():
+    d = {
+        "window": {
+            "size": [2400, 1800],
+            "title": "SimpleRayCast",
+            "number_of_layers": 2
+        },
+
+        "renderers":{
+            "0":{
+                "layer": 0
+            },
+            "1":{
+                "layer": 1,
+                "view_port": [0.0, 0.0, 0.2, 0.2]
+            }
+        }
+    }
+    return d
+
+def DefaultScene():
+    d = {
+        "object_properties": {
+            "volume": {
+                "opacity_transfer_function": {
+                    "AddPoint": [
+                        [20, 0.0],
+                        [255, 0.2]
+                    ],
+                    "opacity_scale": 40.0
+                },
+                "color_transfer_function": {
+                    "AddRGBPoint": [
+                        [0.0, 0.0, 0.0, 0.0],
+                        [64.0, 1.0, 0.0, 0.0],
+                        [128.0, 0.0, 0.0, 1.0],
+                        [192.0, 0.0, 1.0, 0.0],
+                        [255.0, 0.0, 0.2, 0.0]
+                    ],
+                    "trans_scale": 40.0
+                },
+                "interpolation": "cubic"
+            }
+        },
+
+        "objects": {
+            "vol1": {
+                "type": "volume",
+                "file_path": "/media/xyy/DATA/RM006_related/clip/RM006_s128_c13_f8906-9056.tif",
+                "mapper": "GPUVolumeRayCastMapper"
+            },
+            "background": {
+                "type": "Background",
+                "color": "Wheat"
+            },
+            "axes": {
+                "type": "AxesActor",
+                "ShowAxisLabels": "False",
+                "renderer": "1"
+            },
+            "camera1": {
+                "type": "Camera",
+                "renderer": "0",
+                "Azimuth": 45,
+                "Elevation": 30
+            },
+            "camera2": {
+                "type": "Camera",
+                "renderer": "1",
+                "follow_direction": "camera1"
+            }
+        }
+    }
+    return d
+
+debug_level = 4
+
+# Used for print error, controlled by debug_level.
+# higher debug_level will show more info.
+# 0 == debug_level will show no info.
+def dbg_print(level, *p, **keys):
+    if level > debug_level:
+        return
+    level_str = {1:"Error", 2:"Warning", 3:"Hint", 4:"Message"}
+    print(level_str[level] + ":", *p, **keys)
+
 # copy from volumeio.py
 # Read tiff file, return images and meta data
 def read_tiff(tif_path, as_np_array = True):
@@ -78,19 +167,18 @@ def read_tiff_meta(tif_path):
 def read_ims(ims_path, level = 0):
     ims = h5py.File(ims_path, 'r')
     img = ims['DataSet']['ResolutionLevel %d'%(level)]['TimePoint 0']['Channel 0']['Data']
-    print('image shape: ', img.shape, ' dtype =', img.dtype)
+    dbg_print(4, 'image shape: ', img.shape, ' dtype =', img.dtype)
 
     # convert metadata in IMS to python dict
-    u = ims['DataSetInfo']
+    img_info = ims['DataSetInfo']
     metadata = {}
-    for it in ims['DataSetInfo'].keys():
+    for it in img_info.keys():
         metadata[it] = \
             {k:''.join([c.decode('utf-8') for c in v])
-                for k, v in u[it].attrs.items()}
+                for k, v in img_info[it].attrs.items()}
 
-    #img_clip = img[:, :, :]  # actually read the data
     #img_clip = np.transpose(np.array(img), (2,1,0))
-    img_clip = np.array(img)
+    img_clip = np.array(img)         # actually read the data
 
     metadata['imagej'] = {'voxel_size_um': '(1.0, 1.0, 1.0)'}
     metadata['oblique_image'] = False
@@ -222,7 +310,7 @@ def ImportImage(file_name):
     # the 3x3 matrix to rotate the coordinates from index space (ijk) to physical space (xyz)
     b_oblique_correction = img_meta['oblique_image'] \
                                if 'oblique_image' in img_meta else False
-    print('b_oblique_correction: ', b_oblique_correction)
+    dbg_print(4, 'b_oblique_correction: ', b_oblique_correction)
     if b_oblique_correction:
         img_importer.SetDataSpacing(voxel_size_um[0], voxel_size_um[1],
                                     voxel_size_um[2]*np.sqrt(2))
@@ -257,119 +345,245 @@ def ShotScreen(render_window):
     writer.SetInputConnection(win2if.GetOutputPort())
     writer.Write()
 
-def SetupVolumeRender(img_importer):
-    # Create transfer mapping scalar value to opacity.
-    #opacity_scale = 40.0
-    opacity_scale = 10.0
-    opacity_transfer_function = vtkPiecewiseFunction()
-    opacity_transfer_function.AddPoint(opacity_scale*20, 0.0)
-    opacity_transfer_function.AddPoint(opacity_scale*255, 0.2)
+def MergeFullDict(d_contain, d_update):
+    # update dict d_contain by d_update
+    # i.e. overwrite d_contain for items exist in d_update
+    # Ref. https://stackoverflow.com/questions/38987/how-do-i-merge-two-dictionaries-in-a-single-expression-take-union-of-dictionari
+    def DeepUpdate(d_contain, d_update):
+        for key, value in d_update.items(): 
+            if key not in d_contain:
+                d_contain[key] = value
+            else:  # key in d_contain
+                if isinstance(value, dict):
+                    DeepUpdate(d_contain[key], value)
+                else:  # overwirte
+                    # simple sanity check: data type must agree
+                    if type(d_contain[key]) == type(value):
+                        d_contain[key] = value
+                    else:
+                        dbg_print(2, "DeepUpdate()", "key type mismatch! value discard.")
+        return d_contain
 
-    # Create transfer mapping scalar value to color.
-    #trans_scale = 40.0
-    trans_scale = 10.0
-    color_transfer_function = vtkColorTransferFunction()
-    color_transfer_function.AddRGBPoint(trans_scale*0.0, 0.0, 0.0, 0.0)
-    color_transfer_function.AddRGBPoint(trans_scale*64.0, 1.0, 0.0, 0.0)
-    color_transfer_function.AddRGBPoint(trans_scale*128.0, 0.0, 0.0, 1.0)
-    color_transfer_function.AddRGBPoint(trans_scale*192.0, 0.0, 1.0, 0.0)
-    color_transfer_function.AddRGBPoint(trans_scale*255.0, 0.0, 0.2, 0.0)
+    DeepUpdate(d_contain, d_update)
+
+    return d_contain
+
+def ReadGUIConfigure(self, gui_conf_path):
+    conf = DefaultGUIConfigure()
+    if os.path.isfile(gui_conf_path):
+        conf_ext = json.loads(open(gui_conf_path).read())
+        MergeFullDict(conf, conf_ext)
+    return conf
+
+def ReadScene(self, scene_file_path):
+    scene = DefaultScene()
+    if os.path.isfile(scene_file_path):
+        scene_ext = json.loads(open(scene_file_path).read())
+        MergeFullDict(scene, scene_ext)
+    return scene
+
+class GUIControl:
+    def __init__(self):
+        # Load configure
+        file_name = get_program_parameters()
+
+        # initialize window and renderers
+        colors = vtkNamedColors()
+
+        self.renderers = {}
+        self.render_window = None
+        self.interactor = None
+        self.object_properties = {}
+        self.scene_objects = {}
+
+    # setup window, renderers and interactor
+    def GUISetup(self, gui_conf):
+        dbg_print(4, gui_conf)
+        if "window" in gui_conf:
+            # TODO: stop the old window?
+            if self.render_window is None:
+                self.render_window = vtkRenderWindow()
+            win_conf = gui_conf["window"]
+            if "size" in win_conf:
+                self.render_window.SetSize(win_conf["size"])
+            if "title" in win_conf:
+                self.render_window.SetWindowName(win_conf["title"])
+            if "number_of_layers" in win_conf:
+                self.render_window.SetNumberOfLayers(
+                    win_conf["number_of_layers"])
+
+        if "renderers" in gui_conf:
+            # get our renderer list
+            renderers = self.renderers
+            # load new renderers
+            for key, ren_conf in gui_conf["renderers"].items():
+                if key in renderers:
+                    # remove old renderer
+                    self.render_window.RemoveRenderer(renderers[key])
+                # https://kitware.github.io/vtk-examples/site/Python/Rendering/TransparentBackground/
+                # setup new renderer
+                renderer = vtkRenderer()
+                if "layer" in ren_conf:
+                    renderer.SetLayer(ren_conf["layer"])
+                if "view_port" in ren_conf:
+                    renderer.SetViewport(ren_conf["view_port"])
+                renderers[key] = renderer
+                # add new renderer to window
+                self.render_window.AddRenderer(renderer)
+
+        # Create the interactor (for keyboard and mouse)
+        interactor = vtkRenderWindowInteractor()
+        interactor.SetInteractorStyle(MyInteractorStyle())
+        interactor.AddObserver('KeyPressEvent', KeypressCallbackFunction)
+    #    interactor.AddObserver('ModifiedEvent', ModifiedCallbackFunction)
+        interactor.AddObserver('InteractionEvent', ModifiedCallbackFunction)
+        interactor.SetRenderWindow(self.render_window)
+        self.interactor = interactor
 
     # The property describes how the data will look.
-    volume_property = vtkVolumeProperty()
-    volume_property.SetColor(color_transfer_function)
-    volume_property.SetScalarOpacity(opacity_transfer_function)
-    volume_property.ShadeOn()
-    #volume_property.SetInterpolationTypeToLinear()
-    volume_property.SetInterpolationType(vtk.VTK_CUBIC_INTERPOLATION)
+    def AddObjectProperty(self, name, prop_conf):
+        if name in self.object_properties:
+            # TODO: do we need to remove old mappers?
+            pass
+        dbg_print(4, name, ':', prop_conf)
+        if name.startswith("volume"):
+            volume_property = vtkVolumeProperty()
 
-    # The mapper / ray cast function know how to render the data.
-    #volume_mapper = vtkFixedPointVolumeRayCastMapper()
-    volume_mapper = vtkGPUVolumeRayCastMapper()
-    #volume_mapper.SetBlendModeToComposite()
-    # vtkVolumeMapper
-    # https://vtk.org/doc/nightly/html/classvtkVolumeMapper.html
-    volume_mapper.SetInputConnection(img_importer.GetOutputPort())
+            if 'opacity_transfer_function' in prop_conf:
+                otf_conf = prop_conf['opacity_transfer_function']
+                otf_v = otf_conf['AddPoint']
+                otf_s = otf_conf['opacity_scale']
+                # Create transfer mapping scalar value to opacity.
+                otf = vtkPiecewiseFunction()
+                otf.AddPoint(otf_s*otf_v[0][0], otf_v[0][1])
+                otf.AddPoint(otf_s*otf_v[1][0], otf_v[1][1])
+                volume_property.SetScalarOpacity(otf)
 
-    # The volume holds the mapper and the property and
-    # can be used to position/orient the volume.
-    volume = vtkVolume()
-    volume.SetMapper(volume_mapper)
-    volume.SetProperty(volume_property)
+            if 'color_transfer_function' in prop_conf:
+                ctf_conf = prop_conf['color_transfer_function']
+                ctf_v = ctf_conf['AddRGBPoint']
+                ctf_s = ctf_conf['trans_scale']
+                for v in ctf_v:
+                    v[0] = v[0] *  ctf_s
+                # Create transfer mapping scalar value to color.
+                ctf = vtkColorTransferFunction()
+                for v in ctf_v:
+                    ctf.AddRGBPoint(*v)
+                volume_property.SetColor(ctf)
 
-    return volume
+            volume_property.ShadeOn()
 
-def main():
-    file_name = get_program_parameters()
+            if 'interpolation' in prop_conf:
+                if prop_conf['interpolation'] == "cubic":
+                    volume_property.SetInterpolationType(
+                        vtk.VTK_CUBIC_INTERPOLATION)
+                elif prop_conf['interpolation'] == "cubic":
+                    volume_property.SetInterpolationTypeToLinear()
+                else:
+                    dbg_print(2, "AddObjectProperty(): unknown interpolation type")
+            object_property = volume_property
+        else:
+            dbg_print(2, "AddObjectProperty(): unknown object type")
 
-    colors = vtkNamedColors()
+        self.object_properties.update({name: object_property})
 
-    # Create the renderers
-    renderer1 = vtkRenderer()
-    renderer1.SetLayer(0)
+    def AddObjects(self, name, obj_conf):
+        if name in self.scene_objects:
+            # TODO: do we need to remove old object?
+            pass
 
-    # https://kitware.github.io/vtk-examples/site/Python/Rendering/TransparentBackground/
-    renderer2 = vtkRenderer()  # for axes
-    renderer2.SetLayer(1)
-    renderer2.SetViewport(0.0, 0.0, 0.2, 0.2)
-    
-    # vtkAssembly
-    # https://vtk.org/doc/nightly/html/classvtkAssembly.html#details
-    
-    # Create the renderer window
-    render_window = vtkRenderWindow()
-#    render_window = vtkSynchronizedRenderWindows()
-    render_window.AddRenderer(renderer1)
-    render_window.AddRenderer(renderer2)
+        renderer = self.renderers[
+            obj_conf.get('renderer', '0')]
 
-    # Create the interactor (for keyboard and mouse)
-    interactor = vtkRenderWindowInteractor()
-    interactor.SetInteractorStyle(MyInteractorStyle())
-    interactor.AddObserver('KeyPressEvent', KeypressCallbackFunction)
-#    interactor.AddObserver('ModifiedEvent', ModifiedCallbackFunction)
-    interactor.AddObserver('InteractionEvent', ModifiedCallbackFunction)
-    interactor.SetRenderWindow(render_window)
+        if obj_conf['type'] == 'volume':
+            # vtkVolumeMapper
+            # https://vtk.org/doc/nightly/html/classvtkVolumeMapper.html
+            if obj_conf['mapper'] == 'GPUVolumeRayCastMapper':
+                volume_mapper = vtkGPUVolumeRayCastMapper()
+            elif obj_conf['mapper'] == 'FixedPointVolumeRayCastMapper':
+                volume_mapper = vtkFixedPointVolumeRayCastMapper()
+            else:
+                volume_mapper = vtkGPUVolumeRayCastMapper()
+            #volume_mapper.SetBlendModeToComposite()
 
-    # Create image object
-    img_importer = ImportImage(file_name)
+            file_path = obj_conf['file_path']
+            img_importer = ImportImage(file_path)
+            volume_mapper.SetInputConnection(img_importer.GetOutputPort())
 
-    volume = SetupVolumeRender(img_importer)
+            volume_property = self.object_properties[
+                obj_conf.get('property', 'volume')]
 
-    # Create Axes object
-    # vtkCubeAxesActor()
-    # https://kitware.github.io/vtk-examples/site/Python/Visualization/CubeAxesActor/
+            # The volume holds the mapper and the property and
+            # can be used to position/orient the volume.
+            volume = vtkVolume()
+            volume.SetMapper(volume_mapper)
+            volume.SetProperty(volume_property)
+            
+            renderer.AddVolume(volume)
+            
+            scene_object = volume
 
-    # Dynamically change position of Axes
-    # https://discourse.vtk.org/t/dynamically-change-position-of-axes/691
-    axes = vtkAxesActor()
-    axes.SetTotalLength([1.0, 1.0, 1.0])
-    axes.SetAxisLabels(False)
+        elif obj_conf['type'] == 'AxesActor':
+            # Create Axes object
+            # vtkCubeAxesActor()
+            # https://kitware.github.io/vtk-examples/site/Python/Visualization/CubeAxesActor/
 
-    # Append objects to renderers
-    renderer1.AddVolume(volume)
-    renderer1.SetBackground(colors.GetColor3d('Wheat'))
-    renderer1.GetActiveCamera().Azimuth(45)
-    renderer1.GetActiveCamera().Elevation(30)
-    renderer1.ResetCameraClippingRange()
-    renderer1.ResetCamera()
+            # Dynamically change position of Axes
+            # https://discourse.vtk.org/t/dynamically-change-position-of-axes/691
+            axes = vtkAxesActor()
+            axes.SetTotalLength([1.0, 1.0, 1.0])
+            axes.SetAxisLabels("true"==obj_conf.get('ShowAxisLabels', "False").lower())
 
-    renderer2.AddActor(axes)
-    renderer2.GetActiveCamera().DeepCopy(renderer1.GetActiveCamera())
-    renderer2.GetActiveCamera().SetClippingRange(0.1, 1000)
-    AlignCameraDirection(renderer2.GetActiveCamera(),
-                         renderer1.GetActiveCamera())
+            renderer.AddActor(axes)
 
-    # Set the render window
-    render_window.SetSize(2400, 1800)
-    render_window.SetWindowName('SimpleRayCast')
-    render_window.SetNumberOfLayers(2)
-    render_window.Render()
+            scene_object = axes
 
-    ShotScreen(render_window)
-    
-    interactor.Initialize()
-    interactor.Start()
+        elif obj_conf['type'] == 'Background':
+            colors = vtkNamedColors()
+            renderer.SetBackground(colors.GetColor3d(obj_conf['color']))
+            scene_object = renderer
 
+        elif obj_conf['type'] == 'Camera':
+            if 'renderer' in obj_conf:
+                cam = renderer.GetActiveCamera()
+                renderer.ResetCameraClippingRange()
+                renderer.ResetCamera()
+            else:
+                cam = vtk.vtkCamera()
+
+            if ('Azimuth' in obj_conf) or ('Elevation' in obj_conf):
+                cam.Azimuth(obj_conf['Azimuth'])
+                cam.Elevation(obj_conf['Elevation'])
+
+            if 'follow_direction' in obj_conf:
+                cam_ref = self.scene_objects[obj_conf['follow_direction']]
+                cam.DeepCopy(cam_ref)
+                cam.SetClippingRange(0.1, 1000)
+                AlignCameraDirection(cam, cam_ref)
+            scene_object = cam
+
+        self.scene_objects.update({name: scene_object})
+
+    # add objects to the renderers
+    def AppendToScene(self, scene_conf):
+        if "object_properties" in scene_conf:
+            for key, prop_conf in scene_conf["object_properties"].items():
+                self.AddObjectProperty(key, prop_conf)
+
+        if "objects" in scene_conf:
+            for key, obj_conf in scene_conf["objects"].items():
+                self.AddObjects(key, obj_conf)
+        # vtkAssembly
+        # https://vtk.org/doc/nightly/html/classvtkAssembly.html#details
+        return
+
+    def ShotScreen(self):
+        ShotScreen(self.render_window)
+
+    def Start(self):
+        self.interactor.Initialize()
+        self.render_window.Render()
+        self.interactor.Start()
 
 def get_program_parameters():
     import argparse
@@ -385,4 +599,8 @@ def get_program_parameters():
 
 
 if __name__ == '__main__':
-    main()
+    gui = GUIControl()
+    gui.GUISetup(DefaultGUIConfigure())
+    gui.AppendToScene(DefaultScene())
+    gui.Start()
+    
