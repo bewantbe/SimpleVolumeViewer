@@ -93,11 +93,6 @@ def DefaultScene():
         },
 
         "objects": {
-            "vol1": {
-                "type": "volume",
-                "file_path": "/media/xyy/DATA/RM006_related/clip/RM006_s128_c13_f8906-9056.tif",
-                "mapper": "GPUVolumeRayCastMapper"
-            },
             "background": {
                 "type": "Background",
                 "color": "Wheat"
@@ -111,7 +106,8 @@ def DefaultScene():
                 "type": "Camera",
                 "renderer": "0",
                 "Azimuth": 45,
-                "Elevation": 30
+                "Elevation": 30,
+                "clipping_range": [0.1, 5000]
             },
             "camera2": {
                 "type": "Camera",
@@ -368,6 +364,14 @@ def MergeFullDict(d_contain, d_update):
 
     return d_contain
 
+# return a name not occur in name_set
+def GetNonconflitName(prefix, name_set):
+    i = 1
+    while prefix in name_set:
+        prefix = prefix + ".%.3d"%i
+        i += 1
+    return prefix
+
 def ReadGUIConfigure(self, gui_conf_path):
     conf = DefaultGUIConfigure()
     if os.path.isfile(gui_conf_path):
@@ -387,14 +391,15 @@ class GUIControl:
         # Load configure
         file_name = get_program_parameters()
 
-        # initialize window and renderers
-        colors = vtkNamedColors()
-
         self.renderers = {}
         self.render_window = None
         self.interactor = None
         self.object_properties = {}
         self.scene_objects = {}
+        
+        # load default settings
+        self.GUISetup(DefaultGUIConfigure())
+        self.AppendToScene(DefaultScene())
 
     # setup window, renderers and interactor
     def GUISetup(self, gui_conf):
@@ -496,6 +501,8 @@ class GUIControl:
             obj_conf.get('renderer', '0')]
 
         if obj_conf['type'] == 'volume':
+            dbg_print(2, "AddObjects: ",  obj_conf)
+            dbg_print(2, "renderer: ",  obj_conf.get('renderer', '0'))
             # vtkVolumeMapper
             # https://vtk.org/doc/nightly/html/classvtkVolumeMapper.html
             if obj_conf['mapper'] == 'GPUVolumeRayCastMapper':
@@ -520,7 +527,12 @@ class GUIControl:
             volume.SetProperty(volume_property)
             
             renderer.AddVolume(volume)
-            
+
+            if ('view_point' in obj_conf) and \
+                obj_conf['view_point'] == 'auto':
+                # auto view all actors
+                renderer.ResetCamera()
+
             scene_object = volume
 
         elif obj_conf['type'] == 'AxesActor':
@@ -555,6 +567,10 @@ class GUIControl:
                 cam.Azimuth(obj_conf['Azimuth'])
                 cam.Elevation(obj_conf['Elevation'])
 
+            if 'clipping_range' in obj_conf:
+                dbg_print(4, 'AddObjects(): clipping_range', obj_conf['clipping_range'])
+                cam.SetClippingRange(obj_conf['clipping_range'])
+
             if 'follow_direction' in obj_conf:
                 cam_ref = self.scene_objects[obj_conf['follow_direction']]
                 cam.DeepCopy(cam_ref)
@@ -577,6 +593,20 @@ class GUIControl:
         # https://vtk.org/doc/nightly/html/classvtkAssembly.html#details
         return
 
+    def EasyObjectImporter(self, file_path):
+        if file_path.endswith('tif'):
+            # assume this a volume
+            obj_conf = {
+                "type": "volume",
+                "file_path": file_path,
+                "mapper": "GPUVolumeRayCastMapper",
+                "view_point": "auto"
+            }
+            name = GetNonconflitName('volume', self.scene_objects.keys())
+            self.AddObjects(name, obj_conf)
+        else:
+            dbg_print(1, "Unreconized file format.")
+
     def ShotScreen(self):
         ShotScreen(self.render_window)
 
@@ -587,20 +617,18 @@ class GUIControl:
 
 def get_program_parameters():
     import argparse
-    description = 'Volume rendering of a high potential iron protein.'
+    description = 'Simple volume viewer.'
     epilogue = '''
-    This is a simple volume rendering example that uses a vtkFixedPointVolumeRayCastMapper.
+    This is a simple volume rendering viewer.
     '''
     parser = argparse.ArgumentParser(description=description, epilog=epilogue,
                                      formatter_class=argparse.RawDescriptionHelpFormatter)
-    parser.add_argument('--filename', help='ironProt.vtk', default='/media/xyy/DATA/VISoRData/RM06_set2020-09-19/RM06_s128_c13_f8906_p3.tif')
+    parser.add_argument('--filename', help='image stack filepath', default='/media/xyy/DATA/RM006_related/clip/RM006_s128_c13_f8906-9056.tif')
     args = parser.parse_args()
     return args.filename
 
-
 if __name__ == '__main__':
     gui = GUIControl()
-    gui.GUISetup(DefaultGUIConfigure())
-    gui.AppendToScene(DefaultScene())
+    gui.EasyObjectImporter(get_program_parameters())
     gui.Start()
     
