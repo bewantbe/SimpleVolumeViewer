@@ -594,6 +594,8 @@ class GUIControl:
         return
 
     def EasyObjectImporter(self, file_path):
+        if not file_path:
+            return
         if file_path.endswith('tif'):
             # assume this a volume
             obj_conf = {
@@ -623,7 +625,7 @@ def get_program_parameters():
     '''
     parser = argparse.ArgumentParser(description=description, epilog=epilogue,
                                      formatter_class=argparse.RawDescriptionHelpFormatter)
-    parser.add_argument('--filename', help='image stack filepath', default='/media/xyy/DATA/RM006_related/clip/RM006_s128_c13_f8906-9056.tif')
+    parser.add_argument('--filename', help='image stack filepath')
     args = parser.parse_args()
     return args.filename
 
