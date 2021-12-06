@@ -8,6 +8,7 @@
 
 import os
 import json
+import pprint
 
 import numpy as np
 from numpy import sin, cos, pi
@@ -16,8 +17,6 @@ import tifffile
 import h5py
 
 import vtk
-
-import pprint
 
 # noinspection PyUnresolvedReferences
 import vtkmodules.vtkInteractionStyle
@@ -160,14 +159,20 @@ def read_tiff_meta(tif_path):
         metadata['imagej'] = tif.imagej_metadata
     return metadata
 
-def read_ims(ims_path, level = 0):
+def read_ims(ims_path, extra_conf):
     ims = h5py.File(ims_path, 'r')
-    img = ims['DataSet']['ResolutionLevel %d'%(level)]['TimePoint 0']['Channel 0']['Data']
+    level      = extra_conf.get('level', 0)
+    channel    = extra_conf.get('channel', 0)
+    time_point = extra_conf.get('time_point', 0)
+    img = ims['DataSet']['ResolutionLevel %d'%(level)] \
+                        ['TimePoint %d'%(time_point)] \
+                        ['Channel %d'%(channel)]['Data']
     dbg_print(4, 'image shape: ', img.shape, ' dtype =', img.dtype)
 
     # convert metadata in IMS to python dict
     img_info = ims['DataSetInfo']
-    metadata = {}
+    metadata = {'read_ims':
+        {'level': level, 'channel': channel, 'time_point': time_point}}
     for it in img_info.keys():
         metadata[it] = \
             {k:''.join([c.decode('utf-8') for c in v])
@@ -259,9 +264,7 @@ def ModifiedCallbackFunction(caller, ev):
     
     return
 
-def Import3DImage(file_name, *item, **keys):
-    # img_arr should be a numpy array with
-    #   dimension order: Z C Y X  (full form TZCYXS)
+def Read3DImageDataFromFile(file_name, *item, **keys):
     if file_name.endswith('.tif') or file_name.endswith('.tiff'):
         img_arr, img_meta = read_tiff(file_name)
     elif file_name.endswith('.ims'):
@@ -270,7 +273,12 @@ def Import3DImage(file_name, *item, **keys):
     return img_arr, img_meta
 
 # import image to vtkImageImport() to have a connection
-def ImportImage(file_name):
+# img_arr must be a numpy-like array
+#   dimension order: Z C Y X  (full form TZCYXS)
+# img_meta may contain
+#   img_meta['imagej']['voxel_size_um']
+#   img_meta['oblique_image']
+def ImportImageArray(img_arr, img_meta):
     # Ref:
     # Numpy 3D array into VTK data types for volume rendering?
     # https://discourse.vtk.org/t/numpy-3d-array-into-vtk-data-types-for-volume-rendering/3455/2
@@ -282,14 +290,23 @@ def ImportImage(file_name):
     # def updateVolumeFromArray(volumeNode, img_arr):
 
     # See https://python.hotexamples.com/examples/vtk/-/vtkImageImport/python-vtkimageimport-function-examples.html
-    img_arr, img_meta = Import3DImage(file_name, level=2)
-    n_ch = 1
 
-    voxel_size_um = img_meta['imagej']['voxel_size_um'][1:-1]
-    voxel_size_um = tuple(map(float, voxel_size_um.split(', ')))
+    # Wild guess number of channels
+    if len(img_arr.shape) == 4:
+        n_ch = img_arr.shape[1]
+    else:
+        n_ch = 1
+
+    if ('imagej' in img_meta) and \
+       ('voxel_size_um' in img_meta['imagej']):
+        if isinstance(img_meta['imagej']['voxel_size_um'], str):
+            voxel_size_um = img_meta['imagej']['voxel_size_um'][1:-1]
+            voxel_size_um = tuple(map(float, voxel_size_um.split(', ')))
+        else:  # assume array
+            voxel_size_um = img_meta['imagej']['voxel_size_um']
 
     img_importer = vtk.vtkImageImport()
-    simg = np.ascontiguousarray(img_arr, img_arr.dtype)  # maybe .flatten()
+    simg = np.ascontiguousarray(img_arr, img_arr.dtype)  # maybe .flatten()?
     # see also: SetImportVoidPointer
     img_importer.CopyImportVoidPointer(simg.data, simg.nbytes)
     if img_arr.dtype == np.uint8:
@@ -304,8 +321,7 @@ def ImportImage(file_name):
     #img_importer.setDataOrigin()
 
     # the 3x3 matrix to rotate the coordinates from index space (ijk) to physical space (xyz)
-    b_oblique_correction = img_meta['oblique_image'] \
-                               if 'oblique_image' in img_meta else False
+    b_oblique_correction = img_meta.get('oblique_image', False)
     dbg_print(4, 'b_oblique_correction: ', b_oblique_correction)
     if b_oblique_correction:
         img_importer.SetDataSpacing(voxel_size_um[0], voxel_size_um[1],
@@ -323,6 +339,14 @@ def ImportImage(file_name):
 #    print(img_importer.GetDataSpacing())
 
     return img_importer
+
+# import image to vtkImageImport() to have a connection
+# extra_conf for extra setting to extract the image
+# the extra_conf takes higher priority than meta data in the file
+def ImportImageFile(file_name, extra_conf = None):
+    img_arr, img_meta = Read3DImageDataFromFile(file_name, extra_conf)
+    img_import = ImportImageArray(img_arr, img_meta)
+    return img_import
 
 def ShotScreen(render_window):
     # Take a screenshot
@@ -495,7 +519,7 @@ class GUIControl:
     def AddObjects(self, name, obj_conf):
         if name in self.scene_objects:
             # TODO: do we need to remove old object?
-            pass
+            name = GetNonconflitName(name, self.scene_objects)
 
         renderer = self.renderers[
             obj_conf.get('renderer', '0')]
@@ -514,7 +538,7 @@ class GUIControl:
             #volume_mapper.SetBlendModeToComposite()
 
             file_path = obj_conf['file_path']
-            img_importer = ImportImage(file_path)
+            img_importer = ImportImageFile(file_path, obj_conf)
             volume_mapper.SetInputConnection(img_importer.GetOutputPort())
 
             volume_property = self.object_properties[
@@ -589,25 +613,40 @@ class GUIControl:
         if "objects" in scene_conf:
             for key, obj_conf in scene_conf["objects"].items():
                 self.AddObjects(key, obj_conf)
-        # vtkAssembly
+        # see also vtkAssembly
         # https://vtk.org/doc/nightly/html/classvtkAssembly.html#details
         return
 
-    def EasyObjectImporter(self, file_path):
-        if not file_path:
+    def EasyObjectImporter(self, obj_desc):
+        if not obj_desc:
             return
-        if file_path.endswith('tif'):
+        if isinstance(obj_desc, str):
+            obj_desc = {'source': obj_desc}
+        file_path = obj_desc['source']
+        if file_path.endswith('.tif'):
             # assume this a volume
             obj_conf = {
                 "type": "volume",
-                "file_path": file_path,
                 "mapper": "GPUVolumeRayCastMapper",
-                "view_point": "auto"
+                "view_point": "auto",
+                "file_path": file_path
+            }
+            name = GetNonconflitName('volume', self.scene_objects.keys())
+            self.AddObjects(name, obj_conf)
+        elif file_path.endswith('.ims') or file_path.endswith('.h5'):
+            # assume this a volume
+            obj_conf = {
+                "type": "volume",
+                "mapper": "GPUVolumeRayCastMapper",
+                "view_point": "auto",
+                "file_path": file_path,
+                "level": obj_desc.get('level', 0)
             }
             name = GetNonconflitName('volume', self.scene_objects.keys())
             self.AddObjects(name, obj_conf)
         else:
-            dbg_print(1, "Unreconized file format.")
+            dbg_print(1, "Unreconized source format.")
+        return obj_conf
 
     def ShotScreen(self):
         ShotScreen(self.render_window)
@@ -626,8 +665,9 @@ def get_program_parameters():
     parser = argparse.ArgumentParser(description=description, epilog=epilogue,
                                      formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument('--filename', help='image stack filepath')
+    parser.add_argument('--level', help='for multi-level image (.ims), load only that level')
     args = parser.parse_args()
-    return args.filename
+    return args
 
 if __name__ == '__main__':
     gui = GUIControl()
