@@ -1,12 +1,13 @@
 #!/usr/bin/env python3
 
 # Usage:
-# python img_block_viewer.py --filename '/media/xyy/DATA/RM006_related/clip/RM006_s128_c13_f8906-9056.tif'
-# python img_block_viewer.py --filename '/media/xyy/DATA/RM006_related/ims_based/z00060_c3_2.ims'
+# python img_block_viewer.py --filepath '/media/xyy/DATA/RM006_related/clip/RM006_s128_c13_f8906-9056.tif'
+# python img_block_viewer.py --filepath '/media/xyy/DATA/RM006_related/ims_based/z00060_c3_2.ims'
 
 # TODO: vtkVRRenderWindow
 
 import os
+import time
 import json
 import pprint
 
@@ -128,6 +129,48 @@ def dbg_print(level, *p, **keys):
     level_str = {1:"Error", 2:"Warning", 3:"Hint", 4:"Message"}
     print(level_str[level] + ":", *p, **keys)
 
+# Utilizer to convert a fraction to integer range
+# mostly copy from VISoR_select_light/pick_big_block/volumeio.py
+# Examples:
+#   rg=[(1, 2)], max_pixel=100: return ( 0,  50)
+#   rg=[(2, 2)], max_pixel=100: return (50, 100)
+#   rg=[],       max_pixel=100: return (0, 100)
+#   rg=(0, 50),  max_pixel=100: return ( 0,  50)
+#   rg=([0.1], [0.2]), max_pixel=100: return ( 10,  20)
+def rg_part_to_pixel(rg, max_pixel):
+    if len(rg) == 0:
+        return (0, max_pixel)
+    elif len(rg)==1 and len(rg[0])==2:
+        # in the form rg=[(1, 2)], it means 1/2 part of a range
+        rg = rg[0]
+        erg = (int((rg[0]-1)/rg[1] * max_pixel), 
+               int((rg[0]  )/rg[1] * max_pixel))
+        return erg
+    elif len(rg)==2 and isinstance(rg[0], (list, tuple)):
+        # in the form rg=([0.1], [0.2]), means 0.1~0.2 part of a range
+        p0, p1 = rg[0][0], rg[1][0]
+        erg = [int(p0 * max_pixel), int(p1 * max_pixel)]
+        return erg
+    else:  # return as-is
+        return rg
+
+def slice_from_str(slice_str):
+    # Construct array slice object.
+    # Ref: https://stackoverflow.com/questions/680826/python-create-slice-object-from-string
+    # Format example: [100:400, :, 20:]
+    dim_ranges = slice_str[1:-1].split(',')
+    # convert a:b:c to slice(a,b,c)
+    dim_ranges = tuple(
+                     slice(
+                         *map(
+                             lambda x: int(x.strip())
+                                 if x.strip() else None,
+                             rg.split(':')
+                         ))
+                     for rg in dim_ranges
+                 )
+    return dim_ranges
+
 # copy from volumeio.py
 # Read tiff file, return images and meta data
 def read_tiff(tif_path, as_np_array = True):
@@ -150,6 +193,7 @@ def read_tiff(tif_path, as_np_array = True):
     return images, metadata
 
 # Read tiff file, return images and meta data
+# Returm image array and metadata.
 def read_tiff_meta(tif_path):
     # see also https://pypi.org/project/tifffile/
     tif = tifffile.TiffFile(tif_path)
@@ -159,7 +203,10 @@ def read_tiff_meta(tif_path):
         metadata['imagej'] = tif.imagej_metadata
     return metadata
 
-def read_ims(ims_path, extra_conf):
+# Read Imaris compatible image file.
+# Returm image array and metadata.
+def read_ims(ims_path, extra_conf = {}, cache_reader_obj = False):
+    # TODO: how to impliment cache_reader_obj?
     ims = h5py.File(ims_path, 'r')
     level      = int(extra_conf.get('level', 0))
     channel    = int(extra_conf.get('channel', 0))
@@ -178,8 +225,14 @@ def read_ims(ims_path, extra_conf):
             {k:''.join([c.decode('utf-8') for c in v])
                 for k, v in img_info[it].attrs.items()}
 
-    #img_clip = np.transpose(np.array(img), (2,1,0))
-    img_clip = np.array(img)         # actually read the data
+    dbg_print(3, 'read_ims(): extra_conf =', extra_conf)
+    dim_ranges = slice_from_str(str(extra_conf.get('range', '[:,:,:]')))
+    dbg_print(3, 'dim_ranges', dim_ranges)
+    
+    t0 = time.time()
+    img_clip = np.array(img[dim_ranges])         # actually read the data
+    dbg_print(3, "read_ims(): img read time: %6.3f" % (time.time()-t0))
+    #img_clip = np.transpose(np.array(img_clip), (2,1,0))
 
     metadata['imagej'] = {'voxel_size_um': '(1.0, 1.0, 1.0)'}
     metadata['oblique_image'] = False
@@ -290,6 +343,8 @@ def ImportImageArray(img_arr, img_meta):
     # def updateVolumeFromArray(volumeNode, img_arr):
 
     # See https://python.hotexamples.com/examples/vtk/-/vtkImageImport/python-vtkimageimport-function-examples.html
+
+    dbg_print(3, 'ImportImageArray(): importing image of size:',  img_arr.shape)
 
     # Wild guess number of channels
     if len(img_arr.shape) == 4:
@@ -621,8 +676,8 @@ class GUIControl:
         if not obj_desc:
             return
         if isinstance(obj_desc, str):
-            obj_desc = {'filename': obj_desc}
-        file_path = obj_desc['filename']
+            obj_desc = {'filepath': obj_desc}
+        file_path = obj_desc['filepath']
         if file_path.endswith('.tif'):
             # assume this a volume
             obj_conf = {
@@ -640,7 +695,10 @@ class GUIControl:
                 "mapper": "GPUVolumeRayCastMapper",
                 "view_point": "auto",
                 "file_path": file_path,
-                "level": obj_desc.get('level', 0)
+                "level": obj_desc.get('level', '0'),
+                "channel": obj_desc.get('channel', '0'),
+                "time_point": obj_desc.get('time_point', '0'),
+                "range": obj_desc.get('range', '[:,:,:]')
             }
             name = GetNonconflitName('volume', self.scene_objects.keys())
             self.AddObjects(name, obj_conf)
@@ -664,12 +722,17 @@ def get_program_parameters():
     '''
     parser = argparse.ArgumentParser(description=description, epilog=epilogue,
                                      formatter_class=argparse.RawDescriptionHelpFormatter)
-    parser.add_argument('--filename', help='image stack filepath')
+    parser.add_argument('--filepath', help='image stack filepath')
     parser.add_argument('--level', help='for multi-level image (.ims), load only that level')
+    parser.add_argument('--channel', help='Select channel for IMS image.')
+    parser.add_argument('--time_point', help='Select time point for IMS image.')
+    parser.add_argument('--range', help='Select range within image.')
     args = parser.parse_args()
-    # convert class attribute to dict
-    keys = ['filename', 'level']
-    d = {k: getattr(args, k) for k in keys if hasattr(args, k)}
+    # convert class attributes to dict
+    keys = ['filepath', 'level', 'channel', 'time_point', 'range']
+    d = {k: getattr(args, k) for k in keys
+            if hasattr(args, k) and getattr(args, k)}
+    dbg_print(3, 'get_program_parameters(): d=', d)
     return d
 
 if __name__ == '__main__':
