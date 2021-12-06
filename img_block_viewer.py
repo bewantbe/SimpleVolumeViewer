@@ -161,9 +161,9 @@ def read_tiff_meta(tif_path):
 
 def read_ims(ims_path, extra_conf):
     ims = h5py.File(ims_path, 'r')
-    level      = extra_conf.get('level', 0)
-    channel    = extra_conf.get('channel', 0)
-    time_point = extra_conf.get('time_point', 0)
+    level      = int(extra_conf.get('level', 0))
+    channel    = int(extra_conf.get('channel', 0))
+    time_point = int(extra_conf.get('time_point', 0))
     img = ims['DataSet']['ResolutionLevel %d'%(level)] \
                         ['TimePoint %d'%(time_point)] \
                         ['Channel %d'%(channel)]['Data']
@@ -621,8 +621,8 @@ class GUIControl:
         if not obj_desc:
             return
         if isinstance(obj_desc, str):
-            obj_desc = {'source': obj_desc}
-        file_path = obj_desc['source']
+            obj_desc = {'filename': obj_desc}
+        file_path = obj_desc['filename']
         if file_path.endswith('.tif'):
             # assume this a volume
             obj_conf = {
@@ -667,7 +667,10 @@ def get_program_parameters():
     parser.add_argument('--filename', help='image stack filepath')
     parser.add_argument('--level', help='for multi-level image (.ims), load only that level')
     args = parser.parse_args()
-    return args
+    # convert class attribute to dict
+    keys = ['filename', 'level']
+    d = {k: getattr(args, k) for k in keys if hasattr(args, k)}
+    return d
 
 if __name__ == '__main__':
     gui = GUIControl()
