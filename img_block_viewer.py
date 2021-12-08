@@ -2,9 +2,7 @@
 
 # Usage:
 # python img_block_viewer.py --filepath '/media/xyy/DATA/RM006_related/clip/RM006_s128_c13_f8906-9056.tif'
-# python img_block_viewer.py --filepath '/media/xyy/DATA/RM006_related/ims_based/z00060_c3_2.ims'
-
-# TODO: vtkVRRenderWindow
+# ./img_block_viewer.py --filepath '/media/xyy/DATA/RM006_related/ims_based/z00060_c3_2.ims' --level 3 --range '[400:800, 200:600, 300:700]' --colorscale 10
 
 import os
 import time
@@ -451,6 +449,38 @@ def GetNonconflitName(prefix, name_set):
         i += 1
     return prefix
 
+def UpdatePropertyOTFScale(obj_prop, otf_s):
+    pf = obj_prop.GetScalarOpacity()
+    dbg_print(3, 'UpdatePropertyOTFScale(): obj_prop.prop_conf:', obj_prop.prop_conf)
+    otf_v = obj_prop.ref_prop.prop_conf['opacity_transfer_function']['AddPoint']
+    
+    # initialize an array of array
+    # get all control point coordinates
+    v = np.zeros((pf.GetSize(), 4))
+    for k in range(pf.GetSize()):
+        pf.GetNodeValue(k, v[k])
+
+    for k in range(pf.GetSize()):
+        v[k][0] = otf_s * otf_v[k][0]
+        pf.SetNodeValue(k, v[k])
+
+def UpdatePropertyCTFScale(obj_prop, ctf_s):
+    ctf = obj_prop.GetRGBTransferFunction()
+    # get all control point coordinates
+    # location (X), R, G, and B values, midpoint (0.5), and sharpness(0) values
+
+    ctf_v = obj_prop.ref_prop.prop_conf['color_transfer_function']['AddRGBPoint']
+    
+    # initialize an array of array
+    # get all control point coordinates
+    v = np.zeros((ctf.GetSize(), 6))
+    for k in range(ctf.GetSize()):
+        ctf.GetNodeValue(k, v[k])
+
+    for k in range(ctf.GetSize()):
+        v[k][0] = ctf_s * ctf_v[k][0]
+        ctf.SetNodeValue(k, v[k])
+
 def ReadGUIConfigure(self, gui_conf_path):
     conf = DefaultGUIConfigure()
     if os.path.isfile(gui_conf_path):
@@ -485,6 +515,7 @@ class GUIControl:
         dbg_print(4, gui_conf)
         if "window" in gui_conf:
             # TODO: stop the old window?
+            # TODO: try vtkVRRenderWindow?
             if self.render_window is None:
                 self.render_window = vtkRenderWindow()
             win_conf = gui_conf["window"]
@@ -529,9 +560,20 @@ class GUIControl:
         if name in self.object_properties:
             # TODO: do we need to remove old mappers?
             pass
-        dbg_print(4, name, ':', prop_conf)
+        dbg_print(4, 'AddObjectProperty():', name, ':', prop_conf)
         if name.startswith("volume"):
             volume_property = vtkVolumeProperty()
+            
+            if 'copy_from' in prop_conf:
+                dbg_print(4, 'in if copy_from branch.')
+                # construct a volume property by copying from exist
+                ref_prop = self.object_properties[prop_conf['copy_from']]
+                volume_property.DeepCopy(ref_prop)
+                volume_property.prop_conf = prop_conf
+                volume_property.ref_prop = ref_prop
+                self.object_properties.update({name: volume_property})
+                self.ModifyObjectProperty(name, prop_conf)
+                return
 
             if 'opacity_transfer_function' in prop_conf:
                 otf_conf = prop_conf['opacity_transfer_function']
@@ -547,11 +589,12 @@ class GUIControl:
                 ctf_conf = prop_conf['color_transfer_function']
                 ctf_v = ctf_conf['AddRGBPoint']
                 ctf_s = ctf_conf['trans_scale']
-                for v in ctf_v:
+                ctf_v_e = np.array(ctf_v).copy()
+                for v in ctf_v_e:
                     v[0] = v[0] *  ctf_s
                 # Create transfer mapping scalar value to color.
                 ctf = vtkColorTransferFunction()
-                for v in ctf_v:
+                for v in ctf_v_e:
                     ctf.AddRGBPoint(*v)
                 volume_property.SetColor(ctf)
 
@@ -561,15 +604,30 @@ class GUIControl:
                 if prop_conf['interpolation'] == "cubic":
                     volume_property.SetInterpolationType(
                         vtk.VTK_CUBIC_INTERPOLATION)
-                elif prop_conf['interpolation'] == "cubic":
+                elif prop_conf['interpolation'] == "linear":
                     volume_property.SetInterpolationTypeToLinear()
                 else:
                     dbg_print(2, "AddObjectProperty(): unknown interpolation type")
+            volume_property.prop_conf = prop_conf
             object_property = volume_property
         else:
             dbg_print(2, "AddObjectProperty(): unknown object type")
 
         self.object_properties.update({name: object_property})
+
+    def ModifyObjectProperty(self, name, prop_conf):
+        obj_prop = self.object_properties[name]
+        if name.startswith("volume"):
+            if 'opacity_transfer_function' in prop_conf:
+                otf_conf = prop_conf['opacity_transfer_function']
+                if 'opacity_scale' in otf_conf:
+                    otf_s = otf_conf['opacity_scale']
+                    UpdatePropertyOTFScale(obj_prop, otf_s)
+            if 'color_transfer_function' in prop_conf:
+                ctf_conf = prop_conf['color_transfer_function']
+                if 'trans_scale' in ctf_conf:
+                    ctf_s = ctf_conf['trans_scale']
+                    UpdatePropertyCTFScale(obj_prop, ctf_s)
 
     def AddObjects(self, name, obj_conf):
         if name in self.scene_objects:
@@ -596,8 +654,16 @@ class GUIControl:
             img_importer = ImportImageFile(file_path, obj_conf)
             volume_mapper.SetInputConnection(img_importer.GetOutputPort())
 
-            volume_property = self.object_properties[
-                obj_conf.get('property', 'volume')]
+            # get property used in rendering
+            ref_prop_conf = obj_conf.get('property', 'volume')
+            if isinstance(ref_prop_conf, dict):
+                # add new property
+                name = GetNonconflitName('volume', self.scene_objects)
+                self.AddObjectProperty(name, ref_prop_conf)
+                volume_property = self.object_properties[name]
+            else:
+                dbg_print(3, 'AddObjects(): Using existing prop:', ref_prop_conf)
+                volume_property = self.object_properties[ref_prop_conf]
 
             # The volume holds the mapper and the property and
             # can be used to position/orient the volume.
@@ -689,7 +755,7 @@ class GUIControl:
             name = GetNonconflitName('volume', self.scene_objects.keys())
             self.AddObjects(name, obj_conf)
         elif file_path.endswith('.ims') or file_path.endswith('.h5'):
-            # assume this a volume
+            # assume this a IMS volume
             obj_conf = {
                 "type": "volume",
                 "mapper": "GPUVolumeRayCastMapper",
@@ -700,6 +766,13 @@ class GUIControl:
                 "time_point": obj_desc.get('time_point', '0'),
                 "range": obj_desc.get('range', '[:,:,:]')
             }
+            if 'colorscale' in obj_desc:
+                s = float(obj_desc['colorscale'])
+                obj_conf.update({'property': {
+                    'copy_from': 'volume',
+                    'opacity_transfer_function': {'opacity_scale': s},
+                    'color_transfer_function'  : {'trans_scale': s}
+                }})
             name = GetNonconflitName('volume', self.scene_objects.keys())
             self.AddObjects(name, obj_conf)
         else:
@@ -727,9 +800,10 @@ def get_program_parameters():
     parser.add_argument('--channel', help='Select channel for IMS image.')
     parser.add_argument('--time_point', help='Select time point for IMS image.')
     parser.add_argument('--range', help='Select range within image.')
+    parser.add_argument('--colorscale', help='Set scale of color transfer function.')
     args = parser.parse_args()
     # convert class attributes to dict
-    keys = ['filepath', 'level', 'channel', 'time_point', 'range']
+    keys = ['filepath', 'level', 'channel', 'time_point', 'range', 'colorscale']
     d = {k: getattr(args, k) for k in keys
             if hasattr(args, k) and getattr(args, k)}
     dbg_print(3, 'get_program_parameters(): d=', d)
