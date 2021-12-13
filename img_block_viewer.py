@@ -238,6 +238,7 @@ def read_ims(ims_path, extra_conf = {}, cache_reader_obj = False):
     return img_clip, metadata
 
 # mouse interaction
+# vtkInteractorStyleTerrain
 # vtkInteractorStyleFlight
 # vtkInteractorStyleTrackballCamera
 class MyInteractorStyle(vtkInteractorStyleTerrain):
@@ -289,10 +290,10 @@ def AlignCameraDirection(cam2, cam1, dist=4.0):
     r = np.array(cam1.GetPosition()) - np.array(cam1.GetFocalPoint())
     r = r / np.linalg.norm(r) * dist
 
-    # Set also up direction?
     cam2.SetRoll(cam1.GetRoll())
     cam2.SetPosition(r)
     cam2.SetFocalPoint(0, 0, 0)
+    cam2.SetViewUp(cam1.GetViewUp())
 #    print(cam2.GetModelViewTransformMatrix())
 
 def ModifiedCallbackFunction(caller, ev):
