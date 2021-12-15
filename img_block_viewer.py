@@ -351,13 +351,16 @@ def ImportImageArray(img_arr, img_meta):
     else:
         n_ch = 1
 
-    if ('imagej' in img_meta) and \
+    if (img_meta is not None) and ('imagej' in img_meta) and \
+       (img_meta['imagej'] is not None) and \
        ('voxel_size_um' in img_meta['imagej']):
         if isinstance(img_meta['imagej']['voxel_size_um'], str):
             voxel_size_um = img_meta['imagej']['voxel_size_um'][1:-1]
             voxel_size_um = tuple(map(float, voxel_size_um.split(', ')))
         else:  # assume array
             voxel_size_um = img_meta['imagej']['voxel_size_um']
+    else:
+        voxel_size_um = (1.0, 1.0, 1.0)
 
     img_importer = vtk.vtkImageImport()
     simg = np.ascontiguousarray(img_arr, img_arr.dtype)  # maybe .flatten()?
@@ -441,6 +444,15 @@ def MergeFullDict(d_contain, d_update):
     DeepUpdate(d_contain, d_update)
 
     return d_contain
+
+def LoadSWCTree(filepath):
+    d = np.loadtxt(filepath)
+    tr = (np.int32(d[:,np.array([0,6,1])]),
+          np.float64(d[:, 2:6]))
+    # tree format
+    # (id, parent_id, type), ...
+    # (x,y,z,diameter), ...
+    return tr
 
 # return a name not occur in name_set
 def GetNonconflitName(prefix, name_set):
@@ -630,6 +642,10 @@ class GUIControl:
                     ctf_s = ctf_conf['trans_scale']
                     UpdatePropertyCTFScale(obj_prop, ctf_s)
 
+    def AddSWCFiber(self, name):
+        tr = LoadSWCTree(name)
+        # decompose to line objects
+
     def AddObjects(self, name, obj_conf):
         if name in self.scene_objects:
             # TODO: do we need to remove old object?
@@ -639,8 +655,8 @@ class GUIControl:
             obj_conf.get('renderer', '0')]
 
         if obj_conf['type'] == 'volume':
-            dbg_print(2, "AddObjects: ",  obj_conf)
-            dbg_print(2, "renderer: ",  obj_conf.get('renderer', '0'))
+            dbg_print(3, "AddObjects: ",  obj_conf)
+            dbg_print(4, "renderer: ",  obj_conf.get('renderer', '0'))
             # vtkVolumeMapper
             # https://vtk.org/doc/nightly/html/classvtkVolumeMapper.html
             if obj_conf['mapper'] == 'GPUVolumeRayCastMapper':
@@ -714,7 +730,6 @@ class GUIControl:
                 cam.Elevation(obj_conf['Elevation'])
 
             if 'clipping_range' in obj_conf:
-                dbg_print(4, 'AddObjects(): clipping_range', obj_conf['clipping_range'])
                 cam.SetClippingRange(obj_conf['clipping_range'])
 
             if 'follow_direction' in obj_conf:
