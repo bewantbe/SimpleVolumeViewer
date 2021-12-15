@@ -523,6 +523,9 @@ class GUIControl:
         self.GUISetup(DefaultGUIConfigure())
         self.AppendToScene(DefaultScene())
 
+    def GetNonconflitName(self, name_prefix):
+        return GetNonconflitName(name_prefix, self.scene_objects.keys())
+
     # setup window, renderers and interactor
     def GUISetup(self, gui_conf):
         dbg_print(4, gui_conf)
@@ -642,21 +645,45 @@ class GUIControl:
                     ctf_s = ctf_conf['trans_scale']
                     UpdatePropertyCTFScale(obj_prop, ctf_s)
 
-    def AddSWCFiber(self, name):
+    def LoadSWCFibers(self, name):
         tr = LoadSWCTree(name)
+        # assume tr is well and sorted and contain only one tree
         # decompose to line objects
+
+        # re-label index in tr, s.t. root is 0 and all followings continued
+        tr_idx = tr[0]
+        max_id = max(tr_idx[:,0])   # max occur node index
+        n_id = tr_idx.shape[0]      # number of nodes
+        # relabel array
+        arr_full = np.zeros(max_id+2, dtype=np.int32)
+        arr_full[-1] = -1
+        arr_full[tr_idx[:,0]] = np.arange(n_id, dtype=np.int32)
+        tr_idx[:,0:2] = arr_full[tr_idx[:,0:2]]
+        # find branch points
+        n_child = np.histogram(tr_idx[1:,1], bins=np.arrange(n_id, dtype=np.int32))
+        # n_child == 0: leaf
+        # n_child == 1: middle of a path or root
+        # n_child >= 2: branch point
+        # assume branches are continues
+        id_bounds = np.argwhere(n_child-1)
+        id_bounds = np.insert(id_bounds, 0, 0)
+        rgs = np.transpose([id_bounds[:-1], id_bounds[1:]])
+        fibers = [ (tr_idx[rg[0]:rg[1]+1, :], tr[1][rg[0]:rg[1]+1, :]) \
+            for rg in rgs]
+        return fibers
 
     def AddObjects(self, name, obj_conf):
         if name in self.scene_objects:
             # TODO: do we need to remove old object?
-            name = GetNonconflitName(name, self.scene_objects)
+            name = self.GetNonconflitName(name)
 
         renderer = self.renderers[
             obj_conf.get('renderer', '0')]
 
+        dbg_print(3, "AddObjects: ",  obj_conf)
+        dbg_print(4, "renderer: ",  obj_conf.get('renderer', '0'))
+
         if obj_conf['type'] == 'volume':
-            dbg_print(3, "AddObjects: ",  obj_conf)
-            dbg_print(4, "renderer: ",  obj_conf.get('renderer', '0'))
             # vtkVolumeMapper
             # https://vtk.org/doc/nightly/html/classvtkVolumeMapper.html
             if obj_conf['mapper'] == 'GPUVolumeRayCastMapper':
@@ -675,7 +702,7 @@ class GUIControl:
             ref_prop_conf = obj_conf.get('property', 'volume')
             if isinstance(ref_prop_conf, dict):
                 # add new property
-                name = GetNonconflitName('volume', self.scene_objects)
+                name = self.GetNonconflitName('volume')
                 self.AddObjectProperty(name, ref_prop_conf)
                 volume_property = self.object_properties[name]
             else:
@@ -696,6 +723,11 @@ class GUIControl:
                 renderer.ResetCamera()
 
             scene_object = volume
+
+        elif obj_conf['type'] == 'swc':
+            tr_path = self.LoadSWCFibers(obj_conf['file_path'])
+            # ref: 
+            # https://kitware.github.io/vtk-examples/site/Python/GeometricObjects/PolyLine/
 
         elif obj_conf['type'] == 'AxesActor':
             # Create Axes object
@@ -768,7 +800,7 @@ class GUIControl:
                 "view_point": "auto",
                 "file_path": file_path
             }
-            name = GetNonconflitName('volume', self.scene_objects.keys())
+            name = self.GetNonconflitName('volume')
             self.AddObjects(name, obj_conf)
         elif file_path.endswith('.ims') or file_path.endswith('.h5'):
             # assume this a IMS volume
@@ -789,10 +821,20 @@ class GUIControl:
                     'opacity_transfer_function': {'opacity_scale': s},
                     'color_transfer_function'  : {'trans_scale': s}
                 }})
-            name = GetNonconflitName('volume', self.scene_objects.keys())
+            name = self.GetNonconflitName('volume')
             self.AddObjects(name, obj_conf)
         else:
             dbg_print(1, "Unreconized source format.")
+        
+        if 'swc' in obj_conf:
+            name = self.GetNonconflitName('swc')
+            obj_conf = {
+                "type": "swc",
+                "color": "red",
+                "file_path": obj_desc['swc']
+            }
+            self.AddObjects(name, obj_conf)
+
         return obj_conf
 
     def ShotScreen(self):
@@ -817,9 +859,11 @@ def get_program_parameters():
     parser.add_argument('--time_point', help='Select time point for IMS image.')
     parser.add_argument('--range', help='Select range within image.')
     parser.add_argument('--colorscale', help='Set scale of color transfer function.')
+    parser.add_argument('--swc', help='Read and draw swc file.')
     args = parser.parse_args()
     # convert class attributes to dict
-    keys = ['filepath', 'level', 'channel', 'time_point', 'range', 'colorscale']
+    keys = ['filepath', 'level', 'channel', 'time_point', 'range', 'colorscale',
+            'swc']
     d = {k: getattr(args, k) for k in keys
             if hasattr(args, k) and getattr(args, k)}
     dbg_print(3, 'get_program_parameters(): d=', d)
