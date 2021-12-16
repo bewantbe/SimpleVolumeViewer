@@ -19,8 +19,14 @@ import vtk
 
 # noinspection PyUnresolvedReferences
 import vtkmodules.vtkInteractionStyle
+from vtkmodules.vtkCommonCore import vtkPoints
 from vtkmodules.vtkCommonColor import vtkNamedColors
-from vtkmodules.vtkCommonDataModel import vtkPiecewiseFunction
+from vtkmodules.vtkCommonDataModel import (
+    vtkPiecewiseFunction,
+    vtkCellArray,
+    vtkPolyData,
+    vtkPolyLine
+)
 from vtkmodules.vtkIOImage import vtkPNGWriter
 from vtkmodules.vtkInteractionStyle import (
     vtkInteractorStyleTrackballCamera,
@@ -36,7 +42,9 @@ from vtkmodules.vtkRenderingCore import (
     vtkRenderer,
     vtkVolume,
     vtkVolumeProperty,
-    vtkWindowToImageFilter
+    vtkWindowToImageFilter,
+    vtkActor,
+    vtkPolyDataMapper
 )
 from vtkmodules.vtkRenderingVolume import (
     vtkFixedPointVolumeRayCastMapper,
@@ -44,6 +52,8 @@ from vtkmodules.vtkRenderingVolume import (
 )
 # noinspection PyUnresolvedReferences
 from vtkmodules.vtkRenderingVolumeOpenGL2 import vtkOpenGLRayCastImageDisplayHelper
+
+from vtk.util.numpy_support import numpy_to_vtk
 
 def DefaultGUIConfigure():
     d = {
@@ -116,7 +126,7 @@ def DefaultScene():
     }
     return d
 
-debug_level = 4
+debug_level = 2
 
 # Used for print error, controlled by debug_level.
 # higher debug_level will show more info.
@@ -321,7 +331,7 @@ def Read3DImageDataFromFile(file_name, *item, **keys):
         img_arr, img_meta = read_tiff(file_name)
     elif file_name.endswith('.ims'):
         img_arr, img_meta = read_ims(file_name, *item, **keys)
-    pprint.pprint(img_meta)
+    dbg_print(3, pprint.pformat(img_meta))
     return img_arr, img_meta
 
 # import image to vtkImageImport() to have a connection
@@ -453,6 +463,45 @@ def LoadSWCTree(filepath):
     # (id, parent_id, type), ...
     # (x,y,z,diameter), ...
     return tr
+
+# Split the tree in swc into linear segments (i.e. processes).
+# return processes in index of tr.
+# tr = LoadSWCTree(name)
+def SplitSWCTree(tr):
+    # assume tr is well and sorted and contain only one tree
+    # decompose to line objects
+
+    # re-label index in tr, s.t. root is 0 and all followings continued
+    tr_idx = tr[0].copy()
+    max_id = max(tr_idx[:,0])   # max occur node index
+    n_id = tr_idx.shape[0]      # number of nodes
+    # relabel array (TODO: if max_id >> n_id, we need a different algo.)
+    arr_full = np.zeros(max_id+2, dtype=np.int32)
+    arr_full[-1] = -1
+    arr_full[tr_idx[:,0]] = np.arange(n_id, dtype=np.int32)
+    tr_idx[:,0:2] = arr_full[tr_idx[:,0:2]]
+    # find branch points
+    n_child,_ = np.histogram(tr_idx[1:,1], bins=np.arange(n_id, dtype=np.int32))
+    print(n_child)
+    n_child = np.array(n_child, dtype=np.int32)
+    # n_child == 0: leaf
+    # n_child == 1: middle of a path or root
+    # n_child >= 2: branch point
+    id_bounds = np.nonzero(n_child-1)[0]
+    processes = []
+    for eid in id_bounds:
+        # travel from leaf to branching point or root
+        i = eid
+        filament = [i]
+        i = tr_idx[i, 1]  # parent
+        while n_child[i] == 1 and i != -1:
+            filament.append(i)
+            i = tr_idx[i, 1]  # parent
+        if i != -1:
+            filament.append(i)
+        processes.append(filament[::-1])
+
+    return processes
 
 # return a name not occur in name_set
 def GetNonconflitName(prefix, name_set):
@@ -645,33 +694,6 @@ class GUIControl:
                     ctf_s = ctf_conf['trans_scale']
                     UpdatePropertyCTFScale(obj_prop, ctf_s)
 
-    def LoadSWCFibers(self, name):
-        tr = LoadSWCTree(name)
-        # assume tr is well and sorted and contain only one tree
-        # decompose to line objects
-
-        # re-label index in tr, s.t. root is 0 and all followings continued
-        tr_idx = tr[0]
-        max_id = max(tr_idx[:,0])   # max occur node index
-        n_id = tr_idx.shape[0]      # number of nodes
-        # relabel array
-        arr_full = np.zeros(max_id+2, dtype=np.int32)
-        arr_full[-1] = -1
-        arr_full[tr_idx[:,0]] = np.arange(n_id, dtype=np.int32)
-        tr_idx[:,0:2] = arr_full[tr_idx[:,0:2]]
-        # find branch points
-        n_child = np.histogram(tr_idx[1:,1], bins=np.arrange(n_id, dtype=np.int32))
-        # n_child == 0: leaf
-        # n_child == 1: middle of a path or root
-        # n_child >= 2: branch point
-        # assume branches are continues
-        id_bounds = np.argwhere(n_child-1)
-        id_bounds = np.insert(id_bounds, 0, 0)
-        rgs = np.transpose([id_bounds[:-1], id_bounds[1:]])
-        fibers = [ (tr_idx[rg[0]:rg[1]+1, :], tr[1][rg[0]:rg[1]+1, :]) \
-            for rg in rgs]
-        return fibers
-
     def AddObjects(self, name, obj_conf):
         if name in self.scene_objects:
             # TODO: do we need to remove old object?
@@ -725,9 +747,46 @@ class GUIControl:
             scene_object = volume
 
         elif obj_conf['type'] == 'swc':
-            tr_path = self.LoadSWCFibers(obj_conf['file_path'])
+            ntree = LoadSWCTree(obj_conf['file_path'])
+            processes = SplitSWCTree(ntree)
             # ref: 
             # https://kitware.github.io/vtk-examples/site/Python/GeometricObjects/PolyLine/
+            # https://kitware.github.io/vtk-examples/site/Cxx/GeometricObjects/LinearCellDemo/
+            # The procedure to add lines is:
+            #    vtkPoints()  ---------------------+> vtkPolyData()
+            #    vtkPolyLine() -> vtkCellArray()  /
+            #   then
+            #    vtkPolyData() -> vtkPolyDataMapper() -> vtkActor() -> 
+            #         vtkRenderer()
+            
+            # from vtk.util.numpy_support import numpy_to_vtk
+            
+            points = vtkPoints()
+            points.SetData( numpy_to_vtk(ntree[1][:,0:3], deep=True) )
+            
+            cells = vtkCellArray()
+            for proc in processes:
+                polyLine = vtkPolyLine()
+                polyLine.GetPointIds().SetNumberOfIds(len(proc))
+                for i in range(0, len(proc)):
+                    polyLine.GetPointIds().SetId(i, proc[i])
+                cells.InsertNextCell(polyLine)
+
+            polyData = vtkPolyData()
+            polyData.SetPoints(points)
+            polyData.SetLines(cells)
+
+            colors = vtkNamedColors()
+
+            mapper = vtkPolyDataMapper()
+            mapper.SetInputData(polyData)
+            actor = vtkActor()
+            actor.SetMapper(mapper)
+            actor.GetProperty().SetColor(
+                colors.GetColor3d(obj_conf['color']))
+            renderer.AddActor(actor)
+
+            scene_object = actor
 
         elif obj_conf['type'] == 'AxesActor':
             # Create Axes object
@@ -791,51 +850,51 @@ class GUIControl:
             return
         if isinstance(obj_desc, str):
             obj_desc = {'filepath': obj_desc}
-        file_path = obj_desc['filepath']
-        if file_path.endswith('.tif'):
-            # assume this a volume
-            obj_conf = {
-                "type": "volume",
-                "mapper": "GPUVolumeRayCastMapper",
-                "view_point": "auto",
-                "file_path": file_path
-            }
-            name = self.GetNonconflitName('volume')
-            self.AddObjects(name, obj_conf)
-        elif file_path.endswith('.ims') or file_path.endswith('.h5'):
-            # assume this a IMS volume
-            obj_conf = {
-                "type": "volume",
-                "mapper": "GPUVolumeRayCastMapper",
-                "view_point": "auto",
-                "file_path": file_path,
-                "level": obj_desc.get('level', '0'),
-                "channel": obj_desc.get('channel', '0'),
-                "time_point": obj_desc.get('time_point', '0'),
-                "range": obj_desc.get('range', '[:,:,:]')
-            }
-            if 'colorscale' in obj_desc:
-                s = float(obj_desc['colorscale'])
-                obj_conf.update({'property': {
-                    'copy_from': 'volume',
-                    'opacity_transfer_function': {'opacity_scale': s},
-                    'color_transfer_function'  : {'trans_scale': s}
-                }})
-            name = self.GetNonconflitName('volume')
-            self.AddObjects(name, obj_conf)
-        else:
-            dbg_print(1, "Unreconized source format.")
         
-        if 'swc' in obj_conf:
+        if 'filepath' in obj_desc:
+            file_path = obj_desc['filepath']
+            if file_path.endswith('.tif'):
+                # assume this a volume
+                obj_conf = {
+                    "type": "volume",
+                    "mapper": "GPUVolumeRayCastMapper",
+                    "view_point": "auto",
+                    "file_path": file_path
+                }
+                name = self.GetNonconflitName('volume')
+                self.AddObjects(name, obj_conf)
+            elif file_path.endswith('.ims') or file_path.endswith('.h5'):
+                # assume this a IMS volume
+                obj_conf = {
+                    "type": "volume",
+                    "mapper": "GPUVolumeRayCastMapper",
+                    "view_point": "auto",
+                    "file_path": file_path,
+                    "level": obj_desc.get('level', '0'),
+                    "channel": obj_desc.get('channel', '0'),
+                    "time_point": obj_desc.get('time_point', '0'),
+                    "range": obj_desc.get('range', '[:,:,:]')
+                }
+                if 'colorscale' in obj_desc:
+                    s = float(obj_desc['colorscale'])
+                    obj_conf.update({'property': {
+                        'copy_from': 'volume',
+                        'opacity_transfer_function': {'opacity_scale': s},
+                        'color_transfer_function'  : {'trans_scale': s}
+                    }})
+                name = self.GetNonconflitName('volume')
+                self.AddObjects(name, obj_conf)
+            else:
+                dbg_print(1, "Unreconized source format.")
+            
+        if 'swc' in obj_desc:
             name = self.GetNonconflitName('swc')
             obj_conf = {
-                "type": "swc",
-                "color": "red",
+                "type": 'swc',
+                "color": obj_desc.get('fibercolor','Tomato'),
                 "file_path": obj_desc['swc']
             }
             self.AddObjects(name, obj_conf)
-
-        return obj_conf
 
     def ShotScreen(self):
         ShotScreen(self.render_window)
@@ -860,10 +919,11 @@ def get_program_parameters():
     parser.add_argument('--range', help='Select range within image.')
     parser.add_argument('--colorscale', help='Set scale of color transfer function.')
     parser.add_argument('--swc', help='Read and draw swc file.')
+    parser.add_argument('--fibercolor', help='Set fiber color.')
     args = parser.parse_args()
     # convert class attributes to dict
-    keys = ['filepath', 'level', 'channel', 'time_point', 'range', 'colorscale',
-            'swc']
+    keys = ['filepath', 'level', 'channel', 'time_point', 'range',
+            'colorscale', 'swc', 'fibercolor']
     d = {k: getattr(args, k) for k in keys
             if hasattr(args, k) and getattr(args, k)}
     dbg_print(3, 'get_program_parameters(): d=', d)
