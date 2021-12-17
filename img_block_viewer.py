@@ -3,6 +3,8 @@
 # Usage:
 # python img_block_viewer.py --filepath '/media/xyy/DATA/RM006_related/clip/RM006_s128_c13_f8906-9056.tif'
 # ./img_block_viewer.py --filepath '/media/xyy/DATA/RM006_related/ims_based/z00060_c3_2.ims' --level 3 --range '[400:800, 200:600, 300:700]' --colorscale 10
+# ./img_block_viewer.py --filepath /media/xyy/DATA/RM006_related/test_fanxiaowei_2021-12-14/3864-3596-2992_C3.ims --colorscale 10 --swc /media/xyy/DATA/RM006_related/test_fanxiaowei_2021-12-14/R2-N1-A2.json.swc_modified.swc --fibercolor green
+
 
 import os
 import time
@@ -55,7 +57,7 @@ from vtkmodules.vtkRenderingVolumeOpenGL2 import vtkOpenGLRayCastImageDisplayHel
 
 from vtk.util.numpy_support import numpy_to_vtk
 
-def DefaultGUIConfigure():
+def DefaultGUIConfig():
     d = {
         "window": {
             "size": [2400, 1800],
@@ -75,7 +77,7 @@ def DefaultGUIConfigure():
     }
     return d
 
-def DefaultScene():
+def DefaultSceneConfig():
     d = {
         "object_properties": {
             "volume": {
@@ -282,14 +284,11 @@ def KeypressCallbackFunction(caller, ev):
 #    ren1 = renderers.GetNextItem()
 
     key = iren.GetKeySym()
+    print('Pressed:', key)
 
-    if key == '0':
-        print('Pressed:', key)
-#        iren.GetRenderWindow().GetInteractor().GetInteractorStyle().SetDefaultRenderer(ren0)
-#        ren0.InteractiveOn()
-#        ren1.InteractiveOff()
-    if key == '1':
-        print('Pressed:', key)
+    if key == 'r':
+        pass
+
 #        iren.GetRenderWindow().GetInteractor().GetInteractorStyle().SetDefaultRenderer(ren1)
 #        ren0.InteractiveOff()
 #        ren1.InteractiveOn()
@@ -544,18 +543,37 @@ def UpdatePropertyCTFScale(obj_prop, ctf_s):
         ctf.SetNodeValue(k, v[k])
 
 def ReadGUIConfigure(self, gui_conf_path):
-    conf = DefaultGUIConfigure()
+    conf = DefaultGUIConfig()
     if os.path.isfile(gui_conf_path):
         conf_ext = json.loads(open(gui_conf_path).read())
         MergeFullDict(conf, conf_ext)
     return conf
 
 def ReadScene(self, scene_file_path):
-    scene = DefaultScene()
+    scene = DefaultSceneConfig()
     if os.path.isfile(scene_file_path):
         scene_ext = json.loads(open(scene_file_path).read())
         MergeFullDict(scene, scene_ext)
     return scene
+
+class timerCallback():
+    def __init__(self, cam, renderer):
+        self.actor = cam
+        self.iren = renderer
+        self.timerId = None
+        self.step = 0
+
+    def execute(self, obj, event):
+        cam = self.actor
+        iren = obj
+
+        cam.Azimuth(0.1)
+
+        iren.GetRenderWindow().Render()
+
+        self.step += 1
+        if self.timerId and self.step > 1000:
+            iren.DestroyTimer(self.timerId)
 
 class GUIControl:
     def __init__(self):
@@ -569,8 +587,8 @@ class GUIControl:
         self.scene_objects = {}
         
         # load default settings
-        self.GUISetup(DefaultGUIConfigure())
-        self.AppendToScene(DefaultScene())
+        self.GUISetup(DefaultGUIConfig())
+        self.AppendToScene(DefaultSceneConfig())
 
     def GetNonconflitName(self, name_prefix):
         return GetNonconflitName(name_prefix, self.scene_objects.keys())
@@ -759,8 +777,6 @@ class GUIControl:
             #    vtkPolyData() -> vtkPolyDataMapper() -> vtkActor() -> 
             #         vtkRenderer()
             
-            # from vtk.util.numpy_support import numpy_to_vtk
-            
             points = vtkPoints()
             points.SetData( numpy_to_vtk(ntree[1][:,0:3], deep=True) )
             
@@ -828,6 +844,14 @@ class GUIControl:
                 cam.DeepCopy(cam_ref)
                 cam.SetClippingRange(0.1, 1000)
                 AlignCameraDirection(cam, cam_ref)
+
+            if obj_conf['renderer'] == "0":
+                # rotate camera
+                # Sign up to receive TimerEvent
+                cb = timerCallback(cam, renderer)
+                self.interactor.AddObserver('TimerEvent', cb.execute)
+                cb.timerId = self.interactor.CreateRepeatingTimer(10)
+
             scene_object = cam
 
         self.scene_objects.update({name: scene_object})
