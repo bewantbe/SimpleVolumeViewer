@@ -17,11 +17,12 @@ from numpy import sin, cos, pi
 import tifffile
 import h5py
 
-import vtk
-
 # noinspection PyUnresolvedReferences
 import vtkmodules.vtkInteractionStyle
-from vtkmodules.vtkCommonCore import vtkPoints
+from vtkmodules.vtkCommonCore import (
+    vtkPoints,
+    VTK_CUBIC_INTERPOLATION
+)
 from vtkmodules.vtkCommonColor import vtkNamedColors
 from vtkmodules.vtkCommonDataModel import (
     vtkPiecewiseFunction,
@@ -29,7 +30,10 @@ from vtkmodules.vtkCommonDataModel import (
     vtkPolyData,
     vtkPolyLine
 )
-from vtkmodules.vtkIOImage import vtkPNGWriter
+from vtkmodules.vtkIOImage import (
+    vtkPNGWriter,
+    vtkImageImport
+)
 from vtkmodules.vtkInteractionStyle import (
     vtkInteractorStyleTrackballCamera,
     vtkInteractorStyleFlight,
@@ -371,7 +375,7 @@ def ImportImageArray(img_arr, img_meta):
     else:
         voxel_size_um = (1.0, 1.0, 1.0)
 
-    img_importer = vtk.vtkImageImport()
+    img_importer = vtkImageImport()
     simg = np.ascontiguousarray(img_arr, img_arr.dtype)  # maybe .flatten()?
     # see also: SetImportVoidPointer
     img_importer.CopyImportVoidPointer(simg.data, simg.nbytes)
@@ -686,7 +690,7 @@ class GUIControl:
             if 'interpolation' in prop_conf:
                 if prop_conf['interpolation'] == "cubic":
                     volume_property.SetInterpolationType(
-                        vtk.VTK_CUBIC_INTERPOLATION)
+                        VTK_CUBIC_INTERPOLATION)
                 elif prop_conf['interpolation'] == "linear":
                     volume_property.SetInterpolationTypeToLinear()
                 else:
