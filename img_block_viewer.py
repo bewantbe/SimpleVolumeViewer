@@ -641,6 +641,9 @@ class GUIControl:
         interactor.AddObserver('InteractionEvent', ModifiedCallbackFunction)
         interactor.SetRenderWindow(self.render_window)
         self.interactor = interactor
+        
+        # first time render, for 'Timer" event to work in Windows
+        self.render_window.Render()
 
     # The property describes how the data will look.
     def AddObjectProperty(self, name, prop_conf):
