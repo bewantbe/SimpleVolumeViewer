@@ -5,6 +5,8 @@
 # ./img_block_viewer.py --filepath '/media/xyy/DATA/RM006_related/ims_based/z00060_c3_2.ims' --level 3 --range '[400:800, 200:600, 300:700]' --colorscale 10
 # ./img_block_viewer.py --filepath /media/xyy/DATA/RM006_related/test_fanxiaowei_2021-12-14/3864-3596-2992_C3.ims --colorscale 10 --swc /media/xyy/DATA/RM006_related/test_fanxiaowei_2021-12-14/R2-N1-A2.json.swc_modified.swc --fibercolor green
 
+# Python Wrappers for VTK
+# https://vtk.org/doc/nightly/html/md__builds_gitlab_kitware_sciviz_ci_Documentation_Doxygen_PythonWrappers.html
 
 import os
 import time
@@ -56,7 +58,10 @@ from vtkmodules.vtkRenderingVolume import (
     vtkFixedPointVolumeRayCastMapper,
     vtkGPUVolumeRayCastMapper
 )
+# 
 # noinspection PyUnresolvedReferences
+#import vtkRenderingOpenGL2, vtkRenderingFreeType, vtkInteractionStyle
+#import vtkmodules.vtkRenderingVolumeOpenGL2
 from vtkmodules.vtkRenderingVolumeOpenGL2 import vtkOpenGLRayCastImageDisplayHelper
 
 from vtk.util.numpy_support import numpy_to_vtk
@@ -560,24 +565,57 @@ def ReadScene(self, scene_file_path):
         MergeFullDict(scene, scene_ext)
     return scene
 
-class timerCallback():
-    def __init__(self, cam, renderer):
+# Rotate camera
+class execSmoothRotation():
+    def __init__(self, cam, degree_per_sec):
         self.actor = cam
-        self.iren = renderer
-        self.timerId = None
-        self.step = 0
+        self.degree_per_sec = degree_per_sec
+        self.time_start = None
+        self.time_last_update = self.time_start
 
-    def execute(self, obj, event):
-        cam = self.actor
+    def startat(self, time_start):
+        self.time_start = time_start
+        self.time_last_update = self.time_start
+
+    def __call__(self, obj, event, time_now):
+        if time_now < self.time_start:
+            return
+        t_last_elapsed = time_now - self.time_last_update
+        self.actor.Azimuth(self.degree_per_sec * t_last_elapsed)
+        self.time_last_update = time_now
         iren = obj
-
-        cam.Azimuth(0.1)
-
         iren.GetRenderWindow().Render()
+        #print('execSmoothRotation: Ren', time_now - self.time_start)
 
-        self.step += 1
-        if self.timerId and self.step > 1000:
-            iren.DestroyTimer(self.timerId)
+# Sign up to receive TimerEvent
+class timerHandler():
+    def __init__(self, interactor, duration, exec_obj):
+        self.exec_obj = exec_obj
+        self.interactor = interactor
+        self.timerId = None
+        self.time_start = 0
+        self.duration = duration
+
+    def callback(self, obj, event):
+        t_now = time.time()
+        if t_now - self.time_start > self.duration:
+            self.stop()
+            # align the time to the exact boundary
+            t_now = self.time_start + self.duration
+        self.exec_obj(obj, event, t_now)
+
+    def start(self):
+        self.interactor.AddObserver('TimerEvent', self.callback)
+        self.time_start = time.time()
+        self.exec_obj.startat(self.time_start)
+        self.timerId = self.interactor.CreateRepeatingTimer(10)
+    
+    def stop(self):
+        if self.timerId:
+            self.interactor.DestroyTimer(self.timerId)
+
+    def __del__(self):
+        self.stop()
 
 class GUIControl:
     def __init__(self):
@@ -738,6 +776,9 @@ class GUIControl:
             elif obj_conf['mapper'] == 'FixedPointVolumeRayCastMapper':
                 volume_mapper = vtkFixedPointVolumeRayCastMapper()
             else:
+                # TODO: consider use vtkMultiBlockVolumeMapper
+                # OR: vtkSmartVolumeMapper https://vtk.org/doc/nightly/html/classvtkSmartVolumeMapper.html#details
+                # vtkOpenGLGPUVolumeRayCastMapper
                 volume_mapper = vtkGPUVolumeRayCastMapper()
             #volume_mapper.SetBlendModeToComposite()
 
@@ -853,11 +894,8 @@ class GUIControl:
                 AlignCameraDirection(cam, cam_ref)
 
             if obj_conf['renderer'] == "0":
-                # rotate camera
-                # Sign up to receive TimerEvent
-                cb = timerCallback(cam, renderer)
-                self.interactor.AddObserver('TimerEvent', cb.execute)
-                cb.timerId = self.interactor.CreateRepeatingTimer(10)
+                rotator = execSmoothRotation(cam, 60.0)
+                timerHandler(self.interactor, 6.0, rotator).start()
 
             scene_object = cam
 
