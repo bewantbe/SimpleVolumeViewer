@@ -42,7 +42,8 @@ from vtkmodules.vtkIOImage import (
 from vtkmodules.vtkInteractionStyle import (
     vtkInteractorStyleTrackballCamera,
     vtkInteractorStyleFlight,
-    vtkInteractorStyleTerrain
+    vtkInteractorStyleTerrain,
+    vtkInteractorStyleUser
 )
 from vtkmodules.vtkInteractionWidgets import vtkOrientationMarkerWidget
 from vtkmodules.vtkRenderingAnnotation import vtkAxesActor
@@ -271,11 +272,14 @@ def read_ims(ims_path, extra_conf = {}, cache_reader_obj = False):
 # vtkInteractorStyleTerrain
 # vtkInteractorStyleFlight
 # vtkInteractorStyleTrackballCamera
+# vtkInteractorStyleUser
 class MyInteractorStyle(vtkInteractorStyleTerrain):
 
-    def __init__(self, parent=None):
+    def __init__(self, iren):
         self.AddObserver('MiddleButtonPressEvent', self.middle_button_press_event)
         self.AddObserver('MiddleButtonReleaseEvent', self.middle_button_release_event)
+        self.AddObserver('CharEvent', self.OnChar)
+        self.iren = iren
 
     def middle_button_press_event(self, obj, event):
         print('Middle Button pressed')
@@ -287,31 +291,35 @@ class MyInteractorStyle(vtkInteractorStyleTerrain):
         self.OnMiddleButtonUp()
         return
 
-# Ref: Demonstrates the use of two renderers. Notice that the second (and subsequent) renderers will have a transparent background.
-# https://kitware.github.io/vtk-examples/site/Python/Rendering/TransparentBackground/
-def KeypressCallbackFunction(caller, ev):
-    iren = caller
-    renderers = iren.GetRenderWindow().GetRenderers()
-#    if renderers.GetNumberOfItems() < 2:
-#        print('We need at least two renderers, we have only', renderers.GetNumberOfItems())
-#        return
-#    renderers.InitTraversal()
-#    # Top item
-#    ren0 = renderers.GetNextItem()
-#    # Bottom item
-#    ren1 = renderers.GetNextItem()
+    def OnChar(self, obj, event):
+        iren = self.iren
 
-    key = iren.GetKeySym()
-    print('Pressed:', key)
+        key_code = iren.GetKeyCode()
+        b_C = iren.GetControlKey()
+        b_A = iren.GetAltKey()
+        b_S = iren.GetShiftKey()  # sometimes reflected in key_code
 
-    if key == 'r':
-        pass
+        key_combo = ("Ctrl+" if b_C else "") + ("Alt+" if b_A else "") + ("Shift+" if b_S else "") + key_code
+        print('Pressed:', key_combo)
+        
+        is_default_binding = (key_code.lower() in 'jtca3efprsuw') and \
+                             not b_C
 
-#        iren.GetRenderWindow().GetInteractor().GetInteractorStyle().SetDefaultRenderer(ren1)
-#        ren0.InteractiveOff()
-#        ren1.InteractiveOn()
+        #        shift ctrl alt
+        #    q    T    F    T
+        #    3    F    F    T
+        #    e    T    F    T
+        #    r    T    F    T
 
-# align cam2 by cam1
+        renderers = iren.GetRenderWindow().GetRenderers()
+        if 'r':
+            pass
+
+        # Let's say, disable all default key bindings (except q)
+        if not is_default_binding:
+            super(MyInteractorStyle, obj).OnChar()
+
+# Align cam2 by cam1
 # make cam2 dist away from origin
 def AlignCameraDirection(cam2, cam1, dist=4.0):
     r = np.array(cam1.GetPosition()) - np.array(cam1.GetFocalPoint())
@@ -483,8 +491,8 @@ def LoadSWCTree(filepath):
 # return processes in index of tr.
 # tr = LoadSWCTree(name)
 def SplitSWCTree(tr):
-    # assume tr is well and sorted and contain only one tree
-    # decompose to line objects
+    # Decompose tree to line objects
+    # Assume tr is well and sorted and contain only one tree
 
     # re-label index in tr, s.t. root is 0 and all followings continued
     tr_idx = tr[0].copy()
@@ -497,7 +505,6 @@ def SplitSWCTree(tr):
     tr_idx[:,0:2] = arr_full[tr_idx[:,0:2]]
     # find branch points
     n_child,_ = np.histogram(tr_idx[1:,1], bins=np.arange(n_id, dtype=np.int32))
-    print(n_child)
     n_child = np.array(n_child, dtype=np.int32)
     # n_child == 0: leaf
     # n_child == 1: middle of a path or root
@@ -659,6 +666,8 @@ class GUIControl:
                 self.render_window.SetNumberOfLayers(
                     win_conf["number_of_layers"])
 
+        # Ref: Demonstrates the use of two renderers. Notice that the second (and subsequent) renderers will have a transparent background.
+        # https://kitware.github.io/vtk-examples/site/Python/Rendering/TransparentBackground/
         if "renderers" in gui_conf:
             # get our renderer list
             renderers = self.renderers
@@ -680,8 +689,7 @@ class GUIControl:
 
         # Create the interactor (for keyboard and mouse)
         interactor = vtkRenderWindowInteractor()
-        interactor.SetInteractorStyle(MyInteractorStyle())
-        interactor.AddObserver('KeyPressEvent', KeypressCallbackFunction)
+        interactor.SetInteractorStyle(MyInteractorStyle(interactor))
     #    interactor.AddObserver('ModifiedEvent', ModifiedCallbackFunction)
         interactor.SetRenderWindow(self.render_window)
         self.interactor = interactor
