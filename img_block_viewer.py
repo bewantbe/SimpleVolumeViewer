@@ -8,6 +8,9 @@
 # Python Wrappers for VTK
 # https://vtk.org/doc/nightly/html/md__builds_gitlab_kitware_sciviz_ci_Documentation_Doxygen_PythonWrappers.html
 
+# Demonstrates physically based rendering using image based lighting and a skybox.
+# https://kitware.github.io/vtk-examples/site/Python/Rendering/PBR_Skybox/
+
 import os
 import time
 import json
@@ -41,6 +44,7 @@ from vtkmodules.vtkInteractionStyle import (
     vtkInteractorStyleFlight,
     vtkInteractorStyleTerrain
 )
+from vtkmodules.vtkInteractionWidgets import vtkOrientationMarkerWidget
 from vtkmodules.vtkRenderingAnnotation import vtkAxesActor
 from vtkmodules.vtkCommonTransforms import vtkTransform
 from vtkmodules.vtkRenderingCore import (
@@ -121,6 +125,11 @@ def DefaultSceneConfig():
                 "ShowAxisLabels": "False",
                 "renderer": "1"
             },
+#            "orientation": {
+#                "type": "OrientationMarker",
+#                "ShowAxisLabels": "False",
+#                "renderer": "0"
+#            },
             "camera1": {
                 "type": "Camera",
                 "renderer": "0",
@@ -314,7 +323,7 @@ def AlignCameraDirection(cam2, cam1, dist=4.0):
     cam2.SetViewUp(cam1.GetViewUp())
 #    print(cam2.GetModelViewTransformMatrix())
 
-def ModifiedCallbackFunction(caller, ev):
+def CameraFollowCallbackFunction(caller, ev):
     # never happed
     if ev == 'StartRotateEvent':
         pass
@@ -676,7 +685,6 @@ class GUIControl:
         interactor.SetInteractorStyle(MyInteractorStyle())
         interactor.AddObserver('KeyPressEvent', KeypressCallbackFunction)
     #    interactor.AddObserver('ModifiedEvent', ModifiedCallbackFunction)
-        interactor.AddObserver('InteractionEvent', ModifiedCallbackFunction)
         interactor.SetRenderWindow(self.render_window)
         self.interactor = interactor
         
@@ -853,19 +861,43 @@ class GUIControl:
             scene_object = actor
 
         elif obj_conf['type'] == 'AxesActor':
-            # Create Axes object
+            # Create Axes object to indicate the orientation
             # vtkCubeAxesActor()
             # https://kitware.github.io/vtk-examples/site/Python/Visualization/CubeAxesActor/
 
             # Dynamically change position of Axes
             # https://discourse.vtk.org/t/dynamically-change-position-of-axes/691
+            # Method 1
             axes = vtkAxesActor()
             axes.SetTotalLength([1.0, 1.0, 1.0])
             axes.SetAxisLabels("true"==obj_conf.get('ShowAxisLabels', "False").lower())
 
-            renderer.AddActor(axes)
+            self.interactor.AddObserver('InteractionEvent',
+                CameraFollowCallbackFunction)
 
+            renderer.AddActor(axes)
             scene_object = axes
+
+        elif obj_conf['type'] == 'OrientationMarker':
+            # Method 2
+            # Ref: https://kitware.github.io/vtk-examples/site/Python/Interaction/CallBack/
+            axes = vtkAxesActor()
+            axes.SetTotalLength([1.0, 1.0, 1.0])
+            #axes.SetAxisLabels("true"==obj_conf.get('ShowAxisLabels', "False").lower())
+            axes.SetAxisLabels(True)
+
+            # Ref: https://vtk.org/doc/nightly/html/classvtkOrientationMarkerWidget.html
+            om = vtkOrientationMarkerWidget()
+            om.SetOrientationMarker(axes)
+            om.SetInteractor(self.interactor)
+            om.SetDefaultRenderer(renderer)
+            om.EnabledOn()
+            om.SetInteractive(False)
+            #om.InteractiveOn()
+            om.SetViewport(0, 0, 0.2, 0.2)
+            # TODO: the vtkOrientationMarkerWidget and timerHandler can cause program lose respons or Segmentation fault, for unknown reason.
+
+            scene_object = om
 
         elif obj_conf['type'] == 'Background':
             colors = vtkNamedColors()
@@ -895,7 +927,7 @@ class GUIControl:
 
             if obj_conf['renderer'] == "0":
                 rotator = execSmoothRotation(cam, 60.0)
-                timerHandler(self.interactor, 6.0, rotator).start()
+                timerHandler(self.interactor, 1.0, rotator).start()
 
             scene_object = cam
 
