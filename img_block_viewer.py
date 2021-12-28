@@ -120,16 +120,6 @@ def DefaultSceneConfig():
                 "type": "Background",
                 "color": "Wheat"
             },
-            "axes": {
-                "type": "AxesActor",
-                "ShowAxisLabels": "False",
-                "renderer": "1"
-            },
-#            "orientation": {
-#                "type": "OrientationMarker",
-#                "ShowAxisLabels": "False",
-#                "renderer": "0"
-#            },
             "camera1": {
                 "type": "Camera",
                 "renderer": "0",
@@ -141,7 +131,17 @@ def DefaultSceneConfig():
                 "type": "Camera",
                 "renderer": "1",
                 "follow_direction": "camera1"
-            }
+            },
+            "axes": {
+                "type": "AxesActor",
+                "ShowAxisLabels": "False",
+                "renderer": "1"
+            },
+#            "orientation": {
+#                "type": "OrientationMarker",
+#                "ShowAxisLabels": "False",
+#                "renderer": "0"
+#            },
         }
     }
     return d
@@ -324,20 +324,18 @@ def AlignCameraDirection(cam2, cam1, dist=4.0):
 #    print(cam2.GetModelViewTransformMatrix())
 
 def CameraFollowCallbackFunction(caller, ev):
-    # never happed
-    if ev == 'StartRotateEvent':
-        pass
-    elif ev == 'EndRotateEvent':
-        pass
-    elif ev == 'RotateEvent':
-        pass
+#    print('caller\n', caller)
+#    print('ev\n', ev)
     
-    rens = caller.GetRenderWindow().GetRenderers()
-    rens.InitTraversal()
-    ren1 = rens.GetNextItem()
-    ren2 = rens.GetNextItem()
-    cam1 = ren1.GetActiveCamera()
-    cam2 = ren2.GetActiveCamera()
+#    rens = caller.GetRenderWindow().GetRenderers()
+#    rens.InitTraversal()
+#    ren1 = rens.GetNextItem()
+#    ren2 = rens.GetNextItem()
+#    cam1 = ren1.GetActiveCamera()
+#    cam2 = ren2.GetActiveCamera()
+
+    cam1 = CameraFollowCallbackFunction.cam1
+    cam2 = CameraFollowCallbackFunction.cam2
 
     AlignCameraDirection(cam2, cam1)
     
@@ -872,7 +870,14 @@ class GUIControl:
             axes.SetTotalLength([1.0, 1.0, 1.0])
             axes.SetAxisLabels("true"==obj_conf.get('ShowAxisLabels', "False").lower())
 
-            self.interactor.AddObserver('InteractionEvent',
+#            self.interactor.AddObserver('InteractionEvent',
+#                CameraFollowCallbackFunction)
+
+            CameraFollowCallbackFunction.cam1 = self.renderers['0'].GetActiveCamera()
+            CameraFollowCallbackFunction.cam2 = self.renderers['1'].GetActiveCamera()
+
+            c = self.renderers['0'].GetActiveCamera()
+            c.AddObserver('ModifiedEvent',
                 CameraFollowCallbackFunction)
 
             renderer.AddActor(axes)
@@ -927,7 +932,7 @@ class GUIControl:
 
             if obj_conf['renderer'] == "0":
                 rotator = execSmoothRotation(cam, 60.0)
-                timerHandler(self.interactor, 1.0, rotator).start()
+                timerHandler(self.interactor, 6.0, rotator).start()
 
             scene_object = cam
 
