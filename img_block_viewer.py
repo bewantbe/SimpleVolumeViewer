@@ -275,11 +275,12 @@ def read_ims(ims_path, extra_conf = {}, cache_reader_obj = False):
 # vtkInteractorStyleUser
 class MyInteractorStyle(vtkInteractorStyleTerrain):
 
-    def __init__(self, iren):
+    def __init__(self, iren, guictrl):
         self.AddObserver('MiddleButtonPressEvent', self.middle_button_press_event)
         self.AddObserver('MiddleButtonReleaseEvent', self.middle_button_release_event)
         self.AddObserver('CharEvent', self.OnChar)
         self.iren = iren
+        self.guictrl = guictrl
 
     def middle_button_press_event(self, obj, event):
         print('Middle Button pressed')
@@ -294,13 +295,14 @@ class MyInteractorStyle(vtkInteractorStyleTerrain):
     def OnChar(self, obj, event):
         iren = self.iren
 
+        key_sym  = iren.GetKeySym()   # useful for PageUp etc.
         key_code = iren.GetKeyCode()
         b_C = iren.GetControlKey()
         b_A = iren.GetAltKey()
         b_S = iren.GetShiftKey()  # sometimes reflected in key_code
 
         key_combo = ("Ctrl+" if b_C else "") + ("Alt+" if b_A else "") + ("Shift+" if b_S else "") + key_code
-        print('Pressed:', key_combo)
+        dbg_print(4, 'Pressed:', key_combo, '  key_sym:', key_sym)
         
         is_default_binding = (key_code.lower() in 'jtca3efprsuw') and \
                              not b_C
@@ -311,9 +313,28 @@ class MyInteractorStyle(vtkInteractorStyleTerrain):
         #    e    T    F    T
         #    r    T    F    T
 
-        renderers = iren.GetRenderWindow().GetRenderers()
-        if 'r':
-            pass
+        rens = iren.GetRenderWindow().GetRenderers()
+        
+        if key_combo == 'r':
+            rens.InitTraversal()
+            ren1 = rens.GetNextItem()
+            ren2 = rens.GetNextItem()
+            cam1 = ren1.GetActiveCamera()
+            cam2 = ren2.GetActiveCamera()
+            rotator = execSmoothRotation(cam1, 60.0)
+            timerHandler(iren, 6.0, rotator).start()
+        elif key_combo == '+' or key_combo == '-':
+            vol_name = 'volume'
+            obj_prop = self.guictrl.object_properties[vol_name]
+            cs_o, cs_c = GetColorScale(obj_prop)
+            k = np.sqrt(np.sqrt(2))
+            if key_combo == '+':
+                k = 1.0 / k
+            SetColorScale(obj_prop, [cs_o*k, cs_c*k])
+            scene_obj = self.guictrl.scene_objects['volume']
+#            scene_obj.Modified()  # not work
+#            scene_obj.Update()
+            iren.GetRenderWindow().Render()
 
         # Let's say, disable all default key bindings (except q)
         if not is_default_binding:
@@ -544,6 +565,9 @@ def UpdatePropertyOTFScale(obj_prop, otf_s):
     for k in range(pf.GetSize()):
         pf.GetNodeValue(k, v[k])
 
+    if otf_s is None:  # return old otf and current setting
+        return otf_v, v
+
     for k in range(pf.GetSize()):
         v[k][0] = otf_s * otf_v[k][0]
         pf.SetNodeValue(k, v[k])
@@ -561,9 +585,27 @@ def UpdatePropertyCTFScale(obj_prop, ctf_s):
     for k in range(ctf.GetSize()):
         ctf.GetNodeValue(k, v[k])
 
+    if ctf_s is None:  # return old ctf and current setting
+        return ctf_v, v
+
     for k in range(ctf.GetSize()):
         v[k][0] = ctf_s * ctf_v[k][0]
         ctf.SetNodeValue(k, v[k])
+
+def GetColorScale(obj_prop):
+    # guess values of colorscale for otf and ctf
+    otf_v, o_v = UpdatePropertyOTFScale(obj_prop, None)
+    ctf_v, c_v = UpdatePropertyCTFScale(obj_prop, None)
+    return o_v[-1][0] / otf_v[-1][0], c_v[-1][0] / ctf_v[-1][0]
+
+def SetColorScale(obj_prop, scale):
+    if hasattr(scale, '__iter__'):
+        otf_s = scale[0]
+        ctf_s = scale[1]
+    else:  # scalar
+        otf_s = ctf_s = scale
+    UpdatePropertyOTFScale(obj_prop, otf_s)
+    UpdatePropertyCTFScale(obj_prop, ctf_s)
 
 def ReadGUIConfigure(self, gui_conf_path):
     conf = DefaultGUIConfig()
@@ -689,7 +731,7 @@ class GUIControl:
 
         # Create the interactor (for keyboard and mouse)
         interactor = vtkRenderWindowInteractor()
-        interactor.SetInteractorStyle(MyInteractorStyle(interactor))
+        interactor.SetInteractorStyle(MyInteractorStyle(interactor, self))
     #    interactor.AddObserver('ModifiedEvent', ModifiedCallbackFunction)
         interactor.SetRenderWindow(self.render_window)
         self.interactor = interactor
@@ -937,10 +979,6 @@ class GUIControl:
                 cam.DeepCopy(cam_ref)
                 cam.SetClippingRange(0.1, 1000)
                 AlignCameraDirection(cam, cam_ref)
-
-            if obj_conf['renderer'] == "0":
-                rotator = execSmoothRotation(cam, 60.0)
-                timerHandler(self.interactor, 6.0, rotator).start()
 
             scene_object = cam
 
