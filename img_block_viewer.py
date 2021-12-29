@@ -143,6 +143,13 @@ def DefaultSceneConfig():
 #                "ShowAxisLabels": "False",
 #                "renderer": "0"
 #            },
+#            "volume": {
+#                "type": "volume",
+#                "mapper": "GPUVolumeRayCastMapper",
+#                "view_point": "auto",
+#                "file_path": file_path,
+#                "property": "volume"
+#            }
         }
     }
     return d
@@ -557,7 +564,9 @@ def GetNonconflitName(prefix, name_set):
 def UpdatePropertyOTFScale(obj_prop, otf_s):
     pf = obj_prop.GetScalarOpacity()
     dbg_print(3, 'UpdatePropertyOTFScale(): obj_prop.prop_conf:', obj_prop.prop_conf)
-    otf_v = obj_prop.ref_prop.prop_conf['opacity_transfer_function']['AddPoint']
+    if hasattr(obj_prop, 'ref_prop'):
+        obj_prop = obj_prop.ref_prop
+    otf_v = obj_prop.prop_conf['opacity_transfer_function']['AddPoint']
     
     # initialize an array of array
     # get all control point coordinates
@@ -577,7 +586,9 @@ def UpdatePropertyCTFScale(obj_prop, ctf_s):
     # get all control point coordinates
     # location (X), R, G, and B values, midpoint (0.5), and sharpness(0) values
 
-    ctf_v = obj_prop.ref_prop.prop_conf['color_transfer_function']['AddRGBPoint']
+    if hasattr(obj_prop, 'ref_prop'):
+        obj_prop = obj_prop.ref_prop
+    ctf_v = obj_prop.prop_conf['color_transfer_function']['AddRGBPoint']
     
     # initialize an array of array
     # get all control point coordinates
@@ -1013,8 +1024,6 @@ class GUIControl:
                     "view_point": "auto",
                     "file_path": file_path
                 }
-                name = self.GetNonconflitName('volume')
-                self.AddObjects(name, obj_conf)
             elif file_path.endswith('.ims') or file_path.endswith('.h5'):
                 # assume this a IMS volume
                 obj_conf = {
@@ -1027,17 +1036,22 @@ class GUIControl:
                     "time_point": obj_desc.get('time_point', '0'),
                     "range": obj_desc.get('range', '[:,:,:]')
                 }
-                if 'colorscale' in obj_desc:
-                    s = float(obj_desc['colorscale'])
-                    obj_conf.update({'property': {
-                        'copy_from': 'volume',
-                        'opacity_transfer_function': {'opacity_scale': s},
-                        'color_transfer_function'  : {'trans_scale': s}
-                    }})
-                name = self.GetNonconflitName('volume')
-                self.AddObjects(name, obj_conf)
             else:
                 dbg_print(1, "Unreconized source format.")
+                return
+            
+            if 'colorscale' in obj_desc:
+                s = float(obj_desc['colorscale'])
+                obj_conf.update({'property': {
+                    'copy_from': 'volume',
+                    'opacity_transfer_function': {'opacity_scale': s},
+                    'color_transfer_function'  : {'trans_scale': s}
+                }})
+            else:
+                obj_conf.update({'property': 'volume'})
+
+            name = self.GetNonconflitName('volume')
+            self.AddObjects(name, obj_conf)
             
         if 'swc' in obj_desc:
             name = self.GetNonconflitName('swc')
