@@ -151,12 +151,13 @@ def DefaultSceneConfig():
 #            },
 #            "volume": {
 #                "type": "volume",
+#                "property": "volume"
 #                "mapper": "GPUVolumeRayCastMapper",
 #                "view_point": "auto",
+#                "file_path": file_path,
 #                "origin": [100, 200, 300],
 #                "rotation_matrix": [1,0,0, 0,1,0, 0,0,1],
-#                "file_path": file_path,
-#                "property": "volume"
+#                "colorscale": 10
 #            }
         }
     }
@@ -346,12 +347,12 @@ class MyInteractorStyle(vtkInteractorStyleTerrain):
             cam2 = ren2.GetActiveCamera()
             rotator = execSmoothRotation(cam1, 60.0)
             timerHandler(iren, 6.0, rotator).start()
-        elif key_sym == 'plus' or key_sym == 'minus':
+        elif key_sym in ['plus','minus'] or key_combo in '+-':
             vol_name = 'volume'
             obj_prop = self.guictrl.object_properties[vol_name]
             cs_o, cs_c = GetColorScale(obj_prop)
             k = np.sqrt(np.sqrt(2))
-            if key_sym == 'plus':
+            if key_sym == 'plus' or key_combo == '+':
                 k = 1.0 / k
             SetColorScale(obj_prop, [cs_o*k, cs_c*k])
             scene_obj = self.guictrl.scene_objects['volume']
@@ -420,7 +421,7 @@ def ImportImageArray(img_arr, img_meta):
 
     # See https://python.hotexamples.com/examples/vtk/-/vtkImageImport/python-vtkimageimport-function-examples.html
 
-    dbg_print(3, 'ImportImageArray(): importing image of size:',  img_arr.shape)
+    dbg_print(4, 'ImportImageArray(): importing image of size:',  img_arr.shape)
 
     # Wild guess number of channels
     if len(img_arr.shape) == 4:
@@ -579,7 +580,6 @@ def GetNonconflitName(prefix, name_set):
 
 def UpdatePropertyOTFScale(obj_prop, otf_s):
     pf = obj_prop.GetScalarOpacity()
-    dbg_print(3, 'UpdatePropertyOTFScale(): obj_prop.prop_conf:', obj_prop.prop_conf)
     if hasattr(obj_prop, 'ref_prop'):
         obj_prop = obj_prop.ref_prop
     otf_v = obj_prop.prop_conf['opacity_transfer_function']['AddPoint']
@@ -635,14 +635,14 @@ def SetColorScale(obj_prop, scale):
     UpdatePropertyOTFScale(obj_prop, otf_s)
     UpdatePropertyCTFScale(obj_prop, ctf_s)
 
-def ReadGUIConfigure(self, gui_conf_path):
+def ReadGUIConfigure(gui_conf_path):
     conf = DefaultGUIConfig()
     if os.path.isfile(gui_conf_path):
         conf_ext = json.loads(open(gui_conf_path).read())
         MergeFullDict(conf, conf_ext)
     return conf
 
-def ReadScene(self, scene_file_path):
+def ReadScene(scene_file_path):
     scene = DefaultSceneConfig()
     if os.path.isfile(scene_file_path):
         scene_ext = json.loads(open(scene_file_path).read())
@@ -849,7 +849,7 @@ class GUIControl:
         renderer = self.renderers[
             obj_conf.get('renderer', '0')]
 
-        dbg_print(3, "AddObjects: ",  obj_conf)
+        dbg_print(4, "AddObjects: ",  obj_conf)
         dbg_print(4, "renderer: ",  obj_conf.get('renderer', '0'))
 
         if obj_conf['type'] == 'volume':
@@ -866,9 +866,10 @@ class GUIControl:
 
             # vtkVolumeMapper
             # https://vtk.org/doc/nightly/html/classvtkVolumeMapper.html
-            if obj_conf['mapper'] == 'GPUVolumeRayCastMapper':
+            mapper_name = obj_conf.get('mapper', 'GPUVolumeRayCastMapper')
+            if mapper_name == 'GPUVolumeRayCastMapper':
                 volume_mapper = vtkGPUVolumeRayCastMapper()
-            elif obj_conf['mapper'] == 'FixedPointVolumeRayCastMapper':
+            elif mapper_name == 'FixedPointVolumeRayCastMapper':
                 volume_mapper = vtkFixedPointVolumeRayCastMapper()
             else:
                 # TODO: consider use vtkMultiBlockVolumeMapper
@@ -886,7 +887,7 @@ class GUIControl:
                 self.AddObjectProperty(name, ref_prop_conf)
                 volume_property = self.object_properties[name]
             else:
-                dbg_print(3, 'AddObjects(): Using existing prop:', ref_prop_conf)
+                dbg_print(4, 'AddObjects(): Using existing prop:', ref_prop_conf)
                 volume_property = self.object_properties[ref_prop_conf]
 
             # The volume holds the mapper and the property and
@@ -897,8 +898,8 @@ class GUIControl:
             
             renderer.AddVolume(volume)
 
-            if ('view_point' in obj_conf) and \
-                obj_conf['view_point'] == 'auto':
+            view_point = obj_conf.get('view_point', 'auto')
+            if view_point == 'auto':
                 # auto view all actors
                 renderer.ResetCamera()
 
@@ -1118,10 +1119,12 @@ def get_program_parameters():
     parser.add_argument('--rotation_matrix', help='Set rotation matrix of the volume.')
     parser.add_argument('--swc', help='Read and draw swc file.')
     parser.add_argument('--fibercolor', help='Set fiber color.')
+    parser.add_argument('--scene', help='Project scene file path. e.g. for batch object loading.')
     args = parser.parse_args()
     # convert class attributes to dict
     keys = ['filepath', 'level', 'channel', 'time_point', 'range',
-            'colorscale', 'swc', 'fibercolor', 'origin', 'rotation_matrix']
+            'colorscale', 'swc', 'fibercolor', 'origin', 'rotation_matrix',
+            'scene']
     d = {k: getattr(args, k) for k in keys
             if hasattr(args, k) and getattr(args, k)}
     dbg_print(3, 'get_program_parameters(): d=', d)
@@ -1129,6 +1132,11 @@ def get_program_parameters():
 
 if __name__ == '__main__':
     gui = GUIControl()
-    gui.EasyObjectImporter(get_program_parameters())
+    cmd_obj_desc = get_program_parameters()
+    if 'scene' in cmd_obj_desc:
+        # TODO: maybe move this before init of gui, and pass it as init param.
+        scene_ext = json.loads(open(cmd_obj_desc['scene']).read())
+        gui.AppendToScene(scene_ext)
+    gui.EasyObjectImporter(cmd_obj_desc)
     gui.Start()
     
