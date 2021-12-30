@@ -133,11 +133,16 @@ def DefaultSceneConfig():
                 "renderer": "1",
                 "follow_direction": "camera1"
             },
-            "axes": {
+            "orientation_axes": {
                 "type": "AxesActor",
                 "ShowAxisLabels": False,
                 "renderer": "1",
-                "OrientationMarkerOf": "0"
+            },
+            "axes": {
+                "type": "AxesActor",
+                "ShowAxisLabels": False,
+                "length": [100,100,100],
+                "renderer": "0"
             },
 #            "orientation": {
 #                "type": "OrientationMarker",
@@ -148,6 +153,8 @@ def DefaultSceneConfig():
 #                "type": "volume",
 #                "mapper": "GPUVolumeRayCastMapper",
 #                "view_point": "auto",
+#                "origin": [100, 200, 300],
+#                "rotation_matrix": [1,0,0, 0,1,0, 0,0,1],
 #                "file_path": file_path,
 #                "property": "volume"
 #            }
@@ -165,6 +172,14 @@ def dbg_print(level, *p, **keys):
         return
     level_str = {1:"Error", 2:"Warning", 3:"Hint", 4:"Message"}
     print(level_str[level] + ":", *p, **keys)
+
+def str2array(s):
+    if not isinstance(s, str):
+        return s
+    return [float(it) for it in s[1:-1].split(',')]
+
+def _mat3d(d):
+    return np.array(d, dtype=np.float64).reshape(3,3)
 
 # Utilizer to convert a fraction to integer range
 # mostly copy from VISoR_select_light/pick_big_block/volumeio.py
@@ -838,6 +853,17 @@ class GUIControl:
         dbg_print(4, "renderer: ",  obj_conf.get('renderer', '0'))
 
         if obj_conf['type'] == 'volume':
+            file_path = obj_conf['file_path']
+            img_importer = ImportImageFile(file_path, obj_conf)
+            # set position scaling and direction
+            img_importer.SetDataOrigin(obj_conf.get('origin', [0,0,0]))
+            # for 3d rotation and scaling
+            dir3d = img_importer.GetDataDirection()
+            idmat = [1,0,0,0,1,0,0,0,1]
+            rot3d = obj_conf.get('rotation_matrix', idmat)
+            dir3d = (_mat3d(rot3d) @ _mat3d(dir3d)).flatten()
+            img_importer.SetDataDirection(dir3d)
+
             # vtkVolumeMapper
             # https://vtk.org/doc/nightly/html/classvtkVolumeMapper.html
             if obj_conf['mapper'] == 'GPUVolumeRayCastMapper':
@@ -850,9 +876,6 @@ class GUIControl:
                 # vtkOpenGLGPUVolumeRayCastMapper
                 volume_mapper = vtkGPUVolumeRayCastMapper()
             #volume_mapper.SetBlendModeToComposite()
-
-            file_path = obj_conf['file_path']
-            img_importer = ImportImageFile(file_path, obj_conf)
             volume_mapper.SetInputConnection(img_importer.GetOutputPort())
 
             # get property used in rendering
@@ -930,7 +953,7 @@ class GUIControl:
             # https://discourse.vtk.org/t/dynamically-change-position-of-axes/691
             # Method 1
             axes = vtkAxesActor()
-            axes.SetTotalLength([1.0, 1.0, 1.0])
+            axes.SetTotalLength(obj_conf.get('length', [1.0, 1.0, 1.0]))
             axes.SetAxisLabels(obj_conf.get('ShowAxisLabels', False))
 
             renderer.AddActor(axes)
@@ -989,7 +1012,6 @@ class GUIControl:
                 cam_ref.AddObserver( \
                     'ModifiedEvent', CameraFollowCallbackFunction)
 
-
             scene_object = cam
 
         self.scene_objects.update({name: scene_object})
@@ -1039,6 +1061,15 @@ class GUIControl:
                 dbg_print(1, "Unreconized source format.")
                 return
             
+            if 'origin' in obj_desc:
+                obj_conf.update({
+                    'origin': str2array(obj_desc['origin'])
+                })
+            if 'rotation_matrix' in obj_desc:
+                obj_conf.update({
+                    'rotation_matrix': str2array(obj_desc['rotation_matrix'])
+                })
+            
             if 'colorscale' in obj_desc:
                 s = float(obj_desc['colorscale'])
                 obj_conf.update({'property': {
@@ -1083,12 +1114,14 @@ def get_program_parameters():
     parser.add_argument('--time_point', help='Select time point for IMS image.')
     parser.add_argument('--range', help='Select range within image.')
     parser.add_argument('--colorscale', help='Set scale of color transfer function.')
+    parser.add_argument('--origin', help='Set origin of the volume.')
+    parser.add_argument('--rotation_matrix', help='Set rotation matrix of the volume.')
     parser.add_argument('--swc', help='Read and draw swc file.')
     parser.add_argument('--fibercolor', help='Set fiber color.')
     args = parser.parse_args()
     # convert class attributes to dict
     keys = ['filepath', 'level', 'channel', 'time_point', 'range',
-            'colorscale', 'swc', 'fibercolor']
+            'colorscale', 'swc', 'fibercolor', 'origin', 'rotation_matrix']
     d = {k: getattr(args, k) for k in keys
             if hasattr(args, k) and getattr(args, k)}
     dbg_print(3, 'get_program_parameters(): d=', d)
