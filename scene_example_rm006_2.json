@@ -1,0 +1,25 @@
+{
+
+"objects": {
+    "axes": {
+        "type": "AxesActor",
+        "length": [100,100,100]
+    },
+    "volume": {
+        "type": "volume",
+        "file_path": "/media/xyy/DATA/RM006_related/big_traced/RM006-004-lychnis/image/blocks/16852-31129-18976_C1.tif",
+        "origin": [16852, 31129, 18976]
+    },
+    "volume": {
+        "type": "volume",
+        "file_path": "/media/xyy/DATA/RM006_related/big_traced/RM006-004-lychnis/image/blocks/15956-32665-19872_C1.tif",
+        "origin": [15956, 32665, 19872]
+    },
+    "swc": {
+        "type": "swc",
+        "file_path": "/media/xyy/DATA/RM006_related/big_traced/RM006-004-lychnis/F5.json.swc",
+        "color": "green"
+    }
+}
+
+}

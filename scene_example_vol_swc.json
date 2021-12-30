@@ -1,0 +1,26 @@
+{
+
+"objects": {
+    "axes": {
+        "type": "AxesActor",
+        "length": [100,100,100]
+    },
+    "volume": {
+        "type": "volume",
+        "file_path": "/media/xyy/DATA/RM006_related/test_fanxiaowei_2021-12-14/3864-3596-2992_C3.ims",
+        "origin": [0, 0, 0],
+        "rotation_matrix": [1,0,0, 0,1,0, 0,0,1],
+        "property": {
+            "copy_from": "volume",
+            "opacity_transfer_function": {"opacity_scale": 10},
+            "color_transfer_function"  : {"trans_scale":  10}
+        }
+    },
+    "swc": {
+        "type": "swc",
+        "file_path": "/media/xyy/DATA/RM006_related/test_fanxiaowei_2021-12-14/R2-N1-A2.json.swc_modified.swc",
+        "color": "green"
+    }
+}
+
+}

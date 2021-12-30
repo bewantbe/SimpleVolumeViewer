@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
 
-# Usage:
+# Usages:
 # python img_block_viewer.py --filepath '/media/xyy/DATA/RM006_related/clip/RM006_s128_c13_f8906-9056.tif'
 # ./img_block_viewer.py --filepath '/media/xyy/DATA/RM006_related/ims_based/z00060_c3_2.ims' --level 3 --range '[400:800, 200:600, 300:700]' --colorscale 10
 # ./img_block_viewer.py --filepath /media/xyy/DATA/RM006_related/test_fanxiaowei_2021-12-14/3864-3596-2992_C3.ims --colorscale 10 --swc /media/xyy/DATA/RM006_related/test_fanxiaowei_2021-12-14/R2-N1-A2.json.swc_modified.swc --fibercolor green
+# ./img_block_viewer.py --scene  scene_example_vol_swc.json
 
 # Python Wrappers for VTK
 # https://vtk.org/doc/nightly/html/md__builds_gitlab_kitware_sciviz_ci_Documentation_Doxygen_PythonWrappers.html
@@ -126,7 +127,7 @@ def DefaultSceneConfig():
                 "renderer": "0",
                 "Azimuth": 45,
                 "Elevation": 30,
-                "clipping_range": [0.1, 5000]
+                "clipping_range": [0.1, 10000]
             },
             "camera2": {
                 "type": "Camera",
@@ -157,7 +158,6 @@ def DefaultSceneConfig():
 #                "file_path": file_path,
 #                "origin": [100, 200, 300],
 #                "rotation_matrix": [1,0,0, 0,1,0, 0,0,1],
-#                "colorscale": 10
 #            }
         }
     }
@@ -348,6 +348,7 @@ class MyInteractorStyle(vtkInteractorStyleTerrain):
             rotator = execSmoothRotation(cam1, 60.0)
             timerHandler(iren, 6.0, rotator).start()
         elif key_sym in ['plus','minus'] or key_combo in '+-':
+            # Make the image darker or lighter.
             vol_name = 'volume'  # active object
             vol = self.guictrl.scene_objects[vol_name]
             obj_prop = vol.GetProperty()
@@ -361,6 +362,9 @@ class MyInteractorStyle(vtkInteractorStyleTerrain):
 #            scene_obj.Modified()  # not work
 #            scene_obj.Update()
             iren.GetRenderWindow().Render()
+        elif key_sym == 's' and not (b_C or b_S or b_A):
+            # take a screenshot
+            self.guictrl.ShotScreen()
 
         # Let's say, disable all default key bindings (except q)
         if not is_default_binding:
@@ -376,24 +380,11 @@ def AlignCameraDirection(cam2, cam1, dist=4.0):
     cam2.SetPosition(r)
     cam2.SetFocalPoint(0, 0, 0)
     cam2.SetViewUp(cam1.GetViewUp())
-#    print(cam2.GetModelViewTransformMatrix())
 
 def CameraFollowCallbackFunction(caller, ev):
-#    print('caller\n', caller)
-#    print('ev\n', ev)
-    
-#    rens = caller.GetRenderWindow().GetRenderers()
-#    rens.InitTraversal()
-#    ren1 = rens.GetNextItem()
-#    ren2 = rens.GetNextItem()
-#    cam1 = ren1.GetActiveCamera()
-#    cam2 = ren2.GetActiveCamera()
-
     cam1 = CameraFollowCallbackFunction.cam1
     cam2 = CameraFollowCallbackFunction.cam2
-
     AlignCameraDirection(cam2, cam1)
-    
     return
 
 def Read3DImageDataFromFile(file_name, *item, **keys):
@@ -455,7 +446,6 @@ def ImportImageArray(img_arr, img_meta):
     img_importer.SetNumberOfScalarComponents(n_ch)
     img_importer.SetDataExtent (0, simg.shape[2]-1, 0, simg.shape[1]-1, 0, simg.shape[0]-1)
     img_importer.SetWholeExtent(0, simg.shape[2]-1, 0, simg.shape[1]-1, 0, simg.shape[0]-1)
-    #img_importer.setDataOrigin()
 
     # the 3x3 matrix to rotate the coordinates from index space (ijk) to physical space (xyz)
     b_oblique_correction = img_meta.get('oblique_image', False)
@@ -471,9 +461,6 @@ def ImportImageArray(img_arr, img_meta):
         img_importer.SetDataDirection(rotMat)
     else:
         img_importer.SetDataSpacing(voxel_size_um)
-
-#    print(img_importer.GetDataDirection())
-#    print(img_importer.GetDataSpacing())
 
     return img_importer
 
@@ -1113,9 +1100,13 @@ class GUIControl:
 
 def get_program_parameters():
     import argparse
-    description = 'Simple volume viewer.'
+    description = 'Simple volume image viewer based on PyVTK.'
     epilogue = '''
-    This is a simple volume rendering viewer.
+    Keyboard shortcuts:
+        '+'/'-': Make the image darker or lighter;
+        'r': Auto rotate the image for a while;
+        's': Save a screenshot;
+        'q': Exit the program.
     '''
     parser = argparse.ArgumentParser(description=description, epilog=epilogue,
                                      formatter_class=argparse.RawDescriptionHelpFormatter)
