@@ -154,7 +154,7 @@ def DefaultSceneConfig():
     }
     return d
 
-debug_level = 2
+debug_level = 4
 
 # Used for print error, controlled by debug_level.
 # higher debug_level will show more info.
@@ -330,12 +330,12 @@ class MyInteractorStyle(vtkInteractorStyleTerrain):
             cam2 = ren2.GetActiveCamera()
             rotator = execSmoothRotation(cam1, 60.0)
             timerHandler(iren, 6.0, rotator).start()
-        elif key_combo == '+' or key_combo == '-':
+        elif key_sym == 'plus' or key_sym == 'minus':
             vol_name = 'volume'
             obj_prop = self.guictrl.object_properties[vol_name]
             cs_o, cs_c = GetColorScale(obj_prop)
             k = np.sqrt(np.sqrt(2))
-            if key_combo == '+':
+            if key_sym == 'plus':
                 k = 1.0 / k
             SetColorScale(obj_prop, [cs_o*k, cs_c*k])
             scene_obj = self.guictrl.scene_objects['volume']
