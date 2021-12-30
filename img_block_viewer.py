@@ -138,12 +138,12 @@ def DefaultSceneConfig():
                 "ShowAxisLabels": False,
                 "renderer": "1",
             },
-            "axes": {
-                "type": "AxesActor",
-                "ShowAxisLabels": False,
-                "length": [100,100,100],
-                "renderer": "0"
-            },
+#            "axes": {
+#                "type": "AxesActor",
+#                "ShowAxisLabels": False,
+#                "length": [100,100,100],
+#                "renderer": "0"
+#            },
 #            "orientation": {
 #                "type": "OrientationMarker",
 #                "ShowAxisLabels": False,
@@ -171,7 +171,7 @@ debug_level = 4
 def dbg_print(level, *p, **keys):
     if level > debug_level:
         return
-    level_str = {1:"Error", 2:"Warning", 3:"Hint", 4:"Message"}
+    level_str = {1:"Error", 2:"Warning", 3:"Hint", 4:"Message", 5:"Verbose"}
     print(level_str[level] + ":", *p, **keys)
 
 def str2array(s):
@@ -278,13 +278,13 @@ def read_ims(ims_path, extra_conf = {}, cache_reader_obj = False):
             {k:''.join([c.decode('utf-8') for c in v])
                 for k, v in img_info[it].attrs.items()}
 
-    dbg_print(3, 'read_ims(): extra_conf =', extra_conf)
+    dbg_print(4, 'read_ims(): extra_conf =', extra_conf)
     dim_ranges = slice_from_str(str(extra_conf.get('range', '[:,:,:]')))
-    dbg_print(3, 'dim_ranges', dim_ranges)
+    dbg_print(4, 'dim_ranges', dim_ranges)
     
     t0 = time.time()
     img_clip = np.array(img[dim_ranges])         # actually read the data
-    dbg_print(3, "read_ims(): img read time: %6.3f" % (time.time()-t0))
+    dbg_print(4, "read_ims(): img read time: %6.3f" % (time.time()-t0))
     #img_clip = np.transpose(np.array(img_clip), (2,1,0))
 
     metadata['imagej'] = {'voxel_size_um': '(1.0, 1.0, 1.0)'}
@@ -348,14 +348,16 @@ class MyInteractorStyle(vtkInteractorStyleTerrain):
             rotator = execSmoothRotation(cam1, 60.0)
             timerHandler(iren, 6.0, rotator).start()
         elif key_sym in ['plus','minus'] or key_combo in '+-':
-            vol_name = 'volume'
-            obj_prop = self.guictrl.object_properties[vol_name]
+            vol_name = 'volume'  # active object
+            vol = self.guictrl.scene_objects[vol_name]
+            obj_prop = vol.GetProperty()
+            #obj_prop = self.guictrl.object_properties[vol_name]
             cs_o, cs_c = GetColorScale(obj_prop)
             k = np.sqrt(np.sqrt(2))
             if key_sym == 'plus' or key_combo == '+':
                 k = 1.0 / k
             SetColorScale(obj_prop, [cs_o*k, cs_c*k])
-            scene_obj = self.guictrl.scene_objects['volume']
+#            scene_obj = self.guictrl.scene_objects[vol_name]
 #            scene_obj.Modified()  # not work
 #            scene_obj.Update()
             iren.GetRenderWindow().Render()
@@ -399,7 +401,7 @@ def Read3DImageDataFromFile(file_name, *item, **keys):
         img_arr, img_meta = read_tiff(file_name)
     elif file_name.endswith('.ims'):
         img_arr, img_meta = read_ims(file_name, *item, **keys)
-    dbg_print(3, pprint.pformat(img_meta))
+    dbg_print(5, pprint.pformat(img_meta))
     return img_arr, img_meta
 
 # import image to vtkImageImport() to have a connection
@@ -573,10 +575,11 @@ def SplitSWCTree(tr):
 # return a name not occur in name_set
 def GetNonconflitName(prefix, name_set):
     i = 1
-    while prefix in name_set:
-        prefix = prefix + ".%.3d"%i
+    name = prefix
+    while name in name_set:
+        name = prefix + ".%.3d"%i
         i += 1
-    return prefix
+    return name
 
 def UpdatePropertyOTFScale(obj_prop, otf_s):
     pf = obj_prop.GetScalarOpacity()
@@ -716,8 +719,12 @@ class GUIControl:
         self.GUISetup(DefaultGUIConfig())
         self.AppendToScene(DefaultSceneConfig())
 
-    def GetNonconflitName(self, name_prefix):
-        return GetNonconflitName(name_prefix, self.scene_objects.keys())
+    def GetNonconflitName(self, name_prefix, name_book = 'scene'):
+        if name_book == 'scene':
+            index = self.scene_objects
+        elif name_book == 'property':
+            index = self.object_properties
+        return GetNonconflitName(name_prefix, index.keys())
 
     # setup window, renderers and interactor
     def GUISetup(self, gui_conf):
@@ -771,13 +778,13 @@ class GUIControl:
     def AddObjectProperty(self, name, prop_conf):
         if name in self.object_properties:
             # TODO: do we need to remove old mappers?
-            pass
-        dbg_print(4, 'AddObjectProperty():', name, ':', prop_conf)
+            dbg_print(2, 'AddObjectProperty(): conflict name: ', name)
+        dbg_print(3, 'AddObjectProperty(): "'+name+'" :', prop_conf)
         if name.startswith("volume"):
             volume_property = vtkVolumeProperty()
             
             if 'copy_from' in prop_conf:
-                dbg_print(4, 'in if copy_from branch.')
+                dbg_print(4, 'Copy propperty from', prop_conf['copy_from'])
                 # construct a volume property by copying from exist
                 ref_prop = self.object_properties[prop_conf['copy_from']]
                 volume_property.DeepCopy(ref_prop)
@@ -829,6 +836,7 @@ class GUIControl:
 
     def ModifyObjectProperty(self, name, prop_conf):
         obj_prop = self.object_properties[name]
+        dbg_print(4, 'ModifyObjectProperty():', name)
         if name.startswith("volume"):
             if 'opacity_transfer_function' in prop_conf:
                 otf_conf = prop_conf['opacity_transfer_function']
@@ -844,12 +852,13 @@ class GUIControl:
     def AddObjects(self, name, obj_conf):
         if name in self.scene_objects:
             # TODO: do we need to remove old object?
+            dbg_print(2, 'AddObjects(): conflict name: ', name)
             name = self.GetNonconflitName(name)
 
         renderer = self.renderers[
             obj_conf.get('renderer', '0')]
 
-        dbg_print(4, "AddObjects: ",  obj_conf)
+        dbg_print(3, 'AddObjects: "' + name + '" :', obj_conf)
         dbg_print(4, "renderer: ",  obj_conf.get('renderer', '0'))
 
         if obj_conf['type'] == 'volume':
@@ -883,11 +892,12 @@ class GUIControl:
             ref_prop_conf = obj_conf.get('property', 'volume')
             if isinstance(ref_prop_conf, dict):
                 # add new property
-                name = self.GetNonconflitName('volume')
-                self.AddObjectProperty(name, ref_prop_conf)
-                volume_property = self.object_properties[name]
+                prop_name = self.GetNonconflitName('volume', 'property')
+                dbg_print(3, 'AddObjects(): Adding prop:', prop_name)
+                self.AddObjectProperty(prop_name, ref_prop_conf)
+                volume_property = self.object_properties[prop_name]
             else:
-                dbg_print(4, 'AddObjects(): Using existing prop:', ref_prop_conf)
+                dbg_print(3, 'AddObjects(): Using existing prop:', ref_prop_conf)
                 volume_property = self.object_properties[ref_prop_conf]
 
             # The volume holds the mapper and the property and
