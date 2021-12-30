@@ -1,11 +1,35 @@
 #!/usr/bin/env python3
 
-# Usages:
-# python img_block_viewer.py --filepath '/media/xyy/DATA/RM006_related/clip/RM006_s128_c13_f8906-9056.tif'
-# ./img_block_viewer.py --filepath '/media/xyy/DATA/RM006_related/ims_based/z00060_c3_2.ims' --level 3 --range '[400:800, 200:600, 300:700]' --colorscale 10
-# ./img_block_viewer.py --filepath /media/xyy/DATA/RM006_related/test_fanxiaowei_2021-12-14/3864-3596-2992_C3.ims --colorscale 10 --swc /media/xyy/DATA/RM006_related/test_fanxiaowei_2021-12-14/R2-N1-A2.json.swc_modified.swc --fibercolor green
-# ./img_block_viewer.py --scene  scene_example_vol_swc.json
+# A simple viewer based on PyVTK for volumetric data, 
+# specialized for neuron tracing.
 
+# Usages:
+# python img_block_viewer.py --filepath RM006_s128_c13_f8906-9056.tif
+# ./img_block_viewer.py --filepath z00060_c3_2.ims --level 3 --range '[400:800, 200:600, 300:700]' --colorscale 10
+# ./img_block_viewer.py --filepath 3864-3596-2992_C3.ims --colorscale 10 --swc R2-N1-A2.json.swc_modified.swc --fibercolor green
+# ./img_block_viewer.py --scene scene_example_vol_swc.json
+
+# Program logic:
+#   In a very general sense, this code does the following:
+#     * Read the window configuration and scene object description.
+#     * Load the image or SWC data.
+#     * Pass the data to VTK for rendering.
+#     * Let VTK to handle the GUI interaction.
+#   So this code essentally translate the object descriptinon to VTK command
+#   and does the image data loading.
+
+# Code structure text order:
+#   General utilizer functions.
+#   Image loaders.
+#   SWC loaders.
+#   VTK related utilizer functions.
+#   Keyboard and mouse interaction.
+#   GUI control class
+#     Loads window settings, object properties, objects.
+#   Commandline related data import function.
+#   Main.
+
+# Ref.
 # Python Wrappers for VTK
 # https://vtk.org/doc/nightly/html/md__builds_gitlab_kitware_sciviz_ci_Documentation_Doxygen_PythonWrappers.html
 
@@ -224,6 +248,38 @@ def slice_from_str(slice_str):
                  )
     return dim_ranges
 
+# return a name not occur in name_set
+def GetNonconflitName(prefix, name_set):
+    i = 1
+    name = prefix
+    while name in name_set:
+        name = prefix + ".%.3d"%i
+        i += 1
+    return name
+
+def MergeFullDict(d_contain, d_update):
+    # update dict d_contain by d_update
+    # i.e. overwrite d_contain for items exist in d_update
+    # Ref. https://stackoverflow.com/questions/38987/how-do-i-merge-two-dictionaries-in-a-single-expression-take-union-of-dictionari
+    def DeepUpdate(d_contain, d_update):
+        for key, value in d_update.items(): 
+            if key not in d_contain:
+                d_contain[key] = value
+            else:  # key in d_contain
+                if isinstance(value, dict):
+                    DeepUpdate(d_contain[key], value)
+                else:  # overwirte
+                    # simple sanity check: data type must agree
+                    if type(d_contain[key]) == type(value):
+                        d_contain[key] = value
+                    else:
+                        dbg_print(2, "DeepUpdate()", "key type mismatch! value discard.")
+        return d_contain
+
+    DeepUpdate(d_contain, d_update)
+
+    return d_contain
+
 # copy from volumeio.py
 # Read tiff file, return images and meta data
 def read_tiff(tif_path, as_np_array = True):
@@ -291,101 +347,6 @@ def read_ims(ims_path, extra_conf = {}, cache_reader_obj = False):
     metadata['oblique_image'] = False
 
     return img_clip, metadata
-
-# mouse interaction
-# vtkInteractorStyleTerrain
-# vtkInteractorStyleFlight
-# vtkInteractorStyleTrackballCamera
-# vtkInteractorStyleUser
-class MyInteractorStyle(vtkInteractorStyleTerrain):
-
-    def __init__(self, iren, guictrl):
-        self.AddObserver('MiddleButtonPressEvent', self.middle_button_press_event)
-        self.AddObserver('MiddleButtonReleaseEvent', self.middle_button_release_event)
-        self.AddObserver('CharEvent', self.OnChar)
-        self.iren = iren
-        self.guictrl = guictrl
-
-    def middle_button_press_event(self, obj, event):
-        print('Middle Button pressed')
-        self.OnMiddleButtonDown()
-        return
-
-    def middle_button_release_event(self, obj, event):
-        print('Middle Button released')
-        self.OnMiddleButtonUp()
-        return
-
-    def OnChar(self, obj, event):
-        iren = self.iren
-
-        key_sym  = iren.GetKeySym()   # useful for PageUp etc.
-        key_code = iren.GetKeyCode()
-        b_C = iren.GetControlKey()
-        b_A = iren.GetAltKey()
-        b_S = iren.GetShiftKey()  # sometimes reflected in key_code
-
-        key_combo = ("Ctrl+" if b_C else "") + ("Alt+" if b_A else "") + ("Shift+" if b_S else "") + key_code
-        dbg_print(4, 'Pressed:', key_combo, '  key_sym:', key_sym)
-        
-        is_default_binding = (key_code.lower() in 'jtca3efprsuw') and \
-                             not b_C
-
-        #        shift ctrl alt
-        #    q    T    F    T
-        #    3    F    F    T
-        #    e    T    F    T
-        #    r    T    F    T
-
-        rens = iren.GetRenderWindow().GetRenderers()
-        
-        if key_combo == 'r':
-            rens.InitTraversal()
-            ren1 = rens.GetNextItem()
-            ren2 = rens.GetNextItem()
-            cam1 = ren1.GetActiveCamera()
-            cam2 = ren2.GetActiveCamera()
-            rotator = execSmoothRotation(cam1, 60.0)
-            timerHandler(iren, 6.0, rotator).start()
-        elif key_sym in ['plus','minus'] or key_combo in '+-':
-            # Make the image darker or lighter.
-            vol_name = 'volume'  # active object
-            vol = self.guictrl.scene_objects[vol_name]
-            obj_prop = vol.GetProperty()
-            #obj_prop = self.guictrl.object_properties[vol_name]
-            cs_o, cs_c = GetColorScale(obj_prop)
-            k = np.sqrt(np.sqrt(2))
-            if key_sym == 'plus' or key_combo == '+':
-                k = 1.0 / k
-            SetColorScale(obj_prop, [cs_o*k, cs_c*k])
-#            scene_obj = self.guictrl.scene_objects[vol_name]
-#            scene_obj.Modified()  # not work
-#            scene_obj.Update()
-            iren.GetRenderWindow().Render()
-        elif key_sym == 's' and not (b_C or b_S or b_A):
-            # take a screenshot
-            self.guictrl.ShotScreen()
-
-        # Let's say, disable all default key bindings (except q)
-        if not is_default_binding:
-            super(MyInteractorStyle, obj).OnChar()
-
-# Align cam2 by cam1
-# make cam2 dist away from origin
-def AlignCameraDirection(cam2, cam1, dist=4.0):
-    r = np.array(cam1.GetPosition()) - np.array(cam1.GetFocalPoint())
-    r = r / np.linalg.norm(r) * dist
-
-    cam2.SetRoll(cam1.GetRoll())
-    cam2.SetPosition(r)
-    cam2.SetFocalPoint(0, 0, 0)
-    cam2.SetViewUp(cam1.GetViewUp())
-
-def CameraFollowCallbackFunction(caller, ev):
-    cam1 = CameraFollowCallbackFunction.cam1
-    cam2 = CameraFollowCallbackFunction.cam2
-    AlignCameraDirection(cam2, cam1)
-    return
 
 def Read3DImageDataFromFile(file_name, *item, **keys):
     if file_name.endswith('.tif') or file_name.endswith('.tiff'):
@@ -464,7 +425,7 @@ def ImportImageArray(img_arr, img_meta):
 
     return img_importer
 
-# import image to vtkImageImport() to have a connection
+# Import image to vtkImageImport() to have a connection.
 # extra_conf for extra setting to extract the image
 # the extra_conf takes higher priority than meta data in the file
 def ImportImageFile(file_name, extra_conf = None):
@@ -472,46 +433,7 @@ def ImportImageFile(file_name, extra_conf = None):
     img_import = ImportImageArray(img_arr, img_meta)
     return img_import
 
-def ShotScreen(render_window):
-    # Take a screenshot
-    # From: https://kitware.github.io/vtk-examples/site/Python/Utilities/Screenshot/
-    win2if = vtkWindowToImageFilter()
-    win2if.SetInput(render_window)
-    win2if.SetInputBufferTypeToRGB()
-    win2if.ReadFrontBufferOff()
-    win2if.Update()
-
-    # If need transparency in a screenshot
-    # https://stackoverflow.com/questions/34789933/vtk-setting-transparent-renderer-background
-    
-    writer = vtkPNGWriter()
-    writer.SetFileName('TestScreenshot.png')
-    writer.SetInputConnection(win2if.GetOutputPort())
-    writer.Write()
-
-def MergeFullDict(d_contain, d_update):
-    # update dict d_contain by d_update
-    # i.e. overwrite d_contain for items exist in d_update
-    # Ref. https://stackoverflow.com/questions/38987/how-do-i-merge-two-dictionaries-in-a-single-expression-take-union-of-dictionari
-    def DeepUpdate(d_contain, d_update):
-        for key, value in d_update.items(): 
-            if key not in d_contain:
-                d_contain[key] = value
-            else:  # key in d_contain
-                if isinstance(value, dict):
-                    DeepUpdate(d_contain[key], value)
-                else:  # overwirte
-                    # simple sanity check: data type must agree
-                    if type(d_contain[key]) == type(value):
-                        d_contain[key] = value
-                    else:
-                        dbg_print(2, "DeepUpdate()", "key type mismatch! value discard.")
-        return d_contain
-
-    DeepUpdate(d_contain, d_update)
-
-    return d_contain
-
+# Load tracing result.
 def LoadSWCTree(filepath):
     d = np.loadtxt(filepath)
     tr = (np.int32(d[:,np.array([0,6,1])]),
@@ -558,15 +480,6 @@ def SplitSWCTree(tr):
         processes.append(filament[::-1])
 
     return processes
-
-# return a name not occur in name_set
-def GetNonconflitName(prefix, name_set):
-    i = 1
-    name = prefix
-    while name in name_set:
-        name = prefix + ".%.3d"%i
-        i += 1
-    return name
 
 def UpdatePropertyOTFScale(obj_prop, otf_s):
     pf = obj_prop.GetScalarOpacity()
@@ -639,6 +552,40 @@ def ReadScene(scene_file_path):
         MergeFullDict(scene, scene_ext)
     return scene
 
+def ShotScreen(render_window):
+    # Take a screenshot
+    # From: https://kitware.github.io/vtk-examples/site/Python/Utilities/Screenshot/
+    win2if = vtkWindowToImageFilter()
+    win2if.SetInput(render_window)
+    win2if.SetInputBufferTypeToRGB()
+    win2if.ReadFrontBufferOff()
+    win2if.Update()
+
+    # If need transparency in a screenshot
+    # https://stackoverflow.com/questions/34789933/vtk-setting-transparent-renderer-background
+    
+    writer = vtkPNGWriter()
+    writer.SetFileName('TestScreenshot.png')
+    writer.SetInputConnection(win2if.GetOutputPort())
+    writer.Write()
+
+# Align cam2 by cam1
+# make cam2 dist away from origin
+def AlignCameraDirection(cam2, cam1, dist=4.0):
+    r = np.array(cam1.GetPosition()) - np.array(cam1.GetFocalPoint())
+    r = r / np.linalg.norm(r) * dist
+
+    cam2.SetRoll(cam1.GetRoll())
+    cam2.SetPosition(r)
+    cam2.SetFocalPoint(0, 0, 0)
+    cam2.SetViewUp(cam1.GetViewUp())
+
+def CameraFollowCallbackFunction(caller, ev):
+    cam1 = CameraFollowCallbackFunction.cam1
+    cam2 = CameraFollowCallbackFunction.cam2
+    AlignCameraDirection(cam2, cam1)
+    return
+
 # Rotate camera
 class execSmoothRotation():
     def __init__(self, cam, degree_per_sec):
@@ -690,6 +637,84 @@ class timerHandler():
 
     def __del__(self):
         self.stop()
+
+# Deal with keyboard and mouse interactions.
+# vtkInteractorStyleTerrain
+# vtkInteractorStyleFlight
+# vtkInteractorStyleTrackballCamera
+# vtkInteractorStyleUser
+class MyInteractorStyle(vtkInteractorStyleTerrain):
+
+    def __init__(self, iren, guictrl):
+        self.AddObserver('MiddleButtonPressEvent', self.middle_button_press_event)
+        self.AddObserver('MiddleButtonReleaseEvent', self.middle_button_release_event)
+        self.AddObserver('CharEvent', self.OnChar)
+        self.iren = iren
+        self.guictrl = guictrl
+
+    def middle_button_press_event(self, obj, event):
+        print('Middle Button pressed')
+        self.OnMiddleButtonDown()
+        return
+
+    def middle_button_release_event(self, obj, event):
+        print('Middle Button released')
+        self.OnMiddleButtonUp()
+        return
+
+    def OnChar(self, obj, event):
+        iren = self.iren
+
+        key_sym  = iren.GetKeySym()   # useful for PageUp etc.
+        key_code = iren.GetKeyCode()
+        b_C = iren.GetControlKey()
+        b_A = iren.GetAltKey()
+        b_S = iren.GetShiftKey()  # sometimes reflected in key_code
+
+        key_combo = ("Ctrl+" if b_C else "") + ("Alt+" if b_A else "") + ("Shift+" if b_S else "") + key_code
+        dbg_print(4, 'Pressed:', key_combo, '  key_sym:', key_sym)
+        
+        is_default_binding = (key_code.lower() in 'jtca3efprsuw') and \
+                             not b_C
+
+        #        shift ctrl alt
+        #    q    T    F    T
+        #    3    F    F    T
+        #    e    T    F    T
+        #    r    T    F    T
+
+        rens = iren.GetRenderWindow().GetRenderers()
+        
+        if key_combo == 'r':
+            rens.InitTraversal()
+            ren1 = rens.GetNextItem()
+            ren2 = rens.GetNextItem()
+            cam1 = ren1.GetActiveCamera()
+            cam2 = ren2.GetActiveCamera()
+            rotator = execSmoothRotation(cam1, 60.0)
+            timerHandler(iren, 6.0, rotator).start()
+        elif key_sym in ['plus','minus'] or key_combo in '+-':
+            # Make the image darker or lighter.
+            vol_name = 'volume'  # active object
+            vol = self.guictrl.scene_objects[vol_name]
+            obj_prop = vol.GetProperty()
+            #obj_prop = self.guictrl.object_properties[vol_name]
+            cs_o, cs_c = GetColorScale(obj_prop)
+            k = np.sqrt(np.sqrt(2))
+            if key_sym == 'plus' or key_combo == '+':
+                k = 1.0 / k
+            SetColorScale(obj_prop, [cs_o*k, cs_c*k])
+#            scene_obj = self.guictrl.scene_objects[vol_name]
+#            scene_obj.Modified()  # not work
+#            scene_obj.Update()
+            iren.GetRenderWindow().Render()
+        elif key_sym == 's' and not (b_C or b_S or b_A):
+            # take a screenshot
+            self.guictrl.ShotScreen()
+
+        # Let's say, disable all default key bindings (except q)
+        if not is_default_binding:
+            super(MyInteractorStyle, obj).OnChar()
 
 class GUIControl:
     def __init__(self):
