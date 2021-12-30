@@ -135,12 +135,13 @@ def DefaultSceneConfig():
             },
             "axes": {
                 "type": "AxesActor",
-                "ShowAxisLabels": "False",
-                "renderer": "1"
+                "ShowAxisLabels": False,
+                "renderer": "1",
+                "OrientationMarkerOf": "0"
             },
 #            "orientation": {
 #                "type": "OrientationMarker",
-#                "ShowAxisLabels": "False",
+#                "ShowAxisLabels": False,
 #                "renderer": "0"
 #            },
 #            "volume": {
@@ -610,6 +611,7 @@ def GetColorScale(obj_prop):
     return o_v[-1][0] / otf_v[-1][0], c_v[-1][0] / ctf_v[-1][0]
 
 def SetColorScale(obj_prop, scale):
+    dbg_print(4, 'Setting colorscale =', scale)
     if hasattr(scale, '__iter__'):
         otf_s = scale[0]
         ctf_s = scale[1]
@@ -929,17 +931,7 @@ class GUIControl:
             # Method 1
             axes = vtkAxesActor()
             axes.SetTotalLength([1.0, 1.0, 1.0])
-            axes.SetAxisLabels("true"==obj_conf.get('ShowAxisLabels', "False").lower())
-
-#            self.interactor.AddObserver('InteractionEvent',
-#                CameraFollowCallbackFunction)
-
-            CameraFollowCallbackFunction.cam1 = self.renderers['0'].GetActiveCamera()
-            CameraFollowCallbackFunction.cam2 = self.renderers['1'].GetActiveCamera()
-
-            c = self.renderers['0'].GetActiveCamera()
-            c.AddObserver('ModifiedEvent',
-                CameraFollowCallbackFunction)
+            axes.SetAxisLabels(obj_conf.get('ShowAxisLabels', False))
 
             renderer.AddActor(axes)
             scene_object = axes
@@ -949,7 +941,7 @@ class GUIControl:
             # Ref: https://kitware.github.io/vtk-examples/site/Python/Interaction/CallBack/
             axes = vtkAxesActor()
             axes.SetTotalLength([1.0, 1.0, 1.0])
-            #axes.SetAxisLabels("true"==obj_conf.get('ShowAxisLabels', "False").lower())
+            axes.SetAxisLabels(obj_conf.get('ShowAxisLabels', False))
             axes.SetAxisLabels(True)
 
             # Ref: https://vtk.org/doc/nightly/html/classvtkOrientationMarkerWidget.html
@@ -990,6 +982,13 @@ class GUIControl:
                 cam.DeepCopy(cam_ref)
                 cam.SetClippingRange(0.1, 1000)
                 AlignCameraDirection(cam, cam_ref)
+
+                CameraFollowCallbackFunction.cam1 = cam_ref
+                CameraFollowCallbackFunction.cam2 = cam
+
+                cam_ref.AddObserver( \
+                    'ModifiedEvent', CameraFollowCallbackFunction)
+
 
             scene_object = cam
 
