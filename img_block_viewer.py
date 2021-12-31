@@ -684,18 +684,19 @@ class MyInteractorStyle(vtkInteractorStyleTerrain):
         #    r    T    F    T
 
         rens = iren.GetRenderWindow().GetRenderers()
+        rens.InitTraversal()
+        ren1 = rens.GetNextItem()
         
         if key_combo == 'r':
-            rens.InitTraversal()
-            ren1 = rens.GetNextItem()
             ren2 = rens.GetNextItem()
             cam1 = ren1.GetActiveCamera()
             cam2 = ren2.GetActiveCamera()
             rotator = execSmoothRotation(cam1, 60.0)
             timerHandler(iren, 6.0, rotator).start()
-        elif key_sym in ['plus','minus'] or key_combo in '+-':
+        elif (key_sym in ['plus','minus'] or key_combo in '+-') and \
+            self.guictrl.selected_objects:
             # Make the image darker or lighter.
-            vol_name = 'volume'  # active object
+            vol_name = self.guictrl.selected_objects[0]  # active object
             vol = self.guictrl.scene_objects[vol_name]
             obj_prop = vol.GetProperty()
             #obj_prop = self.guictrl.object_properties[vol_name]
@@ -711,6 +712,14 @@ class MyInteractorStyle(vtkInteractorStyleTerrain):
         elif key_sym == 's' and not (b_C or b_S or b_A):
             # take a screenshot
             self.guictrl.ShotScreen()
+        elif key_combo == ' ':
+            # fly to selected object
+            vol_name = self.guictrl.selected_objects[0]  # active object
+            dbg_print(4, "Fly to:", vol_name)
+            vol = self.guictrl.scene_objects[vol_name]
+            bd = vol.GetBounds()
+            center = [(bd[0]+bd[1])/2, (bd[2]+bd[3])/2, (bd[4]+bd[5])/2]
+            iren.FlyTo(ren1, center)
 
         # Let's say, disable all default key bindings (except q)
         if not is_default_binding:
@@ -726,6 +735,7 @@ class GUIControl:
         self.interactor = None
         self.object_properties = {}
         self.scene_objects = {}
+        self.selected_objects = []
         
         # load default settings
         self.GUISetup(DefaultGUIConfig())
@@ -924,7 +934,8 @@ class GUIControl:
             if view_point == 'auto':
                 # auto view all actors
                 renderer.ResetCamera()
-
+            
+            self.selected_objects = [name]
             scene_object = volume
 
         elif obj_conf['type'] == 'swc':
