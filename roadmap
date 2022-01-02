@@ -1,0 +1,10 @@
+* Select an object by mouse i.e. set it to "active".
+  - by single click.
+  - by box selection, multiple object.
+* "Fly to" an active object.  (done for volume)
+* Dynamical loading/off-loading.
+* Visually focus local area
+  - by mask volume partially.
+  - by rebuild a volume.
+* Show 3D cursor.
+
