@@ -43,12 +43,17 @@ import pprint
 
 import numpy as np
 from numpy import sin, cos, pi
+from numpy import array as _a
 
 import tifffile
 import h5py
 
 # noinspection PyUnresolvedReferences
 import vtkmodules.vtkInteractionStyle
+import vtkmodules.vtkRenderingOpenGL2
+import vtkmodules.vtkRenderingVolumeOpenGL2
+import vtkmodules.vtkRenderingFreeType
+
 from vtkmodules.vtkCommonCore import (
     vtkPoints,
     VTK_CUBIC_INTERPOLATION
@@ -82,7 +87,8 @@ from vtkmodules.vtkRenderingCore import (
     vtkVolumeProperty,
     vtkWindowToImageFilter,
     vtkActor,
-    vtkPolyDataMapper
+    vtkPolyDataMapper,
+    vtkPropPicker
 )
 from vtkmodules.vtkRenderingVolume import (
     vtkFixedPointVolumeRayCastMapper,
@@ -90,9 +96,9 @@ from vtkmodules.vtkRenderingVolume import (
 )
 # 
 # noinspection PyUnresolvedReferences
-#import vtkRenderingOpenGL2, vtkRenderingFreeType, vtkInteractionStyle
-#import vtkmodules.vtkRenderingVolumeOpenGL2
 from vtkmodules.vtkRenderingVolumeOpenGL2 import vtkOpenGLRayCastImageDisplayHelper
+
+from vtkmodules.vtkFiltersHybrid import vtkPolyDataSilhouette
 
 from vtk.util.numpy_support import numpy_to_vtk
 
@@ -646,11 +652,33 @@ class timerHandler():
 class MyInteractorStyle(vtkInteractorStyleTerrain):
 
     def __init__(self, iren, guictrl):
-        self.AddObserver('MiddleButtonPressEvent', self.middle_button_press_event)
-        self.AddObserver('MiddleButtonReleaseEvent', self.middle_button_release_event)
-        self.AddObserver('CharEvent', self.OnChar)
         self.iren = iren
         self.guictrl = guictrl
+
+        self.AddObserver('MiddleButtonPressEvent',
+                         self.middle_button_press_event)
+        self.AddObserver('MiddleButtonReleaseEvent',
+                         self.middle_button_release_event)
+        self.AddObserver('MouseWheelForwardEvent',
+                         self.mouse_wheel_event(1))
+        self.AddObserver('MouseWheelBackwardEvent',
+                         self.mouse_wheel_event(-1))
+        self.AddObserver('CharEvent', self.OnChar)
+
+    def mouse_wheel_event(self, direction):
+        def mouse_wheel_action(obj, event, direction = direction):
+            win = obj.iren.GetRenderWindow()
+            rens = win.GetRenderers()
+            rens.InitTraversal()
+            ren1 = rens.GetNextItem()
+            cam = ren1.GetActiveCamera()
+            # modify the distance between camera and the focus point
+            fp = _a(cam.GetFocalPoint())
+            p  = _a(cam.GetPosition())
+            new_p = fp + (p - fp) * (1.2 ** (-direction))
+            cam.SetPosition(new_p)
+            win.Render()
+        return mouse_wheel_action
 
     def middle_button_press_event(self, obj, event):
         print('Middle Button pressed')
