@@ -88,7 +88,8 @@ from vtkmodules.vtkRenderingCore import (
     vtkWindowToImageFilter,
     vtkActor,
     vtkPolyDataMapper,
-    vtkPropPicker
+    vtkPropPicker,
+    vtkPointPicker
 )
 from vtkmodules.vtkRenderingVolume import (
     vtkFixedPointVolumeRayCastMapper,
@@ -97,6 +98,8 @@ from vtkmodules.vtkRenderingVolume import (
 # 
 # noinspection PyUnresolvedReferences
 from vtkmodules.vtkRenderingVolumeOpenGL2 import vtkOpenGLRayCastImageDisplayHelper
+
+from vtkmodules.vtkFiltersSources import vtkSphereSource
 
 from vtkmodules.vtkFiltersHybrid import vtkPolyDataSilhouette
 
@@ -151,6 +154,9 @@ def DefaultSceneConfig():
             "background": {
                 "type": "Background",
                 "color": "Wheat"
+            },
+            "3d_cursor": {
+                "type": "Sphere",
             },
             "camera1": {
                 "type": "Camera",
@@ -655,6 +661,9 @@ class MyInteractorStyle(vtkInteractorStyleTerrain):
         self.iren = iren
         self.guictrl = guictrl
 
+        # var for picker
+        self.picked_actor = None
+
         # mouse events
         self.fn_modifier = []
         self.AddObserver('LeftButtonPressEvent',
@@ -669,6 +678,10 @@ class MyInteractorStyle(vtkInteractorStyleTerrain):
                          self.mouse_wheel_event(1))
         self.AddObserver('MouseWheelBackwardEvent',
                          self.mouse_wheel_event(-1))
+        self.AddObserver('RightButtonPressEvent',
+                         self.right_button_press_event)
+        self.AddObserver('RightButtonReleaseEvent',
+                         self.right_button_release_event)
         self.left_button_press_event_release_fn = None
 
         # keyboard events
@@ -727,6 +740,47 @@ class MyInteractorStyle(vtkInteractorStyleTerrain):
         self.OnMiddleButtonUp()
         return
 
+    def right_button_press_event(self, obj, event):
+        ren = self.guictrl.GetMainRenderer()
+
+        # select object
+        # Ref. HighlightWithSilhouette
+        # https://kitware.github.io/vtk-examples/site/Python/Picking/HighlightWithSilhouette/
+        clickPos = self.iren.GetEventPosition()
+        
+#        picker = vtkPropPicker()
+#        picker.Pick(clickPos[0], clickPos[1], 0, ren)
+#        self.picked_actor = picker.GetActor()
+
+        picker = vtkPointPicker()
+        picker.Pick(clickPos[0], clickPos[1], 0, ren)
+        #self.picked_actor = picker.GetActor()
+        
+        p = picker.GetPickPosition()
+        dbg_print(4, 'picker position', picker.GetPickPosition())
+        
+#        picker.SetTolerance(0.001)
+#        dbg_print(4, 'picker tolerance:', picker.GetTolerance())
+        
+        self.guictrl.Set3DCursor([p[0],p[1],p[2]])
+        
+        if self.picked_actor:
+            print(self.picked_actor)
+#            silhouette       = self.guictrl.utility_objects['silhouette'][0]
+#            silhouette_actor = self.guictrl.utility_objects['silhouette'][1]
+#            ren.RemoveActor(silhouette_actor)
+
+#            # Highlight the picked actor by generating a silhouette
+#            silhouette.SetInputData(
+#                self.picked_actor.GetMapper().GetInput())
+#            ren.AddActor(silhouette_actor)
+
+        # purposely no call to self.OnRightButtonDown()
+    
+    def right_button_release_event(self, obj, event):
+        # purposely no call to self.OnRightButtonUp()
+        return
+    
     def OnChar(self, obj, event):
         iren = self.iren
 
@@ -785,6 +839,13 @@ class MyInteractorStyle(vtkInteractorStyleTerrain):
             bd = vol.GetBounds()
             center = [(bd[0]+bd[1])/2, (bd[2]+bd[3])/2, (bd[4]+bd[5])/2]
             iren.FlyTo(ren1, center)
+        elif key_sym == 'KP_0':
+            cursor = self.guictrl.scene_objects.get('3d_cursor', None)
+            if hasattr(cursor, 'world_coor'):
+                center = cursor.world_coor
+                iren.FlyTo(ren1, center)
+            else:
+                dbg_print(2, 'OnChar(): no 3d coor found.')
 
         # Let's say, disable all default key bindings (except q)
         if not is_default_binding:
@@ -801,6 +862,9 @@ class GUIControl:
         self.object_properties = {}
         self.scene_objects = {}
         self.selected_objects = []
+        self.main_renderer_name = None
+        
+        self.utility_objects = {}
         
         # load default settings
         self.GUISetup(DefaultGUIConfig())
@@ -812,6 +876,40 @@ class GUIControl:
         elif name_book == 'property':
             index = self.object_properties
         return GetNonconflitName(name_prefix, index.keys())
+
+    def GetMainRenderer(self):
+        if self.main_renderer_name:
+            return self.renderers[self.main_renderer_name]
+        elif self.renderers:
+            # first one is the main
+            self.main_renderer_name = \
+                next(iter(self.renderers.keys()))
+            return self.renderers[self.main_renderer_name]
+        return None
+
+    def UtilizerInit(self):
+        silhouette = vtkPolyDataSilhouette()
+        silhouette.SetCamera(renderer.GetActiveCamera())
+
+        # Create mapper and actor for silhouette
+        silhouetteMapper = vtkPolyDataMapper()
+        silhouetteMapper.SetInputConnection(silhouette.GetOutputPort())
+
+        silhouetteActor = vtkActor()
+        silhouetteActor.SetMapper(silhouetteMapper)
+        silhouetteActor.GetProperty().SetColor(colors.GetColor3d("Tomato"))
+        silhouetteActor.GetProperty().SetLineWidth(5)
+
+        self.utility_objects['silhouette'] = [silhouette, silhouetteActor]
+
+    def Set3DCursor(self, xyz):
+        # operate on object: 3d_cursor
+        if '3d_cursor' in self.scene_objects:
+            cursor = self.scene_objects['3d_cursor']
+            cursor.world_coor = xyz
+            dbg_print(4, "Set 3D cursor to", xyz)
+            cursor.SetPosition(xyz)
+            self.render_window.Render()
 
     # setup window, renderers and interactor
     def GUISetup(self, gui_conf):
@@ -1058,6 +1156,27 @@ class GUIControl:
             renderer.AddActor(axes)
             scene_object = axes
 
+        elif obj_conf['type'] == 'Sphere':
+            colors = vtkNamedColors()
+
+            sphereSource = vtkSphereSource()
+            sphereSource.SetCenter(0.0, 0.0, 0.0)
+            sphereSource.SetRadius(2)
+            sphereSource.SetPhiResolution(30)
+            sphereSource.SetThetaResolution(30)
+            
+            mapper = vtkPolyDataMapper()
+            mapper.SetInputConnection(sphereSource.GetOutputPort())
+            
+            actor = vtkActor()
+            actor.GetProperty().SetColor(colors.GetColor3d("Peacock"))
+            actor.GetProperty().SetSpecular(0.6)
+            actor.GetProperty().SetSpecularPower(30)
+            actor.SetMapper(mapper)
+            
+            renderer.AddActor(actor)
+            scene_object = actor
+
         elif obj_conf['type'] == 'OrientationMarker':
             # Method 2
             # Ref: https://kitware.github.io/vtk-examples/site/Python/Interaction/CallBack/
@@ -1127,6 +1246,16 @@ class GUIControl:
         # see also vtkAssembly
         # https://vtk.org/doc/nightly/html/classvtkAssembly.html#details
         return
+
+    def RemoveObjects(self, name):
+        if name not in self.scene_objects:
+            dbg_print(2,"RemoveObjects(): object non-exist:", name)
+            return
+        obj = self.scene_objects[name]
+        ren = self.GetMainRenderer()
+        re.RemoveActor(obj)
+        del self.scene_objects[name]
+        # TODO: correctly remove a object, possibly from adding process.
 
     def EasyObjectImporter(self, obj_desc):
         if not obj_desc:
