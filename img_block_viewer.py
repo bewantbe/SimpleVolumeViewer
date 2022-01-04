@@ -655,6 +655,12 @@ class MyInteractorStyle(vtkInteractorStyleTerrain):
         self.iren = iren
         self.guictrl = guictrl
 
+        # mouse events
+        self.fn_modifier = []
+        self.AddObserver('LeftButtonPressEvent',
+                         self.left_button_press_event)
+        self.AddObserver('LeftButtonReleaseEvent',
+                         self.left_button_release_event)
         self.AddObserver('MiddleButtonPressEvent',
                          self.middle_button_press_event)
         self.AddObserver('MiddleButtonReleaseEvent',
@@ -663,7 +669,38 @@ class MyInteractorStyle(vtkInteractorStyleTerrain):
                          self.mouse_wheel_event(1))
         self.AddObserver('MouseWheelBackwardEvent',
                          self.mouse_wheel_event(-1))
+        self.left_button_press_event_release_fn = None
+
+        # keyboard events
         self.AddObserver('CharEvent', self.OnChar)
+
+    # To test fully quantified "C" "A" "S".
+    def is_kbd_modifier(self, u = ''):
+        iren = self.iren
+        m = 'C' if iren.GetControlKey() else ' ' + \
+            'A' if iren.GetAltKey() else ' ' + \
+            'S' if iren.GetShiftKey() else ' '
+        u = u.upper()
+        p = 'C' if 'C' in u else ' ' + \
+            'A' if 'A' in u else ' ' + \
+            'S' if 'S' in u else ' '
+        return p == m
+
+    def left_button_press_event(self, obj, event):
+        if self.is_kbd_modifier(''):
+            self.OnLeftButtonDown()
+            self.left_button_press_event_release_fn = \
+                lambda: self.OnLeftButtonUp()
+        elif self.is_kbd_modifier('S'):
+            self.OnMiddleButtonDown()
+            self.left_button_press_event_release_fn = \
+                lambda: self.OnMiddleButtonUp()
+    
+    def left_button_release_event(self, obj, event):
+        if self.left_button_press_event_release_fn:
+            self.left_button_press_event_release_fn()
+        else:
+            self.OnLeftButtonUp()
 
     def mouse_wheel_event(self, direction):
         def mouse_wheel_action(obj, event, direction = direction):
