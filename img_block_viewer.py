@@ -103,7 +103,7 @@ from vtkmodules.vtkFiltersSources import vtkSphereSource
 
 from vtkmodules.vtkFiltersHybrid import vtkPolyDataSilhouette
 
-from vtk.util.numpy_support import numpy_to_vtk
+from vtk.util.numpy_support import numpy_to_vtk, vtk_to_numpy
 
 def DefaultGUIConfig():
     d = {
@@ -163,7 +163,7 @@ def DefaultSceneConfig():
                 "renderer": "0",
                 "Azimuth": 45,
                 "Elevation": 30,
-                "clipping_range": [0.1, 10000]
+                "clipping_range": [0.01, 10000]
             },
             "camera2": {
                 "type": "Camera",
@@ -217,6 +217,15 @@ def str2array(s):
 
 def _mat3d(d):
     return np.array(d, dtype=np.float64).reshape(3,3)
+
+def vtkMatrix2array(vtkm):
+    # also use self.cam_m.GetData()[i+4*j]?
+    m = np.array(
+            [
+                [vtkm.GetElement(i,j) for j in range(4)]
+                for i in range(4)
+            ], dtype=np.float64)
+    return m
 
 # Utilizer to convert a fraction to integer range
 # mostly copy from VISoR_select_light/pick_big_block/volumeio.py
@@ -598,6 +607,78 @@ def CameraFollowCallbackFunction(caller, ev):
     AlignCameraDirection(cam2, cam1)
     return
 
+class PointPicker():
+    def __init__(self, points, renderer):
+        ren_win = renderer.GetRenderWindow()
+        cam = renderer.GetActiveCamera()
+        self.init(points, cam, ren_win.GetSize())
+
+    def init(self, points, camera, screen_dims):
+        self.p = np.array(points, dtype=np.float64)
+        # The matrix from cam to world
+        # vec_cam = cam_m * vec_world
+        # for cam_m =[[u v], inverse of it is:[[u.T  -u.T*v]
+        #             [0 1]]                   [0     1    ]]
+        self.cam_m = vtkMatrix2array(camera.GetModelViewTransformMatrix())
+        self.screen_dims = _a(screen_dims)
+        # https://vtk.org/doc/nightly/html/classvtkCamera.html#a2aec83f16c1c492fe87336a5018ad531
+        view_angle = camera.GetViewAngle() / (180/np.pi)
+        view_length = 2*np.tan(view_angle/2)
+        # aspect = width/height
+        aspect_ratio = screen_dims[0] / screen_dims[1]
+        if camera.GetUseHorizontalViewAngle():
+            unit_view_window = _a([view_length, view_length/aspect_ratio])
+        else:  # this is the default
+            unit_view_window = _a([view_length*aspect_ratio, view_length])
+        self.pixel_scale = unit_view_window / _a(screen_dims)
+
+    def PickAt(self, posxy):
+        cam_min_view_distance = 0
+        selection_angle_tol = 0.01
+        p = self.p
+        # constructing picker line: r = v * t + o
+        o = - self.cam_m[0:3,0:3].T @ self.cam_m[0:3, 3:4]  # cam pos in world
+        #   click pos in cam
+        posxy_cam = (_a(posxy) - self.screen_dims / 2) * self.pixel_scale
+        v = self.cam_m[0:3,0:3].T @ _a([[posxy_cam[0], posxy_cam[1], -1]]).T
+        # compute distance from p to the line
+        u = p - o
+        t = (v.T @ u) / (v.T @ v)
+        dist = np.linalg.norm(u - v * t, axis=0)
+        angle_dist = dist / t
+        
+#        print('self.cam_m', self.cam_m)
+#        print('posxy', posxy, '   self.screen_dims', self.screen_dims)
+#        print('posxy_unit', (_a(posxy) - self.screen_dims / 2)/self.screen_dims)
+#        print('self.pixel_scale', self.pixel_scale)
+#        
+#        print('o', o)
+#        print('posxy_cam', posxy_cam)
+#        print('v', v)
+#        print('t', np.sort(t))
+#        print('dist', np.sort(dist))
+#        print('angle_dist', np.sort(angle_dist))
+        
+        # find nearest point
+        in_view_tol = (t > cam_min_view_distance) & (angle_dist < selection_angle_tol)
+        ID_selected = np.flatnonzero(in_view_tol)
+        if ID_selected.size > 0:
+            angle_dist_selected = angle_dist[0, ID_selected]
+            ID_selected = ID_selected[np.argmin(angle_dist_selected)]
+        return ID_selected, p[:, ID_selected]
+
+class PointSetHolder():
+    def __init__(self):
+        self.points = np.array([[],[],[]], dtype=np.float64)
+        self.range_map = {}
+    
+    def AddPoints(self, points, name):
+        self.points = np.append(self.points, points, axis=1)
+        # TODO, maybe make it possible to find 'name' by point
+    
+    def __call__(self):
+        return self.points
+
 # Rotate camera
 class execSmoothRotation():
     def __init__(self, cam, degree_per_sec):
@@ -747,29 +828,36 @@ class MyInteractorStyle(vtkInteractorStyleTerrain):
         # Ref. HighlightWithSilhouette
         # https://kitware.github.io/vtk-examples/site/Python/Picking/HighlightWithSilhouette/
         clickPos = self.iren.GetEventPosition()
+        dbg_print(5, 'clicked at', clickPos)
+
+        ppicker = PointPicker(self.guictrl.point_set_holder(), ren)
+        pid, pxyz = ppicker.PickAt(clickPos)
+        print(pid, pxyz)
+        
+        picker = vtkPointPicker()
+        picker.SetUseCells(False)
+        picker.Pick(clickPos[0], clickPos[1], 0, ren)
+        p = picker.GetPickPosition()
+        dbg_print(4, 'picker point id:', picker.GetPointId ())
+#        picker.SetTolerance(0.001)
+#        dbg_print(4, 'picker tolerance:', picker.GetTolerance())
+        
+        #self.guictrl.Set3DCursor([p[0],p[1],p[2]])
+        if pxyz.size > 0:
+            self.guictrl.Set3DCursor(pxyz)
         
 #        picker = vtkPropPicker()
 #        picker.Pick(clickPos[0], clickPos[1], 0, ren)
 #        self.picked_actor = picker.GetActor()
 
-        picker = vtkPointPicker()
-        picker.Pick(clickPos[0], clickPos[1], 0, ren)
-        #self.picked_actor = picker.GetActor()
-        
-        p = picker.GetPickPosition()
-        dbg_print(4, 'picker position', picker.GetPickPosition())
-        
-#        picker.SetTolerance(0.001)
-#        dbg_print(4, 'picker tolerance:', picker.GetTolerance())
-        
-        self.guictrl.Set3DCursor([p[0],p[1],p[2]])
-        
-        if self.picked_actor:
-            print(self.picked_actor)
+#        if self.picked_actor and '3d_cursor' in self.guictrl.scene_objects:
+#            dbg_print(3, 'Adding silhouette.')
+#            self.picked_actor = self.guictrl.scene_objects['3d_cursor']
+#
 #            silhouette       = self.guictrl.utility_objects['silhouette'][0]
 #            silhouette_actor = self.guictrl.utility_objects['silhouette'][1]
-#            ren.RemoveActor(silhouette_actor)
-
+#            #ren.RemoveActor(silhouette_actor)
+#
 #            # Highlight the picked actor by generating a silhouette
 #            silhouette.SetInputData(
 #                self.picked_actor.GetMapper().GetInput())
@@ -866,6 +954,8 @@ class GUIControl:
         
         self.utility_objects = {}
         
+        self.point_set_holder = PointSetHolder()
+        
         # load default settings
         self.GUISetup(DefaultGUIConfig())
         self.AppendToScene(DefaultSceneConfig())
@@ -888,8 +978,10 @@ class GUIControl:
         return None
 
     def UtilizerInit(self):
+        colors = vtkNamedColors()
+    	
         silhouette = vtkPolyDataSilhouette()
-        silhouette.SetCamera(renderer.GetActiveCamera())
+        silhouette.SetCamera(self.GetMainRenderer().GetActiveCamera())
 
         # Create mapper and actor for silhouette
         silhouetteMapper = vtkPolyDataMapper()
@@ -1104,6 +1196,10 @@ class GUIControl:
         elif obj_conf['type'] == 'swc':
             ntree = LoadSWCTree(obj_conf['file_path'])
             processes = SplitSWCTree(ntree)
+            
+            raw_points = ntree[1][:,0:3]
+            self.point_set_holder.AddPoints(raw_points.T, '')
+            
             # ref: 
             # https://kitware.github.io/vtk-examples/site/Python/GeometricObjects/PolyLine/
             # https://kitware.github.io/vtk-examples/site/Cxx/GeometricObjects/LinearCellDemo/
@@ -1115,7 +1211,7 @@ class GUIControl:
             #         vtkRenderer()
             
             points = vtkPoints()
-            points.SetData( numpy_to_vtk(ntree[1][:,0:3], deep=True) )
+            points.SetData( numpy_to_vtk(raw_points, deep=True) )
             
             cells = vtkCellArray()
             for proc in processes:
@@ -1138,7 +1234,8 @@ class GUIControl:
             actor.GetProperty().SetColor(
                 colors.GetColor3d(obj_conf['color']))
             renderer.AddActor(actor)
-
+            #actor.raw_points = raw_points  # for convenience
+            
             scene_object = actor
 
         elif obj_conf['type'] == 'AxesActor':
@@ -1326,6 +1423,7 @@ class GUIControl:
     def Start(self):
         self.interactor.Initialize()
         self.render_window.Render()
+        self.UtilizerInit()
         self.interactor.Start()
 
 def get_program_parameters():
