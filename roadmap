@@ -1,10 +1,10 @@
 * Select an object by mouse i.e. set it to "active".
-  - by single click.
+  - by single click.                    (done for swc point)
   - by box selection, multiple object.
-* "Fly to" an active object.  (done for volume)
+* "Fly to" an active object.            (done for volume, picked point)
 * Dynamical loading/off-loading.
 * Visually focus local area
   - by mask volume partially.
   - by rebuild a volume.
-* Show 3D cursor.
+* Show 3D cursor.                       (done using sphere)
 

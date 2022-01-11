@@ -9,6 +9,9 @@
 # ./img_block_viewer.py --filepath 3864-3596-2992_C3.ims --colorscale 10 --swc R2-N1-A2.json.swc_modified.swc --fibercolor green
 # ./img_block_viewer.py --scene scene_example_vol_swc.json
 
+# See help message for more tips.
+# ./img_block_viewer.py -h
+
 # Program logic:
 #   In a very general sense, this code does the following:
 #     * Read the window configuration and scene object description.
@@ -103,7 +106,8 @@ from vtkmodules.vtkFiltersSources import vtkSphereSource
 
 from vtkmodules.vtkFiltersHybrid import vtkPolyDataSilhouette
 
-from vtk.util.numpy_support import numpy_to_vtk, vtk_to_numpy
+# loading this consumes ~0.1 second!
+from vtk.util.numpy_support import numpy_to_vtk
 
 def DefaultGUIConfig():
     d = {
@@ -163,7 +167,7 @@ def DefaultSceneConfig():
                 "renderer": "0",
                 "Azimuth": 45,
                 "Elevation": 30,
-                "clipping_range": [0.01, 10000]
+                "clipping_range": [0.0001, 100000]
             },
             "camera2": {
                 "type": "Camera",
@@ -199,7 +203,7 @@ def DefaultSceneConfig():
     }
     return d
 
-debug_level = 4
+debug_level = 5
 
 # Used for print error, controlled by debug_level.
 # higher debug_level will show more info.
@@ -611,10 +615,10 @@ class PointPicker():
     def __init__(self, points, renderer):
         ren_win = renderer.GetRenderWindow()
         cam = renderer.GetActiveCamera()
-        self.init(points, cam, ren_win.GetSize())
-
-    def init(self, points, camera, screen_dims):
+        self.GetViewParam(cam, ren_win.GetSize())
         self.p = np.array(points, dtype=np.float64)
+
+    def GetViewParam(self, camera, screen_dims):
         # The matrix from cam to world
         # vec_cam = cam_m * vec_world
         # for cam_m =[[u v], inverse of it is:[[u.T  -u.T*v]
@@ -641,23 +645,11 @@ class PointPicker():
         #   click pos in cam
         posxy_cam = (_a(posxy) - self.screen_dims / 2) * self.pixel_scale
         v = self.cam_m[0:3,0:3].T @ _a([[posxy_cam[0], posxy_cam[1], -1]]).T
-        # compute distance from p to the line
+        # compute distance from p to the line r
         u = p - o
         t = (v.T @ u) / (v.T @ v)
         dist = np.linalg.norm(u - v * t, axis=0)
         angle_dist = dist / t
-        
-#        print('self.cam_m', self.cam_m)
-#        print('posxy', posxy, '   self.screen_dims', self.screen_dims)
-#        print('posxy_unit', (_a(posxy) - self.screen_dims / 2)/self.screen_dims)
-#        print('self.pixel_scale', self.pixel_scale)
-#        
-#        print('o', o)
-#        print('posxy_cam', posxy_cam)
-#        print('v', v)
-#        print('t', np.sort(t))
-#        print('dist', np.sort(dist))
-#        print('angle_dist', np.sort(angle_dist))
         
         # find nearest point
         in_view_tol = (t > cam_min_view_distance) & (angle_dist < selection_angle_tol)
@@ -808,6 +800,10 @@ class MyInteractorStyle(vtkInteractorStyleTerrain):
             p  = _a(cam.GetPosition())
             new_p = fp + (p - fp) * (1.2 ** (-direction))
             cam.SetPosition(new_p)
+            # need to do ResetCameraClippingRange(), since VTK will
+            # automatically reset clipping range after changing camera view
+            # angle. Then the clipping range can be wrong for zooming.
+            ren1.ResetCameraClippingRange()
             win.Render()
         return mouse_wheel_action
 
@@ -828,41 +824,17 @@ class MyInteractorStyle(vtkInteractorStyleTerrain):
         # Ref. HighlightWithSilhouette
         # https://kitware.github.io/vtk-examples/site/Python/Picking/HighlightWithSilhouette/
         clickPos = self.iren.GetEventPosition()
-        dbg_print(5, 'clicked at', clickPos)
+        dbg_print(4, 'clicked at', clickPos)
 
         ppicker = PointPicker(self.guictrl.point_set_holder(), ren)
         pid, pxyz = ppicker.PickAt(clickPos)
-        print(pid, pxyz)
         
-        picker = vtkPointPicker()
-        picker.SetUseCells(False)
-        picker.Pick(clickPos[0], clickPos[1], 0, ren)
-        p = picker.GetPickPosition()
-        dbg_print(4, 'picker point id:', picker.GetPointId ())
-#        picker.SetTolerance(0.001)
-#        dbg_print(4, 'picker tolerance:', picker.GetTolerance())
-        
-        #self.guictrl.Set3DCursor([p[0],p[1],p[2]])
         if pxyz.size > 0:
+            dbg_print(4, 'picked point', pid, pxyz)
             self.guictrl.Set3DCursor(pxyz)
+        else:
+            dbg_print(4, 'picked no point', pid, pxyz)
         
-#        picker = vtkPropPicker()
-#        picker.Pick(clickPos[0], clickPos[1], 0, ren)
-#        self.picked_actor = picker.GetActor()
-
-#        if self.picked_actor and '3d_cursor' in self.guictrl.scene_objects:
-#            dbg_print(3, 'Adding silhouette.')
-#            self.picked_actor = self.guictrl.scene_objects['3d_cursor']
-#
-#            silhouette       = self.guictrl.utility_objects['silhouette'][0]
-#            silhouette_actor = self.guictrl.utility_objects['silhouette'][1]
-#            #ren.RemoveActor(silhouette_actor)
-#
-#            # Highlight the picked actor by generating a silhouette
-#            silhouette.SetInputData(
-#                self.picked_actor.GetMapper().GetInput())
-#            ren.AddActor(silhouette_actor)
-
         # purposely no call to self.OnRightButtonDown()
     
     def right_button_release_event(self, obj, event):
@@ -927,7 +899,7 @@ class MyInteractorStyle(vtkInteractorStyleTerrain):
             bd = vol.GetBounds()
             center = [(bd[0]+bd[1])/2, (bd[2]+bd[3])/2, (bd[4]+bd[5])/2]
             iren.FlyTo(ren1, center)
-        elif key_sym == 'KP_0':
+        elif key_sym == 'KP_0' or key_sym == '0':
             cursor = self.guictrl.scene_objects.get('3d_cursor', None)
             if hasattr(cursor, 'world_coor'):
                 center = cursor.world_coor
@@ -1433,8 +1405,16 @@ def get_program_parameters():
     Keyboard shortcuts:
         '+'/'-': Make the image darker or lighter;
         'r': Auto rotate the image for a while;
-        's': Save a screenshot;
+        's': Take a screenshot and save it to TestScreenshot.png;
+        ' ': Fly to view the selected volume.
+        '0': Fly to view the selected point in the fiber.
         'q': Exit the program.
+
+    Mouse function:
+        left: drag to view in different angle;
+        middle, left+shift: Move the view point.
+        wheel: zoom;
+        right click: select object, support swc points only currently.
     '''
     parser = argparse.ArgumentParser(description=description, epilog=epilogue,
                                      formatter_class=argparse.RawDescriptionHelpFormatter)
