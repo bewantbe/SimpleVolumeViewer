@@ -3,11 +3,12 @@
 # A simple viewer based on PyVTK for volumetric data, 
 # specialized for neuron tracing.
 
-# Usages:
+# Usage examples:
 # python img_block_viewer.py --filepath RM006_s128_c13_f8906-9056.tif
 # ./img_block_viewer.py --filepath z00060_c3_2.ims --level 3 --range '[400:800, 200:600, 300:700]' --colorscale 10
 # ./img_block_viewer.py --filepath 3864-3596-2992_C3.ims --colorscale 10 --swc R2-N1-A2.json.swc_modified.swc --fibercolor green
 # ./img_block_viewer.py --scene scene_example_vol_swc.json
+# ./img_block_viewer.py --scene scene_example_rm006_3.json --lychnis_blocks RM006-004-lychnis/image/blocks.json
 
 # See help message for more tips.
 # ./img_block_viewer.py -h
@@ -21,7 +22,7 @@
 #   So this code essentally translate the object descriptinon to VTK command
 #   and does the image data loading.
 
-# Code structure text order:
+# Code structure in text order:
 #   General utilizer functions.
 #   Image loaders.
 #   SWC loaders.
@@ -40,6 +41,7 @@
 # https://kitware.github.io/vtk-examples/site/Python/Rendering/PBR_Skybox/
 
 import os
+import os.path
 import time
 import json
 import pprint
@@ -107,6 +109,7 @@ from vtkmodules.vtkFiltersSources import vtkSphereSource
 from vtkmodules.vtkFiltersHybrid import vtkPolyDataSilhouette
 
 # loading this consumes ~0.1 second!
+# might move it to where it is used.
 from vtk.util.numpy_support import numpy_to_vtk
 
 def DefaultGUIConfig():
@@ -217,7 +220,13 @@ def dbg_print(level, *p, **keys):
 def str2array(s):
     if not isinstance(s, str):
         return s
-    return [float(it) for it in s[1:-1].split(',')]
+    if s[0] == '[':
+        # like "[1,2,3]"
+        v = [float(it) for it in s[1:-1].split(',')]
+    else:
+        # like "1 2 3"
+        v = [float(it) for it in s.split(' ')]
+    return v
 
 def _mat3d(d):
     return np.array(d, dtype=np.float64).reshape(3,3)
@@ -335,6 +344,8 @@ def read_tiff_meta(tif_path):
                 for tag_name, tag_val in tif.pages[0].tags.items()}
     if hasattr(tif, 'imagej_metadata'):
         metadata['imagej'] = tif.imagej_metadata
+    
+    metadata['n_pages'] = len(tif.pages)
     return metadata
 
 # Read Imaris compatible image file.
@@ -693,6 +704,67 @@ class execSmoothRotation():
         iren.GetRenderWindow().Render()
         #print('execSmoothRotation: Ren', time_now - self.time_start)
 
+class OnDemandVolumeLoader():
+    def __init__(self):
+        self.vol_list = []
+        self.vol_origin = np.zeros((0,3), dtype=np.float64)
+        self.vol_size   = np.zeros((0,3), dtype=np.float64)
+    
+    def ImportLychnixVolume(self, vol_list_file):
+        from os.path import dirname, join, normpath
+        jn = json.loads(open(vol_list_file).read())
+        base_dir = normpath(join(dirname(vol_list_file), jn['image_path']))
+        dbg_print(4,  'ImportLychnixVolume():')
+        dbg_print(4,  '  voxel_size:', jn['voxel_size'])
+        dbg_print(4,  '  channels  :', jn['channels'])
+        dbg_print(4,  '  base_dir  :', base_dir)
+        self.ImportVolumeList(jn['images'], basedir=base_dir)
+
+    def ImportVolumeList(self, vol_list, basedir=''):
+        from os.path import dirname, join, normpath
+        # format of vol_list:
+        # vol_list = [
+        #   {
+        #       "image_path": "full/path/to/tiff",
+        #       "origin": [x, y, z],
+        #       "size": [i, j, k]
+        #   },
+        #   ...
+        # ]
+        ap_list = [
+            {
+                'image_path': normpath(join(basedir, it['image_path'])),
+                'origin': str2array(it['origin']),
+                'size': str2array(it['size'])
+            }
+            for it in vol_list
+        ]
+        self.vol_list += ap_list
+        self.vol_origin = np.concatenate(
+            (self.vol_origin,
+            _a([it['origin'] for it in ap_list])), axis = 0)
+        self.vol_size = np.concatenate(
+            (self.vol_size,
+            _a([it['size'] for it in ap_list])), axis = 0)
+#        print(self.vol_list)
+#        print(self.vol_origin)
+#        print(self.vol_size)
+        
+    def LoadVolumeAt(self, pos, radius=0):
+        pos = _a([[pos[0], pos[1], pos[2]]])
+        vol_center = self.vol_origin + self.vol_size / 2
+        distance = np.abs(vol_center - pos)
+        idx_in_range = np.flatnonzero(
+            (distance[:,0] <= self.vol_size[:,0]/2 + radius) &
+            (distance[:,1] <= self.vol_size[:,1]/2 + radius) &
+            (distance[:,2] <= self.vol_size[:,2]/2 + radius) )
+#        print(idx_in_range)
+#        print('pos', pos)
+#        print('origin:', self.vol_origin[idx_in_range, :])
+#        print('size  :', self.vol_size  [idx_in_range, :])
+        selected_vol = [self.vol_list[it] for it in idx_in_range]
+        return selected_vol
+
 # Sign up to receive TimerEvent
 class timerHandler():
     def __init__(self, interactor, duration, exec_obj):
@@ -872,7 +944,7 @@ class MyInteractorStyle(vtkInteractorStyleTerrain):
             cam2 = ren2.GetActiveCamera()
             rotator = execSmoothRotation(cam1, 60.0)
             timerHandler(iren, 6.0, rotator).start()
-        elif (key_sym in ['plus','minus'] or key_combo in '+-') and \
+        elif (key_sym in ['plus','minus'] or key_combo in ['+','-']) and \
             self.guictrl.selected_objects:
             # Make the image darker or lighter.
             vol_name = self.guictrl.selected_objects[0]  # active object
@@ -884,9 +956,6 @@ class MyInteractorStyle(vtkInteractorStyleTerrain):
             if key_sym == 'plus' or key_combo == '+':
                 k = 1.0 / k
             SetColorScale(obj_prop, [cs_o*k, cs_c*k])
-#            scene_obj = self.guictrl.scene_objects[vol_name]
-#            scene_obj.Modified()  # not work
-#            scene_obj.Update()
             iren.GetRenderWindow().Render()
         elif key_sym == 's' and not (b_C or b_S or b_A):
             # take a screenshot
@@ -900,12 +969,12 @@ class MyInteractorStyle(vtkInteractorStyleTerrain):
             center = [(bd[0]+bd[1])/2, (bd[2]+bd[3])/2, (bd[4]+bd[5])/2]
             iren.FlyTo(ren1, center)
         elif key_sym == 'KP_0' or key_sym == '0':
-            cursor = self.guictrl.scene_objects.get('3d_cursor', None)
-            if hasattr(cursor, 'world_coor'):
-                center = cursor.world_coor
-                iren.FlyTo(ren1, center)
-            else:
-                dbg_print(2, 'OnChar(): no 3d coor found.')
+            center = self.guictrl.Get3DCursor()
+            iren.FlyTo(ren1, center)
+        elif key_sym in ['Return', 'KP_Enter']:
+            center = self.guictrl.Get3DCursor()
+            self.guictrl.LoadVolumeNear(center)
+            iren.GetRenderWindow().Render()
 
         # Let's say, disable all default key bindings (except q)
         if not is_default_binding:
@@ -925,6 +994,7 @@ class GUIControl:
         self.main_renderer_name = None
         
         self.utility_objects = {}
+        self.volume_loader = OnDemandVolumeLoader()
         
         self.point_set_holder = PointSetHolder()
         
@@ -974,6 +1044,15 @@ class GUIControl:
             dbg_print(4, "Set 3D cursor to", xyz)
             cursor.SetPosition(xyz)
             self.render_window.Render()
+
+    def Get3DCursor(self):
+        cursor = self.scene_objects.get('3d_cursor', None)
+        if hasattr(cursor, 'world_coor'):
+            center = cursor.world_coor
+        else:
+            center = None
+            dbg_print(2, 'Get3DCursor(): no 3d coor found.')
+        return center
 
     # setup window, renderers and interactor
     def GUISetup(self, gui_conf):
@@ -1326,6 +1405,24 @@ class GUIControl:
         del self.scene_objects[name]
         # TODO: correctly remove a object, possibly from adding process.
 
+    def LoadVolumeNear(self, pos, radius=20):
+        vol_list = self.volume_loader.LoadVolumeAt(pos, radius)
+        #print(vol_list)
+        dbg_print(3, 'LoadVolumeNear(): n_loaded =', len(vol_list))
+        get_vol_name = lambda p: os.path.splitext(os.path.basename(p))[0]
+        for v in vol_list:
+            self.AddObjects(
+                'volume' + get_vol_name(v['image_path']),
+                {
+                    'type'      : 'volume',
+                    'file_path' : v['image_path'],
+                    'origin'    : v['origin'],
+                    'view_point': 'keep'
+                }
+            )
+        return vol_list
+
+    # Used to accept command line inputs which need default parameters.
     def EasyObjectImporter(self, obj_desc):
         if not obj_desc:
             return
@@ -1388,6 +1485,9 @@ class GUIControl:
                 "file_path": obj_desc['swc']
             }
             self.AddObjects(name, obj_conf)
+        if 'lychnis_blocks' in cmd_obj_desc:
+            self.volume_loader.ImportLychnixVolume( \
+                cmd_obj_desc['lychnis_blocks'])
 
     def ShotScreen(self):
         ShotScreen(self.render_window)
@@ -1408,6 +1508,7 @@ def get_program_parameters():
         's': Take a screenshot and save it to TestScreenshot.png;
         ' ': Fly to view the selected volume.
         '0': Fly to view the selected point in the fiber.
+        'Enter': Load the image block (for Lychnis project).
         'q': Exit the program.
 
     Mouse function:
@@ -1429,11 +1530,12 @@ def get_program_parameters():
     parser.add_argument('--swc', help='Read and draw swc file.')
     parser.add_argument('--fibercolor', help='Set fiber color.')
     parser.add_argument('--scene', help='Project scene file path. e.g. for batch object loading.')
+    parser.add_argument('--lychnis_blocks', help='Path of lychnix blocks.json')
     args = parser.parse_args()
     # convert class attributes to dict
     keys = ['filepath', 'level', 'channel', 'time_point', 'range',
             'colorscale', 'swc', 'fibercolor', 'origin', 'rotation_matrix',
-            'scene']
+            'scene', 'lychnis_blocks']
     d = {k: getattr(args, k) for k in keys
             if hasattr(args, k) and getattr(args, k)}
     dbg_print(3, 'get_program_parameters(): d=', d)
