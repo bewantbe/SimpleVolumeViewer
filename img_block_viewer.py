@@ -970,7 +970,10 @@ class MyInteractorStyle(vtkInteractorStyleTerrain):
             iren.FlyTo(ren1, center)
         elif key_sym == 'KP_0' or key_sym == '0':
             center = self.guictrl.Get3DCursor()
-            iren.FlyTo(ren1, center)
+            if (center is not None) and (len(center) == 3):
+                iren.FlyTo(ren1, center)
+            else:
+                dbg_print(3, 'No way to fly to.')
         elif key_sym in ['Return', 'KP_Enter']:
             center = self.guictrl.Get3DCursor()
             self.guictrl.LoadVolumeNear(center)
