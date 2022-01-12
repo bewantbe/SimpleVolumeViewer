@@ -777,10 +777,12 @@ class timerHandler():
     def callback(self, obj, event):
         t_now = time.time()
         if t_now - self.time_start > self.duration:
-            self.stop()
             # align the time to the exact boundary
             t_now = self.time_start + self.duration
-        self.exec_obj(obj, event, t_now)
+            self.exec_obj(obj, event, t_now)
+            self.stop()
+        else:
+            self.exec_obj(obj, event, t_now)
 
     def start(self):
         self.interactor.AddObserver('TimerEvent', self.callback)
@@ -808,7 +810,7 @@ class MyInteractorStyle(vtkInteractorStyleTerrain):
 
         # var for picker
         self.picked_actor = None
-
+        
         # mouse events
         self.fn_modifier = []
         self.AddObserver('LeftButtonPressEvent',
@@ -953,6 +955,8 @@ class MyInteractorStyle(vtkInteractorStyleTerrain):
             #obj_prop = self.guictrl.object_properties[vol_name]
             cs_o, cs_c = GetColorScale(obj_prop)
             k = np.sqrt(np.sqrt(2))
+            if obj.is_kbd_modifier('C'):
+                k = np.sqrt(np.sqrt(k))
             if key_sym == 'plus' or key_combo == '+':
                 k = 1.0 / k
             SetColorScale(obj_prop, [cs_o*k, cs_c*k])
@@ -1512,6 +1516,7 @@ def get_program_parameters():
     epilogue = '''
     Keyboard shortcuts:
         '+'/'-': Make the image darker or lighter;
+                 Press also Ctrl to make it more tender;
         'r': Auto rotate the image for a while;
         's': Take a screenshot and save it to TestScreenshot.png;
         ' ': Fly to view the selected volume.
