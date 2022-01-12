@@ -2,9 +2,12 @@
   - by single click.                    (done for swc point)
   - by box selection, multiple object.
 * "Fly to" an active object.            (done for volume, picked point)
-* Dynamical loading/off-loading.
+* Dynamical loading/off-loading.        (done loading, but not off-loading)
 * Visually focus local area
   - by mask volume partially.
   - by rebuild a volume.
 * Show 3D cursor.                       (done using sphere)
-
+* Add transition animation framework for moving viewport
+  - Make Y direction the up direction.
+  - rotation.
+  

@@ -1406,19 +1406,24 @@ class GUIControl:
         # TODO: correctly remove a object, possibly from adding process.
 
     def LoadVolumeNear(self, pos, radius=20):
+        if (pos is None) or (len(pos) != 3):
+            return []
         vol_list = self.volume_loader.LoadVolumeAt(pos, radius)
         #print(vol_list)
         dbg_print(3, 'LoadVolumeNear(): n_loaded =', len(vol_list))
         get_vol_name = lambda p: os.path.splitext(os.path.basename(p))[0]
         for v in vol_list:
+            v_name = 'volume' + get_vol_name(v['image_path'])
+            if v_name in self.scene_objects:  # skip repeated block
+                continue
             self.AddObjects(
-                'volume' + get_vol_name(v['image_path']),
+                v_name,
                 {
                     'type'      : 'volume',
                     'file_path' : v['image_path'],
                     'origin'    : v['origin'],
                     'view_point': 'keep'
-                }
+                },
             )
         return vol_list
 
