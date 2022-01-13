@@ -10,4 +10,6 @@
 * Add transition animation framework for moving viewport
   - Make Y direction the up direction.
   - rotation.
-  
+* ability to output scene file corresponding to current view.
+* View up                               (done)
+* Support touch screen (StartPinchEvent, PinchEvent, EndPinchEvent), (SwipeEvent, StartSwipeEvent, EndSwipeEvent)

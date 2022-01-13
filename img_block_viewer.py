@@ -682,28 +682,6 @@ class PointSetHolder():
     def __call__(self):
         return self.points
 
-# Rotate camera
-class execSmoothRotation():
-    def __init__(self, cam, degree_per_sec):
-        self.actor = cam
-        self.degree_per_sec = degree_per_sec
-        self.time_start = None
-        self.time_last_update = self.time_start
-
-    def startat(self, time_start):
-        self.time_start = time_start
-        self.time_last_update = self.time_start
-
-    def __call__(self, obj, event, time_now):
-        if time_now < self.time_start:
-            return
-        t_last_elapsed = time_now - self.time_last_update
-        self.actor.Azimuth(self.degree_per_sec * t_last_elapsed)
-        self.time_last_update = time_now
-        iren = obj
-        iren.GetRenderWindow().Render()
-        #print('execSmoothRotation: Ren', time_now - self.time_start)
-
 class OnDemandVolumeLoader():
     def __init__(self):
         self.vol_list = []
@@ -765,14 +743,37 @@ class OnDemandVolumeLoader():
         selected_vol = [self.vol_list[it] for it in idx_in_range]
         return selected_vol
 
+# Rotate camera
+class execSmoothRotation():
+    def __init__(self, cam, degree_per_sec):
+        self.actor = cam
+        self.degree_per_sec = degree_per_sec
+        self.time_start = None
+        self.time_last_update = self.time_start
+
+    def startat(self, time_start):
+        self.time_start = time_start
+        self.time_last_update = self.time_start
+
+    def __call__(self, obj, event, time_now):
+        if time_now < self.time_start:
+            return
+        t_last_elapsed = time_now - self.time_last_update
+        self.actor.Azimuth(self.degree_per_sec * t_last_elapsed)
+        self.time_last_update = time_now
+        iren = obj
+        iren.GetRenderWindow().Render()
+        #print('execSmoothRotation: Ren', time_now - self.time_start)
+
 # Sign up to receive TimerEvent
-class timerHandler():
+class RepeatingTimerHandler():
     def __init__(self, interactor, duration, exec_obj):
         self.exec_obj = exec_obj
         self.interactor = interactor
         self.timerId = None
         self.time_start = 0
         self.duration = duration
+        self.fps = 30
 
     def callback(self, obj, event):
         t_now = time.time()
@@ -788,11 +789,12 @@ class timerHandler():
         self.interactor.AddObserver('TimerEvent', self.callback)
         self.time_start = time.time()
         self.exec_obj.startat(self.time_start)
-        self.timerId = self.interactor.CreateRepeatingTimer(10)
+        self.timerId = self.interactor.CreateRepeatingTimer(int(1/self.fps))
     
     def stop(self):
         if self.timerId:
             self.interactor.DestroyTimer(self.timerId)
+            self.timerId = None
 
     def __del__(self):
         self.stop()
@@ -945,7 +947,7 @@ class MyInteractorStyle(vtkInteractorStyleTerrain):
             cam1 = ren1.GetActiveCamera()
             cam2 = ren2.GetActiveCamera()
             rotator = execSmoothRotation(cam1, 60.0)
-            timerHandler(iren, 6.0, rotator).start()
+            RepeatingTimerHandler(iren, 6.0, rotator).start()
         elif (key_sym in ['plus','minus'] or key_combo in ['+','-']) and \
             self.guictrl.selected_objects:
             # Make the image darker or lighter.
@@ -982,10 +984,16 @@ class MyInteractorStyle(vtkInteractorStyleTerrain):
             center = self.guictrl.Get3DCursor()
             self.guictrl.LoadVolumeNear(center)
             iren.GetRenderWindow().Render()
+        elif (key_sym == 'KP_8') or (key_combo == 'Shift+|'):
+            dbg_print(4, 'Setting view up')
+            cam1 = ren1.GetActiveCamera()
+            cam1.SetViewUp(0,1,0)
+            iren.GetRenderWindow().Render()
 
         # Let's say, disable all default key bindings (except q)
         if not is_default_binding:
             super(MyInteractorStyle, obj).OnChar()
+            # to quit, call TerminateApp()
 
 class GUIControl:
     def __init__(self):
@@ -1349,7 +1357,7 @@ class GUIControl:
             om.SetInteractive(False)
             #om.InteractiveOn()
             om.SetViewport(0, 0, 0.2, 0.2)
-            # TODO: the vtkOrientationMarkerWidget and timerHandler can cause program lose respons or Segmentation fault, for unknown reason.
+            # TODO: the vtkOrientationMarkerWidget and RepeatingTimerHandler can cause program lose respons or Segmentation fault, for unknown reason.
 
             scene_object = om
 
@@ -1522,6 +1530,7 @@ def get_program_parameters():
         ' ': Fly to view the selected volume.
         '0': Fly to view the selected point in the fiber.
         'Enter': Load the image block (for Lychnis project).
+        '|' or '8' in numpad: use Y as view up.
         'q': Exit the program.
 
     Mouse function:
