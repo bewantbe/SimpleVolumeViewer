@@ -966,6 +966,8 @@ class MyInteractorStyle(vtkInteractorStyleTerrain):
         elif key_sym == 's' and not (b_C or b_S or b_A):
             # take a screenshot
             self.guictrl.ShotScreen()
+        elif key_sym == 's' and obj.is_kbd_modifier('C'):
+            self.guictrl.ExportSceneFile()
         elif key_combo == ' ':
             # fly to selected object
             vol_name = self.guictrl.selected_objects[0]  # active object
@@ -1011,11 +1013,17 @@ class GUIControl:
         self.utility_objects = {}
         self.volume_loader = OnDemandVolumeLoader()
         
+        self.scene_saved = {
+            'object_properties': {},
+            'objects': {}
+        }
         self.point_set_holder = PointSetHolder()
         
         # load default settings
+        self.loading_default_config = True
         self.GUISetup(DefaultGUIConfig())
         self.AppendToScene(DefaultSceneConfig())
+        self.loading_default_config = False
 
     def GetNonconflitName(self, name_prefix, name_book = 'scene'):
         if name_book == 'scene':
@@ -1027,16 +1035,11 @@ class GUIControl:
     def GetMainRenderer(self):
         if self.main_renderer_name:
             return self.renderers[self.main_renderer_name]
-        elif self.renderers:
-            # first one is the main
-            self.main_renderer_name = \
-                next(iter(self.renderers.keys()))
-            return self.renderers[self.main_renderer_name]
         return None
 
     def UtilizerInit(self):
         colors = vtkNamedColors()
-    	
+        
         silhouette = vtkPolyDataSilhouette()
         silhouette.SetCamera(self.GetMainRenderer().GetActiveCamera())
 
@@ -1106,6 +1109,10 @@ class GUIControl:
                 renderers[key] = renderer
                 # add new renderer to window
                 self.render_window.AddRenderer(renderer)
+
+        # first one is the main
+        self.main_renderer_name = \
+            next(iter(self.renderers.keys()))
 
         # Create the interactor (for keyboard and mouse)
         interactor = vtkRenderWindowInteractor()
@@ -1193,6 +1200,7 @@ class GUIControl:
                     UpdatePropertyCTFScale(obj_prop, ctf_s)
 
     def AddObjects(self, name, obj_conf):
+        old_name = name
         if name in self.scene_objects:
             # TODO: do we need to remove old object?
             dbg_print(2, 'AddObjects(): conflict name: ', name)
@@ -1368,18 +1376,27 @@ class GUIControl:
 
         elif obj_conf['type'] == 'Camera':
             if 'renderer' in obj_conf:
-                cam = renderer.GetActiveCamera()
-                renderer.ResetCameraClippingRange()
-                renderer.ResetCamera()
+                if obj_conf.get('new', False) == False:
+                    cam = renderer.GetActiveCamera()
+                    renderer.ResetCameraClippingRange()
+                    renderer.ResetCamera()
+                    name = old_name  # Reuse old name
+                else:
+                    cam = renderer.MakeCamera()
             else:
                 cam = vtk.vtkCamera()
 
-            if ('Azimuth' in obj_conf) or ('Elevation' in obj_conf):
-                cam.Azimuth(obj_conf['Azimuth'])
-                cam.Elevation(obj_conf['Elevation'])
-
             if 'clipping_range' in obj_conf:
                 cam.SetClippingRange(obj_conf['clipping_range'])
+
+            item_name = {
+                'Set':['Position', 'FocalPoint', 'ViewUp', 'ViewAngle'],
+                ''   :['Azimuth', 'Elevation']
+            }
+            for f_prefix, its in item_name.items():
+                for it in its:
+                    if it in obj_conf:
+                        getattr(cam, f_prefix + it)(obj_conf[it])
 
             if 'follow_direction' in obj_conf:
                 cam_ref = self.scene_objects[obj_conf['follow_direction']]
@@ -1395,6 +1412,9 @@ class GUIControl:
 
             scene_object = cam
 
+        if not self.loading_default_config:
+            self.scene_saved['objects'][name] = obj_conf
+        
         self.scene_objects.update({name: scene_object})
 
     # add objects to the renderers
@@ -1512,6 +1532,26 @@ class GUIControl:
     def ShotScreen(self):
         ShotScreen(self.render_window)
 
+    def ExportSceneFile(self):
+        # export camera data
+        cam = self.GetMainRenderer().GetActiveCamera()
+        c = {
+            "camera1": {
+                "type": "Camera",
+                "renderer": self.main_renderer_name,
+                "clipping_range": cam.GetClippingRange(),
+                "Position"  : cam.GetPosition(),
+                "FocalPoint": cam.GetFocalPoint(),
+                "ViewUp"    : cam.GetViewUp(),
+                "ViewAngle" : cam.GetViewAngle()
+            },
+        }
+        self.scene_saved['objects'].update(c)
+        # export scene_saved
+        dbg_print(3, 'Saving scene file.')
+        with open('scene_saved.json', 'w') as f:
+            json.dump(self.scene_saved, f, indent=4, ensure_ascii = False)
+
     def Start(self):
         self.interactor.Initialize()
         self.render_window.Render()
@@ -1531,6 +1571,7 @@ def get_program_parameters():
         '0': Fly to view the selected point in the fiber.
         'Enter': Load the image block (for Lychnis project).
         '|' or '8' in numpad: use Y as view up.
+        Ctrl+s : Save the scene and viewport.
         'q': Exit the program.
 
     Mouse function:
