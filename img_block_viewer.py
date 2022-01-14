@@ -420,13 +420,22 @@ def ImportImageArray(img_arr, img_meta):
         n_ch = 1
 
     if (img_meta is not None) and ('imagej' in img_meta) and \
-       (img_meta['imagej'] is not None) and \
-       ('voxel_size_um' in img_meta['imagej']):
-        if isinstance(img_meta['imagej']['voxel_size_um'], str):
-            voxel_size_um = img_meta['imagej']['voxel_size_um'][1:-1]
-            voxel_size_um = tuple(map(float, voxel_size_um.split(', ')))
-        else:  # assume array
-            voxel_size_um = img_meta['imagej']['voxel_size_um']
+       (img_meta['imagej'] is not None):
+        if 'voxel_size_um' in img_meta['imagej']:
+            if isinstance(img_meta['imagej']['voxel_size_um'], str):
+                voxel_size_um = img_meta['imagej']['voxel_size_um'][1:-1]
+                voxel_size_um = tuple(map(float, voxel_size_um.split(', ')))
+            else:  # assume array
+                voxel_size_um = img_meta['imagej']['voxel_size_um']
+        elif ('spacing' in img_meta['imagej']) and \
+             ('XResolution' in img_meta) and \
+             ('YResolution' in img_meta):
+            voxel_size_um = (
+                img_meta['XResolution'][0] / img_meta['XResolution'][1], \
+                img_meta['YResolution'][0] / img_meta['YResolution'][1], \
+                img_meta['imagej']['spacing'])
+        else:
+            voxel_size_um = (1.0, 1.0, 1.0)
     else:
         voxel_size_um = (1.0, 1.0, 1.0)
 
@@ -446,6 +455,7 @@ def ImportImageArray(img_arr, img_meta):
 
     # the 3x3 matrix to rotate the coordinates from index space (ijk) to physical space (xyz)
     b_oblique_correction = img_meta.get('oblique_image', False)
+    dbg_print(4, 'voxel_size_um       : ', voxel_size_um)
     dbg_print(4, 'b_oblique_correction: ', b_oblique_correction)
     if b_oblique_correction:
         img_importer.SetDataSpacing(voxel_size_um[0], voxel_size_um[1],
@@ -466,6 +476,8 @@ def ImportImageArray(img_arr, img_meta):
 # the extra_conf takes higher priority than meta data in the file
 def ImportImageFile(file_name, extra_conf = None):
     img_arr, img_meta = Read3DImageDataFromFile(file_name, extra_conf)
+    if extra_conf:
+        img_meta.update(extra_conf)
     img_import = ImportImageArray(img_arr, img_meta)
     return img_import
 
@@ -991,6 +1003,8 @@ class MyInteractorStyle(vtkInteractorStyleTerrain):
             cam1 = ren1.GetActiveCamera()
             cam1.SetViewUp(0,1,0)
             iren.GetRenderWindow().Render()
+        elif key_sym == 'x' and not (b_C or b_S or b_A):
+            self.guictrl.RemoveObject()
 
         # Let's say, disable all default key bindings (except q)
         if not is_default_binding:
@@ -1436,8 +1450,10 @@ class GUIControl:
             return
         obj = self.scene_objects[name]
         ren = self.GetMainRenderer()
-        re.RemoveActor(obj)
+        ren.RemoveActor(obj)
+        # TODO: Do not remove if it is an active camera
         del self.scene_objects[name]
+        del self.scene_saved['objects'][name]
         # TODO: correctly remove a object, possibly from adding process.
 
     def LoadVolumeNear(self, pos, radius=20):
@@ -1502,6 +1518,11 @@ class GUIControl:
             if 'rotation_matrix' in obj_desc:
                 obj_conf.update({
                     'rotation_matrix': str2array(obj_desc['rotation_matrix'])
+                })
+            if 'oblique_image' in obj_desc:
+                obj_conf.update({
+                    'oblique_image': obj_desc['oblique_image'].lower() \
+                                     in ['true', '1']
                 })
             
             if 'colorscale' in obj_desc:
@@ -1590,6 +1611,7 @@ def get_program_parameters():
     parser.add_argument('--colorscale', help='Set scale of color transfer function.')
     parser.add_argument('--origin', help='Set origin of the volume.')
     parser.add_argument('--rotation_matrix', help='Set rotation matrix of the volume.')
+    parser.add_argument('--oblique_image', help='Overwrite the guess of if the image is imaged oblique.')
     parser.add_argument('--swc', help='Read and draw swc file.')
     parser.add_argument('--fibercolor', help='Set fiber color.')
     parser.add_argument('--scene', help='Project scene file path. e.g. for batch object loading.')
@@ -1598,7 +1620,7 @@ def get_program_parameters():
     # convert class attributes to dict
     keys = ['filepath', 'level', 'channel', 'time_point', 'range',
             'colorscale', 'swc', 'fibercolor', 'origin', 'rotation_matrix',
-            'scene', 'lychnis_blocks']
+            'oblique_image', 'scene', 'lychnis_blocks']
     d = {k: getattr(args, k) for k in keys
             if hasattr(args, k) and getattr(args, k)}
     dbg_print(3, 'get_program_parameters(): d=', d)
