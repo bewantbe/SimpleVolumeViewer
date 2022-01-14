@@ -798,7 +798,7 @@ class RepeatingTimerHandler():
             self.exec_obj(obj, event, t_now)
 
     def start(self):
-        self.interactor.AddObserver('TimerEvent', self.callback)
+        self.ob_id = self.interactor.AddObserver('TimerEvent', self.callback)
         self.time_start = time.time()
         self.exec_obj.startat(self.time_start)
         self.timerId = self.interactor.CreateRepeatingTimer(int(1/self.fps))
@@ -807,6 +807,7 @@ class RepeatingTimerHandler():
         if self.timerId:
             self.interactor.DestroyTimer(self.timerId)
             self.timerId = None
+            self.interactor.RemoveObserver(self.ob_id)
 
     def __del__(self):
         self.stop()
@@ -1004,7 +1005,11 @@ class MyInteractorStyle(vtkInteractorStyleTerrain):
             cam1.SetViewUp(0,1,0)
             iren.GetRenderWindow().Render()
         elif key_sym == 'x' and not (b_C or b_S or b_A):
-            self.guictrl.RemoveObject()
+            if len(self.guictrl.selected_objects) == 0:
+                dbg_print(3, 'Nothing to remove.')
+            else:
+                obj_name = self.guictrl.selected_objects[0]
+                self.guictrl.RemoveObject(obj_name)
 
         # Let's say, disable all default key bindings (except q)
         if not is_default_binding:
@@ -1452,6 +1457,8 @@ class GUIControl:
         ren = self.GetMainRenderer()
         ren.RemoveActor(obj)
         # TODO: Do not remove if it is an active camera
+        if name in self.selected_objects:
+            self.selected_objects.remove(name)
         del self.scene_objects[name]
         del self.scene_saved['objects'][name]
         # TODO: correctly remove a object, possibly from adding process.
