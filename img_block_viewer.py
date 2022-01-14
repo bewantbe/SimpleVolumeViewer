@@ -214,17 +214,17 @@ debug_level = 5
 def dbg_print(level, *p, **keys):
     if level > debug_level:
         return
-    level_str = {1:"Error", 2:"Warning", 3:"Hint", 4:"Message", 5:"Verbose"}
-    print(level_str[level] + ":", *p, **keys)
+    level_str = {1:'Error', 2:'Warning', 3:'Hint', 4:'Message', 5:'Verbose'}
+    print(level_str[level] + ':', *p, **keys)
 
 def str2array(s):
     if not isinstance(s, str):
         return s
     if s[0] == '[':
-        # like "[1,2,3]"
+        # like '[1,2,3]'
         v = [float(it) for it in s[1:-1].split(',')]
     else:
-        # like "1 2 3"
+        # like '1 2 3'
         v = [float(it) for it in s.split(' ')]
     return v
 
@@ -287,7 +287,7 @@ def GetNonconflitName(prefix, name_set):
     i = 1
     name = prefix
     while name in name_set:
-        name = prefix + ".%.3d"%i
+        name = prefix + '.%.3d'%i
         i += 1
     return name
 
@@ -307,7 +307,7 @@ def MergeFullDict(d_contain, d_update):
                     if type(d_contain[key]) == type(value):
                         d_contain[key] = value
                     else:
-                        dbg_print(2, "DeepUpdate()", "key type mismatch! value discard.")
+                        dbg_print(2, 'DeepUpdate()', 'key type mismatch! value discard.')
         return d_contain
 
     DeepUpdate(d_contain, d_update)
@@ -376,7 +376,7 @@ def read_ims(ims_path, extra_conf = {}, cache_reader_obj = False):
     
     t0 = time.time()
     img_clip = np.array(img[dim_ranges])         # actually read the data
-    dbg_print(4, "read_ims(): img read time: %6.3f" % (time.time()-t0))
+    dbg_print(4, 'read_ims(): img read time: %6.3f' % (time.time()-t0))
     #img_clip = np.transpose(np.array(img_clip), (2,1,0))
 
     metadata['imagej'] = {'voxel_size_um': '(1.0, 1.0, 1.0)'}
@@ -439,7 +439,7 @@ def ImportImageArray(img_arr, img_meta):
     elif img_arr.dtype == np.uint16:
         img_importer.SetDataScalarTypeToUnsignedShort()
     else:
-        raise "Unsupported format"
+        raise 'Unsupported format'
     img_importer.SetNumberOfScalarComponents(n_ch)
     img_importer.SetDataExtent (0, simg.shape[2]-1, 0, simg.shape[1]-1, 0, simg.shape[0]-1)
     img_importer.SetWholeExtent(0, simg.shape[2]-1, 0, simg.shape[1]-1, 0, simg.shape[0]-1)
@@ -836,7 +836,7 @@ class MyInteractorStyle(vtkInteractorStyleTerrain):
         # keyboard events
         self.AddObserver('CharEvent', self.OnChar)
 
-    # To test fully quantified "C" "A" "S".
+    # To test fully quantified 'C' 'A' 'S'.
     def is_kbd_modifier(self, u = ''):
         iren = self.iren
         m = 'C' if iren.GetControlKey() else ' ' + \
@@ -926,7 +926,7 @@ class MyInteractorStyle(vtkInteractorStyleTerrain):
         b_A = iren.GetAltKey()
         b_S = iren.GetShiftKey()  # sometimes reflected in key_code
 
-        key_combo = ("Ctrl+" if b_C else "") + ("Alt+" if b_A else "") + ("Shift+" if b_S else "") + key_code
+        key_combo = ('Ctrl+' if b_C else '') + ('Alt+' if b_A else '') + ('Shift+' if b_S else '') + key_code
         dbg_print(4, 'Pressed:', key_combo, '  key_sym:', key_sym)
         
         is_default_binding = (key_code.lower() in 'jtca3efprsuw') and \
@@ -971,7 +971,7 @@ class MyInteractorStyle(vtkInteractorStyleTerrain):
         elif key_combo == ' ':
             # fly to selected object
             vol_name = self.guictrl.selected_objects[0]  # active object
-            dbg_print(4, "Fly to:", vol_name)
+            dbg_print(4, 'Fly to:', vol_name)
             vol = self.guictrl.scene_objects[vol_name]
             bd = vol.GetBounds()
             center = [(bd[0]+bd[1])/2, (bd[2]+bd[3])/2, (bd[4]+bd[5])/2]
@@ -1049,7 +1049,7 @@ class GUIControl:
 
         silhouetteActor = vtkActor()
         silhouetteActor.SetMapper(silhouetteMapper)
-        silhouetteActor.GetProperty().SetColor(colors.GetColor3d("Tomato"))
+        silhouetteActor.GetProperty().SetColor(colors.GetColor3d('Tomato'))
         silhouetteActor.GetProperty().SetLineWidth(5)
 
         self.utility_objects['silhouette'] = [silhouette, silhouetteActor]
@@ -1059,7 +1059,7 @@ class GUIControl:
         if '3d_cursor' in self.scene_objects:
             cursor = self.scene_objects['3d_cursor']
             cursor.world_coor = xyz
-            dbg_print(4, "Set 3D cursor to", xyz)
+            dbg_print(4, 'Set 3D cursor to', xyz)
             cursor.SetPosition(xyz)
             self.render_window.Render()
 
@@ -1075,37 +1075,37 @@ class GUIControl:
     # setup window, renderers and interactor
     def GUISetup(self, gui_conf):
         dbg_print(4, gui_conf)
-        if "window" in gui_conf:
+        if 'window' in gui_conf:
             # TODO: stop the old window?
             # TODO: try vtkVRRenderWindow?
             if self.render_window is None:
                 self.render_window = vtkRenderWindow()
-            win_conf = gui_conf["window"]
-            if "size" in win_conf:
-                self.render_window.SetSize(win_conf["size"])
-            if "title" in win_conf:
-                self.render_window.SetWindowName(win_conf["title"])
-            if "number_of_layers" in win_conf:
+            win_conf = gui_conf['window']
+            if 'size' in win_conf:
+                self.render_window.SetSize(win_conf['size'])
+            if 'title' in win_conf:
+                self.render_window.SetWindowName(win_conf['title'])
+            if 'number_of_layers' in win_conf:
                 self.render_window.SetNumberOfLayers(
-                    win_conf["number_of_layers"])
+                    win_conf['number_of_layers'])
 
         # Ref: Demonstrates the use of two renderers. Notice that the second (and subsequent) renderers will have a transparent background.
         # https://kitware.github.io/vtk-examples/site/Python/Rendering/TransparentBackground/
-        if "renderers" in gui_conf:
+        if 'renderers' in gui_conf:
             # get our renderer list
             renderers = self.renderers
             # load new renderers
-            for key, ren_conf in gui_conf["renderers"].items():
+            for key, ren_conf in gui_conf['renderers'].items():
                 if key in renderers:
                     # remove old renderer
                     self.render_window.RemoveRenderer(renderers[key])
                 # https://kitware.github.io/vtk-examples/site/Python/Rendering/TransparentBackground/
                 # setup new renderer
                 renderer = vtkRenderer()
-                if "layer" in ren_conf:
-                    renderer.SetLayer(ren_conf["layer"])
-                if "view_port" in ren_conf:
-                    renderer.SetViewport(ren_conf["view_port"])
+                if 'layer' in ren_conf:
+                    renderer.SetLayer(ren_conf['layer'])
+                if 'view_port' in ren_conf:
+                    renderer.SetViewport(ren_conf['view_port'])
                 renderers[key] = renderer
                 # add new renderer to window
                 self.render_window.AddRenderer(renderer)
@@ -1121,7 +1121,7 @@ class GUIControl:
         interactor.SetRenderWindow(self.render_window)
         self.interactor = interactor
         
-        # first time render, for 'Timer" event to work in Windows
+        # first time render, for 'Timer' event to work in Windows
         self.render_window.Render()
 
     # The property describes how the data will look.
@@ -1130,7 +1130,7 @@ class GUIControl:
             # TODO: do we need to remove old mappers?
             dbg_print(2, 'AddObjectProperty(): conflict name: ', name)
         dbg_print(3, 'AddObjectProperty(): "'+name+'" :', prop_conf)
-        if name.startswith("volume"):
+        if name.startswith('volume'):
             volume_property = vtkVolumeProperty()
             
             if 'copy_from' in prop_conf:
@@ -1170,24 +1170,24 @@ class GUIControl:
             volume_property.ShadeOn()
 
             if 'interpolation' in prop_conf:
-                if prop_conf['interpolation'] == "cubic":
+                if prop_conf['interpolation'] == 'cubic':
                     volume_property.SetInterpolationType(
                         VTK_CUBIC_INTERPOLATION)
-                elif prop_conf['interpolation'] == "linear":
+                elif prop_conf['interpolation'] == 'linear':
                     volume_property.SetInterpolationTypeToLinear()
                 else:
-                    dbg_print(2, "AddObjectProperty(): unknown interpolation type")
+                    dbg_print(2, 'AddObjectProperty(): unknown interpolation type')
             volume_property.prop_conf = prop_conf
             object_property = volume_property
         else:
-            dbg_print(2, "AddObjectProperty(): unknown object type")
+            dbg_print(2, 'AddObjectProperty(): unknown object type')
 
         self.object_properties.update({name: object_property})
 
     def ModifyObjectProperty(self, name, prop_conf):
         obj_prop = self.object_properties[name]
         dbg_print(4, 'ModifyObjectProperty():', name)
-        if name.startswith("volume"):
+        if name.startswith('volume'):
             if 'opacity_transfer_function' in prop_conf:
                 otf_conf = prop_conf['opacity_transfer_function']
                 if 'opacity_scale' in otf_conf:
@@ -1199,18 +1199,18 @@ class GUIControl:
                     ctf_s = ctf_conf['trans_scale']
                     UpdatePropertyCTFScale(obj_prop, ctf_s)
 
-    def AddObjects(self, name, obj_conf):
+    def AddObject(self, name, obj_conf):
         old_name = name
         if name in self.scene_objects:
             # TODO: do we need to remove old object?
-            dbg_print(2, 'AddObjects(): conflict name: ', name)
+            dbg_print(2, 'AddObject(): conflict name: ', name)
             name = self.GetNonconflitName(name)
 
         renderer = self.renderers[
             obj_conf.get('renderer', '0')]
 
-        dbg_print(3, 'AddObjects: "' + name + '" :', obj_conf)
-        dbg_print(4, "renderer: ",  obj_conf.get('renderer', '0'))
+        dbg_print(3, 'AddObject: "' + name + '" :', obj_conf)
+        dbg_print(4, 'renderer: ',  obj_conf.get('renderer', '0'))
 
         if obj_conf['type'] == 'volume':
             file_path = obj_conf['file_path']
@@ -1244,11 +1244,11 @@ class GUIControl:
             if isinstance(ref_prop_conf, dict):
                 # add new property
                 prop_name = self.GetNonconflitName('volume', 'property')
-                dbg_print(3, 'AddObjects(): Adding prop:', prop_name)
+                dbg_print(3, 'AddObject(): Adding prop:', prop_name)
                 self.AddObjectProperty(prop_name, ref_prop_conf)
                 volume_property = self.object_properties[prop_name]
             else:
-                dbg_print(3, 'AddObjects(): Using existing prop:', ref_prop_conf)
+                dbg_print(3, 'AddObject(): Using existing prop:', ref_prop_conf)
                 volume_property = self.object_properties[ref_prop_conf]
 
             # The volume holds the mapper and the property and
@@ -1340,7 +1340,7 @@ class GUIControl:
             mapper.SetInputConnection(sphereSource.GetOutputPort())
             
             actor = vtkActor()
-            actor.GetProperty().SetColor(colors.GetColor3d("Peacock"))
+            actor.GetProperty().SetColor(colors.GetColor3d('Peacock'))
             actor.GetProperty().SetSpecular(0.6)
             actor.GetProperty().SetSpecularPower(30)
             actor.SetMapper(mapper)
@@ -1419,20 +1419,20 @@ class GUIControl:
 
     # add objects to the renderers
     def AppendToScene(self, scene_conf):
-        if "object_properties" in scene_conf:
-            for key, prop_conf in scene_conf["object_properties"].items():
+        if 'object_properties' in scene_conf:
+            for key, prop_conf in scene_conf['object_properties'].items():
                 self.AddObjectProperty(key, prop_conf)
 
-        if "objects" in scene_conf:
-            for key, obj_conf in scene_conf["objects"].items():
-                self.AddObjects(key, obj_conf)
+        if 'objects' in scene_conf:
+            for key, obj_conf in scene_conf['objects'].items():
+                self.AddObject(key, obj_conf)
         # see also vtkAssembly
         # https://vtk.org/doc/nightly/html/classvtkAssembly.html#details
         return
 
-    def RemoveObjects(self, name):
+    def RemoveObject(self, name):
         if name not in self.scene_objects:
-            dbg_print(2,"RemoveObjects(): object non-exist:", name)
+            dbg_print(2,'RemoveObject(): object non-exist:', name)
             return
         obj = self.scene_objects[name]
         ren = self.GetMainRenderer()
@@ -1451,7 +1451,7 @@ class GUIControl:
             v_name = 'volume' + get_vol_name(v['image_path'])
             if v_name in self.scene_objects:  # skip repeated block
                 continue
-            self.AddObjects(
+            self.AddObject(
                 v_name,
                 {
                     'type'      : 'volume',
@@ -1492,7 +1492,7 @@ class GUIControl:
                     "range": obj_desc.get('range', '[:,:,:]')
                 }
             else:
-                dbg_print(1, "Unreconized source format.")
+                dbg_print(1, 'Unreconized source format.')
                 return
             
             if 'origin' in obj_desc:
@@ -1515,16 +1515,16 @@ class GUIControl:
                 obj_conf.update({'property': 'volume'})
 
             name = self.GetNonconflitName('volume')
-            self.AddObjects(name, obj_conf)
+            self.AddObject(name, obj_conf)
             
         if 'swc' in obj_desc:
             name = self.GetNonconflitName('swc')
             obj_conf = {
-                "type": 'swc',
+                "type": "swc",
                 "color": obj_desc.get('fibercolor','Tomato'),
                 "file_path": obj_desc['swc']
             }
-            self.AddObjects(name, obj_conf)
+            self.AddObject(name, obj_conf)
         if 'lychnis_blocks' in cmd_obj_desc:
             self.volume_loader.ImportLychnixVolume( \
                 cmd_obj_desc['lychnis_blocks'])
