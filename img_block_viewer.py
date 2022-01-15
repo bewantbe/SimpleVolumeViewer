@@ -1423,7 +1423,7 @@ class GUIControl:
         elif obj_conf['type'] == 'swc':
             ntree = LoadSWCTree(obj_conf['file_path'])
             processes = SplitSWCTree(ntree)
-            
+
             self.point_graph = GetUndirectedGraph(ntree)
             raw_points = ntree[1][:, 0:3]
             self.point_set_holder.AddPoints(raw_points.T, '')
@@ -1463,7 +1463,7 @@ class GUIControl:
                 colors.GetColor3d(obj_conf['color']))
             renderer.AddActor(actor)
             # actor.raw_points = raw_points  # for convenience
-
+ 
             scene_object = actor
 
         elif obj_conf['type'] == 'AxesActor':
