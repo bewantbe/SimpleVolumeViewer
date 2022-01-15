@@ -68,7 +68,7 @@ from vtkmodules.vtkCommonDataModel import (
     vtkPiecewiseFunction,
     vtkCellArray,
     vtkPolyData,
-    vtkPolyLine
+    vtkPolyLine, vtkPlane
 )
 from vtkmodules.vtkIOImage import (
     vtkPNGWriter,
@@ -100,7 +100,7 @@ from vtkmodules.vtkRenderingVolume import (
     vtkFixedPointVolumeRayCastMapper,
     vtkGPUVolumeRayCastMapper
 )
-# 
+#
 # noinspection PyUnresolvedReferences
 from vtkmodules.vtkRenderingVolumeOpenGL2 import vtkOpenGLRayCastImageDisplayHelper
 
@@ -112,6 +112,7 @@ from vtkmodules.vtkFiltersHybrid import vtkPolyDataSilhouette
 # might move it to where it is used.
 from vtk.util.numpy_support import numpy_to_vtk
 
+
 def DefaultGUIConfig():
     d = {
         "window": {
@@ -120,17 +121,18 @@ def DefaultGUIConfig():
             "number_of_layers": 2
         },
 
-        "renderers":{
-            "0":{
+        "renderers": {
+            "0": {
                 "layer": 0
             },
-            "1":{
+            "1": {
                 "layer": 1,
                 "view_port": [0.0, 0.0, 0.2, 0.2]
             }
         }
     }
     return d
+
 
 def DefaultSceneConfig():
     d = {
@@ -182,31 +184,33 @@ def DefaultSceneConfig():
                 "ShowAxisLabels": False,
                 "renderer": "1",
             },
-#            "axes": {
-#                "type": "AxesActor",
-#                "ShowAxisLabels": False,
-#                "length": [100,100,100],
-#                "renderer": "0"
-#            },
-#            "orientation": {
-#                "type": "OrientationMarker",
-#                "ShowAxisLabels": False,
-#                "renderer": "0"
-#            },
-#            "volume": {
-#                "type": "volume",
-#                "property": "volume"
-#                "mapper": "GPUVolumeRayCastMapper",
-#                "view_point": "auto",
-#                "file_path": file_path,
-#                "origin": [100, 200, 300],
-#                "rotation_matrix": [1,0,0, 0,1,0, 0,0,1],
-#            }
+            #            "axes": {
+            #                "type": "AxesActor",
+            #                "ShowAxisLabels": False,
+            #                "length": [100,100,100],
+            #                "renderer": "0"
+            #            },
+            #            "orientation": {
+            #                "type": "OrientationMarker",
+            #                "ShowAxisLabels": False,
+            #                "renderer": "0"
+            #            },
+            #            "volume": {
+            #                "type": "volume",
+            #                "property": "volume"
+            #                "mapper": "GPUVolumeRayCastMapper",
+            #                "view_point": "auto",
+            #                "file_path": file_path,
+            #                "origin": [100, 200, 300],
+            #                "rotation_matrix": [1,0,0, 0,1,0, 0,0,1],
+            #            }
         }
     }
     return d
 
+
 debug_level = 5
+
 
 # Used for print error, controlled by debug_level.
 # higher debug_level will show more info.
@@ -214,8 +218,9 @@ debug_level = 5
 def dbg_print(level, *p, **keys):
     if level > debug_level:
         return
-    level_str = {1:'Error', 2:'Warning', 3:'Hint', 4:'Message', 5:'Verbose'}
+    level_str = {1: 'Error', 2: 'Warning', 3: 'Hint', 4: 'Message', 5: 'Verbose'}
     print(level_str[level] + ':', *p, **keys)
+
 
 def str2array(s):
     if not isinstance(s, str):
@@ -228,17 +233,20 @@ def str2array(s):
         v = [float(it) for it in s.split(' ')]
     return v
 
+
 def _mat3d(d):
-    return np.array(d, dtype=np.float64).reshape(3,3)
+    return np.array(d, dtype=np.float64).reshape(3, 3)
+
 
 def vtkMatrix2array(vtkm):
     # also use self.cam_m.GetData()[i+4*j]?
     m = np.array(
-            [
-                [vtkm.GetElement(i,j) for j in range(4)]
-                for i in range(4)
-            ], dtype=np.float64)
+        [
+            [vtkm.GetElement(i, j) for j in range(4)]
+            for i in range(4)
+        ], dtype=np.float64)
     return m
+
 
 # Utilizer to convert a fraction to integer range
 # mostly copy from VISoR_select_light/pick_big_block/volumeio.py
@@ -251,19 +259,20 @@ def vtkMatrix2array(vtkm):
 def rg_part_to_pixel(rg, max_pixel):
     if len(rg) == 0:
         return (0, max_pixel)
-    elif len(rg)==1 and len(rg[0])==2:
+    elif len(rg) == 1 and len(rg[0]) == 2:
         # in the form rg=[(1, 2)], it means 1/2 part of a range
         rg = rg[0]
-        erg = (int((rg[0]-1)/rg[1] * max_pixel), 
-               int((rg[0]  )/rg[1] * max_pixel))
+        erg = (int((rg[0] - 1) / rg[1] * max_pixel),
+               int((rg[0]) / rg[1] * max_pixel))
         return erg
-    elif len(rg)==2 and isinstance(rg[0], (list, tuple)):
+    elif len(rg) == 2 and isinstance(rg[0], (list, tuple)):
         # in the form rg=([0.1], [0.2]), means 0.1~0.2 part of a range
         p0, p1 = rg[0][0], rg[1][0]
         erg = [int(p0 * max_pixel), int(p1 * max_pixel)]
         return erg
     else:  # return as-is
         return rg
+
 
 def slice_from_str(slice_str):
     # Construct array slice object.
@@ -272,31 +281,33 @@ def slice_from_str(slice_str):
     dim_ranges = slice_str[1:-1].split(',')
     # convert a:b:c to slice(a,b,c)
     dim_ranges = tuple(
-                     slice(
-                         *map(
-                             lambda x: int(x.strip())
-                                 if x.strip() else None,
-                             rg.split(':')
-                         ))
-                     for rg in dim_ranges
-                 )
+        slice(
+            *map(
+                lambda x: int(x.strip())
+                if x.strip() else None,
+                rg.split(':')
+            ))
+        for rg in dim_ranges
+    )
     return dim_ranges
+
 
 # return a name not occur in name_set
 def GetNonconflitName(prefix, name_set):
     i = 1
     name = prefix
     while name in name_set:
-        name = prefix + '.%.3d'%i
+        name = prefix + '.%.3d' % i
         i += 1
     return name
+
 
 def MergeFullDict(d_contain, d_update):
     # update dict d_contain by d_update
     # i.e. overwrite d_contain for items exist in d_update
     # Ref. https://stackoverflow.com/questions/38987/how-do-i-merge-two-dictionaries-in-a-single-expression-take-union-of-dictionari
     def DeepUpdate(d_contain, d_update):
-        for key, value in d_update.items(): 
+        for key, value in d_update.items():
             if key not in d_contain:
                 d_contain[key] = value
             else:  # key in d_contain
@@ -314,12 +325,13 @@ def MergeFullDict(d_contain, d_update):
 
     return d_contain
 
+
 # copy from volumeio.py
 # Read tiff file, return images and meta data
-def read_tiff(tif_path, as_np_array = True):
+def read_tiff(tif_path, as_np_array=True):
     # see also https://pypi.org/project/tifffile/
     tif = tifffile.TiffFile(tif_path)
-    metadata = {tag_val.name:tag_val.value 
+    metadata = {tag_val.name: tag_val.value
                 for tag_name, tag_val in tif.pages[0].tags.items()}
     if hasattr(tif, 'imagej_metadata'):
         metadata['imagej'] = tif.imagej_metadata
@@ -331,58 +343,61 @@ def read_tiff(tif_path, as_np_array = True):
             images.append(page.asarray())
 
     # TODO: determing this value automatically
-    metadata['oblique_image'] = True if metadata['ImageLength']==788 else False
+    metadata['oblique_image'] = True if metadata['ImageLength'] == 788 else False
 
     return images, metadata
+
 
 # Read tiff file, return images and meta data
 # Returm image array and metadata.
 def read_tiff_meta(tif_path):
     # see also https://pypi.org/project/tifffile/
     tif = tifffile.TiffFile(tif_path)
-    metadata = {tag_name:tag_val.value 
+    metadata = {tag_name: tag_val.value
                 for tag_name, tag_val in tif.pages[0].tags.items()}
     if hasattr(tif, 'imagej_metadata'):
         metadata['imagej'] = tif.imagej_metadata
-    
+
     metadata['n_pages'] = len(tif.pages)
     return metadata
 
+
 # Read Imaris compatible image file.
 # Returm image array and metadata.
-def read_ims(ims_path, extra_conf = {}, cache_reader_obj = False):
+def read_ims(ims_path, extra_conf={}, cache_reader_obj=False):
     # TODO: how to impliment cache_reader_obj?
     ims = h5py.File(ims_path, 'r')
-    level      = int(extra_conf.get('level', 0))
-    channel    = int(extra_conf.get('channel', 0))
+    level = int(extra_conf.get('level', 0))
+    channel = int(extra_conf.get('channel', 0))
     time_point = int(extra_conf.get('time_point', 0))
-    img = ims['DataSet']['ResolutionLevel %d'%(level)] \
-                        ['TimePoint %d'%(time_point)] \
-                        ['Channel %d'%(channel)]['Data']
+    img = ims['DataSet']['ResolutionLevel %d' % (level)] \
+        ['TimePoint %d' % (time_point)] \
+        ['Channel %d' % (channel)]['Data']
     dbg_print(4, 'image shape: ', img.shape, ' dtype =', img.dtype)
 
     # convert metadata in IMS to python dict
     img_info = ims['DataSetInfo']
     metadata = {'read_ims':
-        {'level': level, 'channel': channel, 'time_point': time_point}}
+                    {'level': level, 'channel': channel, 'time_point': time_point}}
     for it in img_info.keys():
         metadata[it] = \
-            {k:''.join([c.decode('utf-8') for c in v])
-                for k, v in img_info[it].attrs.items()}
+            {k: ''.join([c.decode('utf-8') for c in v])
+             for k, v in img_info[it].attrs.items()}
 
     dbg_print(4, 'read_ims(): extra_conf =', extra_conf)
     dim_ranges = slice_from_str(str(extra_conf.get('range', '[:,:,:]')))
     dbg_print(4, 'dim_ranges', dim_ranges)
-    
+
     t0 = time.time()
-    img_clip = np.array(img[dim_ranges])         # actually read the data
-    dbg_print(4, 'read_ims(): img read time: %6.3f' % (time.time()-t0))
-    #img_clip = np.transpose(np.array(img_clip), (2,1,0))
+    img_clip = np.array(img[dim_ranges])  # actually read the data
+    dbg_print(4, 'read_ims(): img read time: %6.3f' % (time.time() - t0))
+    # img_clip = np.transpose(np.array(img_clip), (2,1,0))
 
     metadata['imagej'] = {'voxel_size_um': '(1.0, 1.0, 1.0)'}
     metadata['oblique_image'] = False
 
     return img_clip, metadata
+
 
 def Read3DImageDataFromFile(file_name, *item, **keys):
     if file_name.endswith('.tif') or file_name.endswith('.tiff'):
@@ -391,6 +406,7 @@ def Read3DImageDataFromFile(file_name, *item, **keys):
         img_arr, img_meta = read_ims(file_name, *item, **keys)
     dbg_print(5, pprint.pformat(img_meta))
     return img_arr, img_meta
+
 
 # import image to vtkImageImport() to have a connection
 # img_arr must be a numpy-like array
@@ -411,7 +427,7 @@ def ImportImageArray(img_arr, img_meta):
 
     # See https://python.hotexamples.com/examples/vtk/-/vtkImageImport/python-vtkimageimport-function-examples.html
 
-    dbg_print(4, 'ImportImageArray(): importing image of size:',  img_arr.shape)
+    dbg_print(4, 'ImportImageArray(): importing image of size:', img_arr.shape)
 
     # Wild guess number of channels
     if len(img_arr.shape) == 4:
@@ -420,7 +436,7 @@ def ImportImageArray(img_arr, img_meta):
         n_ch = 1
 
     if (img_meta is not None) and ('imagej' in img_meta) and \
-       (img_meta['imagej'] is not None):
+            (img_meta['imagej'] is not None):
         if 'voxel_size_um' in img_meta['imagej']:
             if isinstance(img_meta['imagej']['voxel_size_um'], str):
                 voxel_size_um = img_meta['imagej']['voxel_size_um'][1:-1]
@@ -428,8 +444,8 @@ def ImportImageArray(img_arr, img_meta):
             else:  # assume array
                 voxel_size_um = img_meta['imagej']['voxel_size_um']
         elif ('spacing' in img_meta['imagej']) and \
-             ('XResolution' in img_meta) and \
-             ('YResolution' in img_meta):
+                ('XResolution' in img_meta) and \
+                ('YResolution' in img_meta):
             voxel_size_um = (
                 img_meta['XResolution'][0] / img_meta['XResolution'][1], \
                 img_meta['YResolution'][0] / img_meta['YResolution'][1], \
@@ -450,8 +466,8 @@ def ImportImageArray(img_arr, img_meta):
     else:
         raise 'Unsupported format'
     img_importer.SetNumberOfScalarComponents(n_ch)
-    img_importer.SetDataExtent (0, simg.shape[2]-1, 0, simg.shape[1]-1, 0, simg.shape[0]-1)
-    img_importer.SetWholeExtent(0, simg.shape[2]-1, 0, simg.shape[1]-1, 0, simg.shape[0]-1)
+    img_importer.SetDataExtent(0, simg.shape[2] - 1, 0, simg.shape[1] - 1, 0, simg.shape[0] - 1)
+    img_importer.SetWholeExtent(0, simg.shape[2] - 1, 0, simg.shape[1] - 1, 0, simg.shape[0] - 1)
 
     # the 3x3 matrix to rotate the coordinates from index space (ijk) to physical space (xyz)
     b_oblique_correction = img_meta.get('oblique_image', False)
@@ -459,11 +475,11 @@ def ImportImageArray(img_arr, img_meta):
     dbg_print(4, 'b_oblique_correction: ', b_oblique_correction)
     if b_oblique_correction:
         img_importer.SetDataSpacing(voxel_size_um[0], voxel_size_um[1],
-                                    voxel_size_um[2]*np.sqrt(2))
+                                    voxel_size_um[2] * np.sqrt(2))
         rotMat = [ \
-            1.0, 0.0,            0.0,
-            0.0, cos(45/180*pi), 0.0,
-            0.0,-sin(45/180*pi), 1.0
+            1.0, 0.0, 0.0,
+            0.0, cos(45 / 180 * pi), 0.0,
+            0.0, -sin(45 / 180 * pi), 1.0
         ]
         img_importer.SetDataDirection(rotMat)
     else:
@@ -471,25 +487,28 @@ def ImportImageArray(img_arr, img_meta):
 
     return img_importer
 
+
 # Import image to vtkImageImport() to have a connection.
 # extra_conf for extra setting to extract the image
 # the extra_conf takes higher priority than meta data in the file
-def ImportImageFile(file_name, extra_conf = None):
+def ImportImageFile(file_name, extra_conf=None):
     img_arr, img_meta = Read3DImageDataFromFile(file_name, extra_conf)
     if extra_conf:
         img_meta.update(extra_conf)
     img_import = ImportImageArray(img_arr, img_meta)
     return img_import
 
+
 # Load tracing result.
 def LoadSWCTree(filepath):
     d = np.loadtxt(filepath)
-    tr = (np.int32(d[:,np.array([0,6,1])]),
+    tr = (np.int32(d[:, np.array([0, 6, 1])]),
           np.float64(d[:, 2:6]))
     # tree format
     # (id, parent_id, type), ...
     # (x,y,z,diameter), ...
     return tr
+
 
 # Split the tree in swc into linear segments (i.e. processes).
 # return processes in index of tr.
@@ -500,20 +519,20 @@ def SplitSWCTree(tr):
 
     # re-label index in tr, s.t. root is 0 and all followings continued
     tr_idx = tr[0].copy()
-    max_id = max(tr_idx[:,0])   # max occur node index
-    n_id = tr_idx.shape[0]      # number of nodes
+    max_id = max(tr_idx[:, 0])  # max occur node index
+    n_id = tr_idx.shape[0]  # number of nodes
     # relabel array (TODO: if max_id >> n_id, we need a different algo.)
-    arr_full = np.zeros(max_id+2, dtype=np.int32)
+    arr_full = np.zeros(max_id + 2, dtype=np.int32)
     arr_full[-1] = -1
-    arr_full[tr_idx[:,0]] = np.arange(n_id, dtype=np.int32)
-    tr_idx[:,0:2] = arr_full[tr_idx[:,0:2]]
+    arr_full[tr_idx[:, 0]] = np.arange(n_id, dtype=np.int32)
+    tr_idx[:, 0:2] = arr_full[tr_idx[:, 0:2]]
     # find branch points
-    n_child,_ = np.histogram(tr_idx[1:,1], bins=np.arange(n_id, dtype=np.int32))
+    n_child, _ = np.histogram(tr_idx[1:, 1], bins=np.arange(n_id, dtype=np.int32))
     n_child = np.array(n_child, dtype=np.int32)
     # n_child == 0: leaf
     # n_child == 1: middle of a path or root
     # n_child >= 2: branch point
-    id_bounds = np.nonzero(n_child-1)[0]
+    id_bounds = np.nonzero(n_child - 1)[0]
     processes = []
     for eid in id_bounds:
         # travel from leaf to branching point or root
@@ -529,12 +548,32 @@ def SplitSWCTree(tr):
 
     return processes
 
+
+def GetUndirectedGraph(tr):
+    # re-label index in tr, this part is the same as SplitSWCTree()
+    tr_idx = tr[0].copy()
+    max_id = max(tr_idx[:, 0])  # max occur node index
+    n_id = tr_idx.shape[0]  # number of nodes
+    # relabel array (TODO: if max_id >> n_id, we need a different algo.)
+    arr_full = np.zeros(max_id + 2, dtype=np.int32)
+    arr_full[-1] = -1
+    arr_full[tr_idx[:, 0]] = np.arange(n_id, dtype=np.int32)
+    tr_idx[:, 0:2] = arr_full[tr_idx[:, 0:2]]
+    tr_idx = np.array(tr_idx)
+    # Generate undirected graph
+    graph = [[-1]]
+    for p in tr_idx[1:, 0:2]:
+        graph.append([p[1]])
+        graph[p[1]].append(p[0])
+    return graph
+
+
 def UpdatePropertyOTFScale(obj_prop, otf_s):
     pf = obj_prop.GetScalarOpacity()
     if hasattr(obj_prop, 'ref_prop'):
         obj_prop = obj_prop.ref_prop
     otf_v = obj_prop.prop_conf['opacity_transfer_function']['AddPoint']
-    
+
     # initialize an array of array
     # get all control point coordinates
     v = np.zeros((pf.GetSize(), 4))
@@ -548,6 +587,7 @@ def UpdatePropertyOTFScale(obj_prop, otf_s):
         v[k][0] = otf_s * otf_v[k][0]
         pf.SetNodeValue(k, v[k])
 
+
 def UpdatePropertyCTFScale(obj_prop, ctf_s):
     ctf = obj_prop.GetRGBTransferFunction()
     # get all control point coordinates
@@ -556,7 +596,7 @@ def UpdatePropertyCTFScale(obj_prop, ctf_s):
     if hasattr(obj_prop, 'ref_prop'):
         obj_prop = obj_prop.ref_prop
     ctf_v = obj_prop.prop_conf['color_transfer_function']['AddRGBPoint']
-    
+
     # initialize an array of array
     # get all control point coordinates
     v = np.zeros((ctf.GetSize(), 6))
@@ -570,11 +610,13 @@ def UpdatePropertyCTFScale(obj_prop, ctf_s):
         v[k][0] = ctf_s * ctf_v[k][0]
         ctf.SetNodeValue(k, v[k])
 
+
 def GetColorScale(obj_prop):
     # guess values of colorscale for otf and ctf
     otf_v, o_v = UpdatePropertyOTFScale(obj_prop, None)
     ctf_v, c_v = UpdatePropertyCTFScale(obj_prop, None)
     return o_v[-1][0] / otf_v[-1][0], c_v[-1][0] / ctf_v[-1][0]
+
 
 def SetColorScale(obj_prop, scale):
     dbg_print(4, 'Setting colorscale =', scale)
@@ -586,6 +628,7 @@ def SetColorScale(obj_prop, scale):
     UpdatePropertyOTFScale(obj_prop, otf_s)
     UpdatePropertyCTFScale(obj_prop, ctf_s)
 
+
 def ReadGUIConfigure(gui_conf_path):
     conf = DefaultGUIConfig()
     if os.path.isfile(gui_conf_path):
@@ -593,12 +636,14 @@ def ReadGUIConfigure(gui_conf_path):
         MergeFullDict(conf, conf_ext)
     return conf
 
+
 def ReadScene(scene_file_path):
     scene = DefaultSceneConfig()
     if os.path.isfile(scene_file_path):
         scene_ext = json.loads(open(scene_file_path).read())
         MergeFullDict(scene, scene_ext)
     return scene
+
 
 def ShotScreen(render_window):
     # Take a screenshot
@@ -611,11 +656,12 @@ def ShotScreen(render_window):
 
     # If need transparency in a screenshot
     # https://stackoverflow.com/questions/34789933/vtk-setting-transparent-renderer-background
-    
+
     writer = vtkPNGWriter()
     writer.SetFileName('TestScreenshot.png')
     writer.SetInputConnection(win2if.GetOutputPort())
     writer.Write()
+
 
 # Align cam2 by cam1
 # make cam2 dist away from origin
@@ -628,11 +674,13 @@ def AlignCameraDirection(cam2, cam1, dist=4.0):
     cam2.SetFocalPoint(0, 0, 0)
     cam2.SetViewUp(cam1.GetViewUp())
 
+
 def CameraFollowCallbackFunction(caller, ev):
     cam1 = CameraFollowCallbackFunction.cam1
     cam2 = CameraFollowCallbackFunction.cam2
     AlignCameraDirection(cam2, cam1)
     return
+
 
 class PointPicker():
     def __init__(self, points, renderer):
@@ -649,14 +697,14 @@ class PointPicker():
         self.cam_m = vtkMatrix2array(camera.GetModelViewTransformMatrix())
         self.screen_dims = _a(screen_dims)
         # https://vtk.org/doc/nightly/html/classvtkCamera.html#a2aec83f16c1c492fe87336a5018ad531
-        view_angle = camera.GetViewAngle() / (180/np.pi)
-        view_length = 2*np.tan(view_angle/2)
+        view_angle = camera.GetViewAngle() / (180 / np.pi)
+        view_length = 2 * np.tan(view_angle / 2)
         # aspect = width/height
         aspect_ratio = screen_dims[0] / screen_dims[1]
         if camera.GetUseHorizontalViewAngle():
-            unit_view_window = _a([view_length, view_length/aspect_ratio])
+            unit_view_window = _a([view_length, view_length / aspect_ratio])
         else:  # this is the default
-            unit_view_window = _a([view_length*aspect_ratio, view_length])
+            unit_view_window = _a([view_length * aspect_ratio, view_length])
         self.pixel_scale = unit_view_window / _a(screen_dims)
 
     def PickAt(self, posxy):
@@ -664,16 +712,16 @@ class PointPicker():
         selection_angle_tol = 0.01
         p = self.p
         # constructing picker line: r = v * t + o
-        o = - self.cam_m[0:3,0:3].T @ self.cam_m[0:3, 3:4]  # cam pos in world
+        o = - self.cam_m[0:3, 0:3].T @ self.cam_m[0:3, 3:4]  # cam pos in world
         #   click pos in cam
         posxy_cam = (_a(posxy) - self.screen_dims / 2) * self.pixel_scale
-        v = self.cam_m[0:3,0:3].T @ _a([[posxy_cam[0], posxy_cam[1], -1]]).T
+        v = self.cam_m[0:3, 0:3].T @ _a([[posxy_cam[0], posxy_cam[1], -1]]).T
         # compute distance from p to the line r
         u = p - o
         t = (v.T @ u) / (v.T @ v)
         dist = np.linalg.norm(u - v * t, axis=0)
         angle_dist = dist / t
-        
+
         # find nearest point
         in_view_tol = (t > cam_min_view_distance) & (angle_dist < selection_angle_tol)
         ID_selected = np.flatnonzero(in_view_tol)
@@ -682,32 +730,34 @@ class PointPicker():
             ID_selected = ID_selected[np.argmin(angle_dist_selected)]
         return ID_selected, p[:, ID_selected]
 
+
 class PointSetHolder():
     def __init__(self):
-        self.points = np.array([[],[],[]], dtype=np.float64)
+        self.points = np.array([[], [], []], dtype=np.float64)
         self.range_map = {}
-    
+
     def AddPoints(self, points, name):
         self.points = np.append(self.points, points, axis=1)
         # TODO, maybe make it possible to find 'name' by point
-    
+
     def __call__(self):
         return self.points
+
 
 class OnDemandVolumeLoader():
     def __init__(self):
         self.vol_list = []
-        self.vol_origin = np.zeros((0,3), dtype=np.float64)
-        self.vol_size   = np.zeros((0,3), dtype=np.float64)
-    
+        self.vol_origin = np.zeros((0, 3), dtype=np.float64)
+        self.vol_size = np.zeros((0, 3), dtype=np.float64)
+
     def ImportLychnixVolume(self, vol_list_file):
         from os.path import dirname, join, normpath
         jn = json.loads(open(vol_list_file).read())
         base_dir = normpath(join(dirname(vol_list_file), jn['image_path']))
-        dbg_print(4,  'ImportLychnixVolume():')
-        dbg_print(4,  '  voxel_size:', jn['voxel_size'])
-        dbg_print(4,  '  channels  :', jn['channels'])
-        dbg_print(4,  '  base_dir  :', base_dir)
+        dbg_print(4, 'ImportLychnixVolume():')
+        dbg_print(4, '  voxel_size:', jn['voxel_size'])
+        dbg_print(4, '  channels  :', jn['channels'])
+        dbg_print(4, '  base_dir  :', base_dir)
         self.ImportVolumeList(jn['images'], basedir=base_dir)
 
     def ImportVolumeList(self, vol_list, basedir=''):
@@ -732,28 +782,30 @@ class OnDemandVolumeLoader():
         self.vol_list += ap_list
         self.vol_origin = np.concatenate(
             (self.vol_origin,
-            _a([it['origin'] for it in ap_list])), axis = 0)
+             _a([it['origin'] for it in ap_list])), axis=0)
         self.vol_size = np.concatenate(
             (self.vol_size,
-            _a([it['size'] for it in ap_list])), axis = 0)
-#        print(self.vol_list)
-#        print(self.vol_origin)
-#        print(self.vol_size)
-        
+             _a([it['size'] for it in ap_list])), axis=0)
+
+    #        print(self.vol_list)
+    #        print(self.vol_origin)
+    #        print(self.vol_size)
+
     def LoadVolumeAt(self, pos, radius=0):
         pos = _a([[pos[0], pos[1], pos[2]]])
         vol_center = self.vol_origin + self.vol_size / 2
         distance = np.abs(vol_center - pos)
         idx_in_range = np.flatnonzero(
-            (distance[:,0] <= self.vol_size[:,0]/2 + radius) &
-            (distance[:,1] <= self.vol_size[:,1]/2 + radius) &
-            (distance[:,2] <= self.vol_size[:,2]/2 + radius) )
-#        print(idx_in_range)
-#        print('pos', pos)
-#        print('origin:', self.vol_origin[idx_in_range, :])
-#        print('size  :', self.vol_size  [idx_in_range, :])
+            (distance[:, 0] <= self.vol_size[:, 0] / 2 + radius) &
+            (distance[:, 1] <= self.vol_size[:, 1] / 2 + radius) &
+            (distance[:, 2] <= self.vol_size[:, 2] / 2 + radius))
+        #        print(idx_in_range)
+        #        print('pos', pos)
+        #        print('origin:', self.vol_origin[idx_in_range, :])
+        #        print('size  :', self.vol_size  [idx_in_range, :])
         selected_vol = [self.vol_list[it] for it in idx_in_range]
         return selected_vol
+
 
 # Rotate camera
 class execSmoothRotation():
@@ -775,7 +827,8 @@ class execSmoothRotation():
         self.time_last_update = time_now
         iren = obj
         iren.GetRenderWindow().Render()
-        #print('execSmoothRotation: Ren', time_now - self.time_start)
+        # print('execSmoothRotation: Ren', time_now - self.time_start)
+
 
 # Sign up to receive TimerEvent
 class RepeatingTimerHandler():
@@ -801,8 +854,8 @@ class RepeatingTimerHandler():
         self.ob_id = self.interactor.AddObserver('TimerEvent', self.callback)
         self.time_start = time.time()
         self.exec_obj.startat(self.time_start)
-        self.timerId = self.interactor.CreateRepeatingTimer(int(1/self.fps))
-    
+        self.timerId = self.interactor.CreateRepeatingTimer(int(1 / self.fps))
+
     def stop(self):
         if self.timerId:
             self.interactor.DestroyTimer(self.timerId)
@@ -811,6 +864,7 @@ class RepeatingTimerHandler():
 
     def __del__(self):
         self.stop()
+
 
 # Deal with keyboard and mouse interactions.
 # vtkInteractorStyleTerrain
@@ -825,7 +879,10 @@ class MyInteractorStyle(vtkInteractorStyleTerrain):
 
         # var for picker
         self.picked_actor = None
-        
+        # record the currently selected point
+        self.pid_p = None
+        # a switch to check whether the user focus on a region
+        self.is_focused = False
         # mouse events
         self.fn_modifier = []
         self.AddObserver('LeftButtonPressEvent',
@@ -850,15 +907,15 @@ class MyInteractorStyle(vtkInteractorStyleTerrain):
         self.AddObserver('CharEvent', self.OnChar)
 
     # To test fully quantified 'C' 'A' 'S'.
-    def is_kbd_modifier(self, u = ''):
+    def is_kbd_modifier(self, u=''):
         iren = self.iren
         m = 'C' if iren.GetControlKey() else ' ' + \
-            'A' if iren.GetAltKey() else ' ' + \
-            'S' if iren.GetShiftKey() else ' '
+                                             'A' if iren.GetAltKey() else ' ' + \
+                                                                          'S' if iren.GetShiftKey() else ' '
         u = u.upper()
         p = 'C' if 'C' in u else ' ' + \
-            'A' if 'A' in u else ' ' + \
-            'S' if 'S' in u else ' '
+                                 'A' if 'A' in u else ' ' + \
+                                                      'S' if 'S' in u else ' '
         return p == m
 
     def left_button_press_event(self, obj, event):
@@ -870,7 +927,7 @@ class MyInteractorStyle(vtkInteractorStyleTerrain):
             self.OnMiddleButtonDown()
             self.left_button_press_event_release_fn = \
                 lambda: self.OnMiddleButtonUp()
-    
+
     def left_button_release_event(self, obj, event):
         if self.left_button_press_event_release_fn:
             self.left_button_press_event_release_fn()
@@ -878,7 +935,7 @@ class MyInteractorStyle(vtkInteractorStyleTerrain):
             self.OnLeftButtonUp()
 
     def mouse_wheel_event(self, direction):
-        def mouse_wheel_action(obj, event, direction = direction):
+        def mouse_wheel_action(obj, event, direction=direction):
             win = obj.iren.GetRenderWindow()
             rens = win.GetRenderers()
             rens.InitTraversal()
@@ -886,7 +943,7 @@ class MyInteractorStyle(vtkInteractorStyleTerrain):
             cam = ren1.GetActiveCamera()
             # modify the distance between camera and the focus point
             fp = _a(cam.GetFocalPoint())
-            p  = _a(cam.GetPosition())
+            p = _a(cam.GetPosition())
             new_p = fp + (p - fp) * (1.2 ** (-direction))
             cam.SetPosition(new_p)
             # need to do ResetCameraClippingRange(), since VTK will
@@ -894,6 +951,7 @@ class MyInteractorStyle(vtkInteractorStyleTerrain):
             # angle. Then the clipping range can be wrong for zooming.
             ren1.ResetCameraClippingRange()
             win.Render()
+
         return mouse_wheel_action
 
     def middle_button_press_event(self, obj, event):
@@ -917,23 +975,23 @@ class MyInteractorStyle(vtkInteractorStyleTerrain):
 
         ppicker = PointPicker(self.guictrl.point_set_holder(), ren)
         pid, pxyz = ppicker.PickAt(clickPos)
-        
+        self.pid_p = pid
         if pxyz.size > 0:
             dbg_print(4, 'picked point', pid, pxyz)
             self.guictrl.Set3DCursor(pxyz)
         else:
             dbg_print(4, 'picked no point', pid, pxyz)
-        
+
         # purposely no call to self.OnRightButtonDown()
-    
+
     def right_button_release_event(self, obj, event):
         # purposely no call to self.OnRightButtonUp()
         return
-    
+
     def OnChar(self, obj, event):
         iren = self.iren
 
-        key_sym  = iren.GetKeySym()   # useful for PageUp etc.
+        key_sym = iren.GetKeySym()  # useful for PageUp etc.
         key_code = iren.GetKeyCode()
         b_C = iren.GetControlKey()
         b_A = iren.GetAltKey()
@@ -941,7 +999,7 @@ class MyInteractorStyle(vtkInteractorStyleTerrain):
 
         key_combo = ('Ctrl+' if b_C else '') + ('Alt+' if b_A else '') + ('Shift+' if b_S else '') + key_code
         dbg_print(4, 'Pressed:', key_combo, '  key_sym:', key_sym)
-        
+
         is_default_binding = (key_code.lower() in 'jtca3efprsuw') and \
                              not b_C
 
@@ -954,27 +1012,27 @@ class MyInteractorStyle(vtkInteractorStyleTerrain):
         rens = iren.GetRenderWindow().GetRenderers()
         rens.InitTraversal()
         ren1 = rens.GetNextItem()
-        
+
         if key_combo == 'r':
             ren2 = rens.GetNextItem()
             cam1 = ren1.GetActiveCamera()
             cam2 = ren2.GetActiveCamera()
             rotator = execSmoothRotation(cam1, 60.0)
             RepeatingTimerHandler(iren, 6.0, rotator).start()
-        elif (key_sym in ['plus','minus'] or key_combo in ['+','-']) and \
-            self.guictrl.selected_objects:
+        elif (key_sym in ['plus', 'minus'] or key_combo in ['+', '-']) and \
+                self.guictrl.selected_objects:
             # Make the image darker or lighter.
             vol_name = self.guictrl.selected_objects[0]  # active object
             vol = self.guictrl.scene_objects[vol_name]
             obj_prop = vol.GetProperty()
-            #obj_prop = self.guictrl.object_properties[vol_name]
+            # obj_prop = self.guictrl.object_properties[vol_name]
             cs_o, cs_c = GetColorScale(obj_prop)
             k = np.sqrt(np.sqrt(2))
             if obj.is_kbd_modifier('C'):
                 k = np.sqrt(np.sqrt(k))
             if key_sym == 'plus' or key_combo == '+':
                 k = 1.0 / k
-            SetColorScale(obj_prop, [cs_o*k, cs_c*k])
+            SetColorScale(obj_prop, [cs_o * k, cs_c * k])
             iren.GetRenderWindow().Render()
         elif key_sym == 's' and not (b_C or b_S or b_A):
             # take a screenshot
@@ -987,7 +1045,7 @@ class MyInteractorStyle(vtkInteractorStyleTerrain):
             dbg_print(4, 'Fly to:', vol_name)
             vol = self.guictrl.scene_objects[vol_name]
             bd = vol.GetBounds()
-            center = [(bd[0]+bd[1])/2, (bd[2]+bd[3])/2, (bd[4]+bd[5])/2]
+            center = [(bd[0] + bd[1]) / 2, (bd[2] + bd[3]) / 2, (bd[4] + bd[5]) / 2]
             iren.FlyTo(ren1, center)
         elif key_sym == 'KP_0' or key_sym == '0':
             center = self.guictrl.Get3DCursor()
@@ -1002,7 +1060,7 @@ class MyInteractorStyle(vtkInteractorStyleTerrain):
         elif (key_sym == 'KP_8') or (key_combo == 'Shift+|'):
             dbg_print(4, 'Setting view up')
             cam1 = ren1.GetActiveCamera()
-            cam1.SetViewUp(0,1,0)
+            cam1.SetViewUp(0, 1, 0)
             iren.GetRenderWindow().Render()
         elif key_sym == 'x' and not (b_C or b_S or b_A):
             if len(self.guictrl.selected_objects) == 0:
@@ -1010,11 +1068,59 @@ class MyInteractorStyle(vtkInteractorStyleTerrain):
             else:
                 obj_name = self.guictrl.selected_objects[0]
                 self.guictrl.RemoveObject(obj_name)
+        elif key_combo == '\'':
+            if self.pid_p is not None:
+                # Get undirected graph
+                graph = self.guictrl.point_graph
+                # Use DFS to find five points around
+                visited_points = set()
+
+                def dfs(pid, level):
+                    if pid == -1 or pid in visited_points:
+                        return
+                    if level > 0:
+                        visited_points.add(pid)
+                        for each in graph[pid]:
+                            dfs(each, level - 1)
+
+                dfs(self.pid_p, 5)
+                visited_points = list(visited_points)
+                # Obtain a line that fits these points
+                direction = self.GetLineDirectionFitsPoints(visited_points)
+                # Clip volumes
+                vs = self.guictrl.GetMainRenderer().GetVolumes()
+                vs.InitTraversal()
+                v = vs.GetNextVolume()
+                if not self.is_focused:
+                    self.is_focused = True
+                    while v is not None:
+                        m = v.GetMapper()
+                        # Take the selected point as the center and the obtained direction
+                        # as the long axis to calculate the six planes of the box,
+                        for each_plane in self.guictrl.Get6SurroundingPlanesOfNormal(_a(self.guictrl.point_set_holder.points[:, self.pid_p]).T, direction,thickness=35,aspect_ratio=5):
+                            m.AddClippingPlane(each_plane)
+                        v = vs.GetNextVolume()
+                else:
+                    self.is_focused = False
+                    while v is not None:
+                        # Remove all the clipping planes
+                        m = v.GetMapper()
+                        m.RemoveAllClippingPlanes()
+                        v = vs.GetNextVolume()
+                iren.GetRenderWindow().Render()
 
         # Let's say, disable all default key bindings (except q)
         if not is_default_binding:
             super(MyInteractorStyle, obj).OnChar()
             # to quit, call TerminateApp()
+
+    def GetLineDirectionFitsPoints(self, visited_points):
+        ps = _a(self.guictrl.point_set_holder.points[:, visited_points]).T
+        center_point = ps.mean(axis=0)
+        subtracted = ps - center_point
+        uu, dd, V = np.linalg.svd(subtracted)
+        return V[0]
+
 
 class GUIControl:
     def __init__(self):
@@ -1028,23 +1134,24 @@ class GUIControl:
         self.scene_objects = {}
         self.selected_objects = []
         self.main_renderer_name = None
-        
+
         self.utility_objects = {}
         self.volume_loader = OnDemandVolumeLoader()
-        
+
         self.scene_saved = {
             'object_properties': {},
             'objects': {}
         }
         self.point_set_holder = PointSetHolder()
-        
+        # The point graph is initialized when adding SWC type objects and used to find adjacent points
+        self.point_graph = None
         # load default settings
         self.loading_default_config = True
         self.GUISetup(DefaultGUIConfig())
         self.AppendToScene(DefaultSceneConfig())
         self.loading_default_config = False
 
-    def GetNonconflitName(self, name_prefix, name_book = 'scene'):
+    def GetNonconflitName(self, name_prefix, name_book='scene'):
         if name_book == 'scene':
             index = self.scene_objects
         elif name_book == 'property':
@@ -1058,7 +1165,7 @@ class GUIControl:
 
     def UtilizerInit(self):
         colors = vtkNamedColors()
-        
+
         silhouette = vtkPolyDataSilhouette()
         silhouette.SetCamera(self.GetMainRenderer().GetActiveCamera())
 
@@ -1136,10 +1243,10 @@ class GUIControl:
         # Create the interactor (for keyboard and mouse)
         interactor = vtkRenderWindowInteractor()
         interactor.SetInteractorStyle(MyInteractorStyle(interactor, self))
-    #    interactor.AddObserver('ModifiedEvent', ModifiedCallbackFunction)
+        #    interactor.AddObserver('ModifiedEvent', ModifiedCallbackFunction)
         interactor.SetRenderWindow(self.render_window)
         self.interactor = interactor
-        
+
         # first time render, for 'Timer' event to work in Windows
         self.render_window.Render()
 
@@ -1148,10 +1255,10 @@ class GUIControl:
         if name in self.object_properties:
             # TODO: do we need to remove old mappers?
             dbg_print(2, 'AddObjectProperty(): conflict name: ', name)
-        dbg_print(3, 'AddObjectProperty(): "'+name+'" :', prop_conf)
+        dbg_print(3, 'AddObjectProperty(): "' + name + '" :', prop_conf)
         if name.startswith('volume'):
             volume_property = vtkVolumeProperty()
-            
+
             if 'copy_from' in prop_conf:
                 dbg_print(4, 'Copy propperty from', prop_conf['copy_from'])
                 # construct a volume property by copying from exist
@@ -1169,8 +1276,8 @@ class GUIControl:
                 otf_s = otf_conf['opacity_scale']
                 # Create transfer mapping scalar value to opacity.
                 otf = vtkPiecewiseFunction()
-                otf.AddPoint(otf_s*otf_v[0][0], otf_v[0][1])
-                otf.AddPoint(otf_s*otf_v[1][0], otf_v[1][1])
+                otf.AddPoint(otf_s * otf_v[0][0], otf_v[0][1])
+                otf.AddPoint(otf_s * otf_v[1][0], otf_v[1][1])
                 volume_property.SetScalarOpacity(otf)
 
             if 'color_transfer_function' in prop_conf:
@@ -1179,7 +1286,7 @@ class GUIControl:
                 ctf_s = ctf_conf['trans_scale']
                 ctf_v_e = np.array(ctf_v).copy()
                 for v in ctf_v_e:
-                    v[0] = v[0] *  ctf_s
+                    v[0] = v[0] * ctf_s
                 # Create transfer mapping scalar value to color.
                 ctf = vtkColorTransferFunction()
                 for v in ctf_v_e:
@@ -1218,6 +1325,33 @@ class GUIControl:
                     ctf_s = ctf_conf['trans_scale']
                     UpdatePropertyCTFScale(obj_prop, ctf_s)
 
+    def Get6SurroundingPlanesOfNormal(self,  center, long_axis_direction,thickness=35,aspect_ratio=5):
+        # The width of this box equals its height
+        center = _a(center)
+        long_axis_direction = _a(long_axis_direction)
+        long_axis_direction = long_axis_direction / np.linalg.norm(long_axis_direction)
+
+        def GetUnitOrthogonalVectors(v):
+            a = np.zeros((3,))
+            a[0] = -v[1]
+            a[1] = v[0]
+            b = np.cross(a, v)
+            return a / np.linalg.norm(a), b / np.linalg.norm(b)
+
+        def InitPlane(origin, normal):
+            p = vtkPlane()
+            p.SetOrigin(origin)
+            p.SetNormal(normal)
+            return p
+
+        length = thickness * aspect_ratio
+        a, b = GetUnitOrthogonalVectors(long_axis_direction)
+        p1 = InitPlane(center - long_axis_direction * length / 2, long_axis_direction)
+        p2 = InitPlane(center + long_axis_direction * length / 2, -long_axis_direction)
+        p3, p4 = InitPlane(center + thickness * a, -a), InitPlane(center - thickness * a, a)
+        p5, p6 = InitPlane(center + thickness * b, -b), InitPlane(center - thickness * b, b)
+        return [p1, p2, p3, p4, p5, p6]
+
     def AddObject(self, name, obj_conf):
         old_name = name
         if name in self.scene_objects:
@@ -1229,16 +1363,16 @@ class GUIControl:
             obj_conf.get('renderer', '0')]
 
         dbg_print(3, 'AddObject: "' + name + '" :', obj_conf)
-        dbg_print(4, 'renderer: ',  obj_conf.get('renderer', '0'))
+        dbg_print(4, 'renderer: ', obj_conf.get('renderer', '0'))
 
         if obj_conf['type'] == 'volume':
             file_path = obj_conf['file_path']
             img_importer = ImportImageFile(file_path, obj_conf)
             # set position scaling and direction
-            img_importer.SetDataOrigin(obj_conf.get('origin', [0,0,0]))
+            img_importer.SetDataOrigin(obj_conf.get('origin', [0, 0, 0]))
             # for 3d rotation and scaling
             dir3d = img_importer.GetDataDirection()
-            idmat = [1,0,0,0,1,0,0,0,1]
+            idmat = [1, 0, 0, 0, 1, 0, 0, 0, 1]
             rot3d = obj_conf.get('rotation_matrix', idmat)
             dir3d = (_mat3d(rot3d) @ _mat3d(dir3d)).flatten()
             img_importer.SetDataDirection(dir3d)
@@ -1255,7 +1389,7 @@ class GUIControl:
                 # OR: vtkSmartVolumeMapper https://vtk.org/doc/nightly/html/classvtkSmartVolumeMapper.html#details
                 # vtkOpenGLGPUVolumeRayCastMapper
                 volume_mapper = vtkGPUVolumeRayCastMapper()
-            #volume_mapper.SetBlendModeToComposite()
+            # volume_mapper.SetBlendModeToComposite()
             volume_mapper.SetInputConnection(img_importer.GetOutputPort())
 
             # get property used in rendering
@@ -1275,14 +1409,14 @@ class GUIControl:
             volume = vtkVolume()
             volume.SetMapper(volume_mapper)
             volume.SetProperty(volume_property)
-            
+
             renderer.AddVolume(volume)
 
             view_point = obj_conf.get('view_point', 'auto')
             if view_point == 'auto':
                 # auto view all actors
                 renderer.ResetCamera()
-            
+
             self.selected_objects = [name]
             scene_object = volume
 
@@ -1290,22 +1424,23 @@ class GUIControl:
             ntree = LoadSWCTree(obj_conf['file_path'])
             processes = SplitSWCTree(ntree)
             
-            raw_points = ntree[1][:,0:3]
+            self.point_graph = GetUndirectedGraph(ntree)
+            raw_points = ntree[1][:, 0:3]
             self.point_set_holder.AddPoints(raw_points.T, '')
-            
-            # ref: 
+
+            # ref:
             # https://kitware.github.io/vtk-examples/site/Python/GeometricObjects/PolyLine/
             # https://kitware.github.io/vtk-examples/site/Cxx/GeometricObjects/LinearCellDemo/
             # The procedure to add lines is:
             #    vtkPoints()  ---------------------+> vtkPolyData()
             #    vtkPolyLine() -> vtkCellArray()  /
             #   then
-            #    vtkPolyData() -> vtkPolyDataMapper() -> vtkActor() -> 
+            #    vtkPolyData() -> vtkPolyDataMapper() -> vtkActor() ->
             #         vtkRenderer()
-            
+
             points = vtkPoints()
-            points.SetData( numpy_to_vtk(raw_points, deep=True) )
-            
+            points.SetData(numpy_to_vtk(raw_points, deep=True))
+
             cells = vtkCellArray()
             for proc in processes:
                 polyLine = vtkPolyLine()
@@ -1327,8 +1462,8 @@ class GUIControl:
             actor.GetProperty().SetColor(
                 colors.GetColor3d(obj_conf['color']))
             renderer.AddActor(actor)
-            #actor.raw_points = raw_points  # for convenience
-            
+            # actor.raw_points = raw_points  # for convenience
+
             scene_object = actor
 
         elif obj_conf['type'] == 'AxesActor':
@@ -1354,16 +1489,16 @@ class GUIControl:
             sphereSource.SetRadius(2)
             sphereSource.SetPhiResolution(30)
             sphereSource.SetThetaResolution(30)
-            
+
             mapper = vtkPolyDataMapper()
             mapper.SetInputConnection(sphereSource.GetOutputPort())
-            
+
             actor = vtkActor()
             actor.GetProperty().SetColor(colors.GetColor3d('Peacock'))
             actor.GetProperty().SetSpecular(0.6)
             actor.GetProperty().SetSpecularPower(30)
             actor.SetMapper(mapper)
-            
+
             renderer.AddActor(actor)
             scene_object = actor
 
@@ -1382,7 +1517,7 @@ class GUIControl:
             om.SetDefaultRenderer(renderer)
             om.EnabledOn()
             om.SetInteractive(False)
-            #om.InteractiveOn()
+            # om.InteractiveOn()
             om.SetViewport(0, 0, 0.2, 0.2)
             # TODO: the vtkOrientationMarkerWidget and RepeatingTimerHandler can cause program lose respons or Segmentation fault, for unknown reason.
 
@@ -1409,8 +1544,8 @@ class GUIControl:
                 cam.SetClippingRange(obj_conf['clipping_range'])
 
             item_name = {
-                'Set':['Position', 'FocalPoint', 'ViewUp', 'ViewAngle'],
-                ''   :['Azimuth', 'Elevation']
+                'Set': ['Position', 'FocalPoint', 'ViewUp', 'ViewAngle'],
+                '': ['Azimuth', 'Elevation']
             }
             for f_prefix, its in item_name.items():
                 for it in its:
@@ -1433,7 +1568,7 @@ class GUIControl:
 
         if not self.loading_default_config:
             self.scene_saved['objects'][name] = obj_conf
-        
+
         self.scene_objects.update({name: scene_object})
 
     # add objects to the renderers
@@ -1451,7 +1586,7 @@ class GUIControl:
 
     def RemoveObject(self, name):
         if name not in self.scene_objects:
-            dbg_print(2,'RemoveObject(): object non-exist:', name)
+            dbg_print(2, 'RemoveObject(): object non-exist:', name)
             return
         obj = self.scene_objects[name]
         ren = self.GetMainRenderer()
@@ -1467,7 +1602,7 @@ class GUIControl:
         if (pos is None) or (len(pos) != 3):
             return []
         vol_list = self.volume_loader.LoadVolumeAt(pos, radius)
-        #print(vol_list)
+        # print(vol_list)
         dbg_print(3, 'LoadVolumeNear(): n_loaded =', len(vol_list))
         get_vol_name = lambda p: os.path.splitext(os.path.basename(p))[0]
         for v in vol_list:
@@ -1477,9 +1612,9 @@ class GUIControl:
             self.AddObject(
                 v_name,
                 {
-                    'type'      : 'volume',
-                    'file_path' : v['image_path'],
-                    'origin'    : v['origin'],
+                    'type': 'volume',
+                    'file_path': v['image_path'],
+                    'origin': v['origin'],
                     'view_point': 'keep'
                 },
             )
@@ -1491,7 +1626,7 @@ class GUIControl:
             return
         if isinstance(obj_desc, str):
             obj_desc = {'filepath': obj_desc}
-        
+
         if 'filepath' in obj_desc:
             file_path = obj_desc['filepath']
             if file_path.endswith('.tif'):
@@ -1517,7 +1652,7 @@ class GUIControl:
             else:
                 dbg_print(1, 'Unreconized source format.')
                 return
-            
+
             if 'origin' in obj_desc:
                 obj_conf.update({
                     'origin': str2array(obj_desc['origin'])
@@ -1531,25 +1666,25 @@ class GUIControl:
                     'oblique_image': obj_desc['oblique_image'].lower() \
                                      in ['true', '1']
                 })
-            
+
             if 'colorscale' in obj_desc:
                 s = float(obj_desc['colorscale'])
                 obj_conf.update({'property': {
                     'copy_from': 'volume',
                     'opacity_transfer_function': {'opacity_scale': s},
-                    'color_transfer_function'  : {'trans_scale': s}
+                    'color_transfer_function': {'trans_scale': s}
                 }})
             else:
                 obj_conf.update({'property': 'volume'})
 
             name = self.GetNonconflitName('volume')
             self.AddObject(name, obj_conf)
-            
+
         if 'swc' in obj_desc:
             name = self.GetNonconflitName('swc')
             obj_conf = {
                 "type": "swc",
-                "color": obj_desc.get('fibercolor','Tomato'),
+                "color": obj_desc.get('fibercolor', 'Tomato'),
                 "file_path": obj_desc['swc']
             }
             self.AddObject(name, obj_conf)
@@ -1568,23 +1703,24 @@ class GUIControl:
                 "type": "Camera",
                 "renderer": self.main_renderer_name,
                 "clipping_range": cam.GetClippingRange(),
-                "Position"  : cam.GetPosition(),
+                "Position": cam.GetPosition(),
                 "FocalPoint": cam.GetFocalPoint(),
-                "ViewUp"    : cam.GetViewUp(),
-                "ViewAngle" : cam.GetViewAngle()
+                "ViewUp": cam.GetViewUp(),
+                "ViewAngle": cam.GetViewAngle()
             },
         }
         self.scene_saved['objects'].update(c)
         # export scene_saved
         dbg_print(3, 'Saving scene file.')
         with open('scene_saved.json', 'w') as f:
-            json.dump(self.scene_saved, f, indent=4, ensure_ascii = False)
+            json.dump(self.scene_saved, f, indent=4, ensure_ascii=False)
 
     def Start(self):
         self.interactor.Initialize()
         self.render_window.Render()
         self.UtilizerInit()
         self.interactor.Start()
+
 
 def get_program_parameters():
     import argparse
@@ -1621,7 +1757,7 @@ def get_program_parameters():
     parser.add_argument('--oblique_image', help='Overwrite the guess of if the image is imaged oblique.')
     parser.add_argument('--swc', help='Read and draw swc file.')
     parser.add_argument('--fibercolor', help='Set fiber color.')
-    parser.add_argument('--scene', help='Project scene file path. e.g. for batch object loading.')
+    parser.add_argument('--scene', help='Project scene file path. e.g. for batch object loading.',)
     parser.add_argument('--lychnis_blocks', help='Path of lychnix blocks.json')
     args = parser.parse_args()
     # convert class attributes to dict
@@ -1629,9 +1765,10 @@ def get_program_parameters():
             'colorscale', 'swc', 'fibercolor', 'origin', 'rotation_matrix',
             'oblique_image', 'scene', 'lychnis_blocks']
     d = {k: getattr(args, k) for k in keys
-            if hasattr(args, k) and getattr(args, k)}
+         if hasattr(args, k) and getattr(args, k)}
     dbg_print(3, 'get_program_parameters(): d=', d)
     return d
+
 
 if __name__ == '__main__':
     gui = GUIControl()
@@ -1642,4 +1779,3 @@ if __name__ == '__main__':
         gui.AppendToScene(scene_ext)
     gui.EasyObjectImporter(cmd_obj_desc)
     gui.Start()
-    
