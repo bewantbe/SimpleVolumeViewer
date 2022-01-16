@@ -68,7 +68,8 @@ from vtkmodules.vtkCommonDataModel import (
     vtkPiecewiseFunction,
     vtkCellArray,
     vtkPolyData,
-    vtkPolyLine
+    vtkPolyLine,
+    vtkPlane
 )
 from vtkmodules.vtkIOImage import (
     vtkPNGWriter,
@@ -529,6 +530,51 @@ def SplitSWCTree(tr):
 
     return processes
 
+def GetUndirectedGraph(tr):
+    # re-label index in tr, this part is the same as SplitSWCTree()
+    tr_idx = tr[0].copy()
+    max_id = max(tr_idx[:, 0])  # max occur node index
+    n_id = tr_idx.shape[0]  # number of nodes
+    # relabel array (TODO: if max_id >> n_id, we need a different algo.)
+    arr_full = np.zeros(max_id + 2, dtype=np.int32)
+    arr_full[-1] = -1
+    arr_full[tr_idx[:, 0]] = np.arange(n_id, dtype=np.int32)
+    tr_idx[:, 0:2] = arr_full[tr_idx[:, 0:2]]
+    tr_idx = np.array(tr_idx)
+    # Generate undirected graph
+    graph = [[-1]]
+    for p in tr_idx[1:, 0:2]:
+        graph.append([p[1]])
+        graph[p[1]].append(p[0])
+    return graph
+
+
+def Get6SurroundingPlanes(center, long_axis_direction, thickness=35, aspect_ratio=5):
+    # The width of this box equals its height
+    def GetUnitOrthogonalVectors(v):
+        a = np.zeros((3,))
+        a[0] = -v[1]
+        a[1] = v[0]
+        b = np.cross(a, v)
+        return a / np.linalg.norm(a), b / np.linalg.norm(b)
+
+    def InitPlane(origin, normal):
+        p = vtkPlane()
+        p.SetOrigin(origin)
+        p.SetNormal(normal)
+        return p
+
+    center = _a(center)
+    long_axis_direction = _a(long_axis_direction)
+    long_axis_direction = long_axis_direction / np.linalg.norm(long_axis_direction)
+    length = thickness * aspect_ratio
+    a, b = GetUnitOrthogonalVectors(long_axis_direction)
+    p1 = InitPlane(center - long_axis_direction * length / 2, long_axis_direction)
+    p2 = InitPlane(center + long_axis_direction * length / 2, -long_axis_direction)
+    p3, p4 = InitPlane(center + thickness * a, -a), InitPlane(center - thickness * a, a)
+    p5, p6 = InitPlane(center + thickness * b, -b), InitPlane(center - thickness * b, b)
+    return [p1, p2, p3, p4, p5, p6]
+
 def UpdatePropertyOTFScale(obj_prop, otf_s):
     pf = obj_prop.GetScalarOpacity()
     if hasattr(obj_prop, 'ref_prop'):
@@ -825,6 +871,10 @@ class MyInteractorStyle(vtkInteractorStyleTerrain):
 
         # var for picker
         self.picked_actor = None
+        # record the currently selected point
+        self.selected_pid = None
+        # a switch to check whether the user focus on a region
+        self.is_focused = False
         
         # mouse events
         self.fn_modifier = []
@@ -917,7 +967,8 @@ class MyInteractorStyle(vtkInteractorStyleTerrain):
 
         ppicker = PointPicker(self.guictrl.point_set_holder(), ren)
         pid, pxyz = ppicker.PickAt(clickPos)
-        
+        self.selected_pid = pid
+
         if pxyz.size > 0:
             dbg_print(4, 'picked point', pid, pxyz)
             self.guictrl.Set3DCursor(pxyz)
@@ -1010,6 +1061,55 @@ class MyInteractorStyle(vtkInteractorStyleTerrain):
             else:
                 obj_name = self.guictrl.selected_objects[0]
                 self.guictrl.RemoveObject(obj_name)
+        elif key_combo == '\'':
+            def dfs(pid, level):
+                if pid == -1 or pid in visited_points:
+                    return
+                if level > 0:
+                    visited_points.add(pid)
+                    for each in graph[pid]:
+                        dfs(each, level - 1)
+
+            def GetLineDirectionFitsPoints(visited_points):
+                ps = _a(self.guictrl.point_set_holder.points[:, visited_points]).T
+                center_point = ps.mean(axis=0)
+                subtracted = ps - center_point
+                uu, dd, V = np.linalg.svd(subtracted)
+                return V[0]
+
+            if self.selected_pid is not None:
+                # Get undirected graph
+                graph = self.guictrl.point_graph
+                # Use DFS to find five points around
+                visited_points = set()
+                # DFS for five layer points
+                dfs(self.selected_pid, 5)
+                visited_points = list(visited_points)
+                # Obtain a line that fits these points
+                direction = GetLineDirectionFitsPoints(visited_points)
+                # Clip volumes
+                vs = self.guictrl.GetMainRenderer().GetVolumes()
+                vs.InitTraversal()
+                v = vs.GetNextVolume()
+                if not self.is_focused:
+                    self.is_focused = True
+                    while v is not None:
+                        m = v.GetMapper()
+                        # Take the selected point as the center and the obtained direction
+                        # as the long axis to calculate the six planes of the box,
+                        for each_plane in Get6SurroundingPlanes(
+                                _a(self.guictrl.point_set_holder.points[:, self.selected_pid]).T,
+                                direction, thickness=35, aspect_ratio=5):
+                            m.AddClippingPlane(each_plane)
+                        v = vs.GetNextVolume()
+                else:
+                    self.is_focused = False
+                    while v is not None:
+                        m = v.GetMapper()
+                        # Remove all the clipping planes
+                        m.RemoveAllClippingPlanes()
+                        v = vs.GetNextVolume()
+                iren.GetRenderWindow().Render()
 
         # Let's say, disable all default key bindings (except q)
         if not is_default_binding:
@@ -1037,7 +1137,9 @@ class GUIControl:
             'objects': {}
         }
         self.point_set_holder = PointSetHolder()
-        
+        # The point graph is initialized when adding SWC type objects and used to find adjacent points
+        self.point_graph = None
+
         # load default settings
         self.loading_default_config = True
         self.GUISetup(DefaultGUIConfig())
@@ -1290,6 +1392,7 @@ class GUIControl:
             ntree = LoadSWCTree(obj_conf['file_path'])
             processes = SplitSWCTree(ntree)
             
+            self.point_graph = GetUndirectedGraph(ntree)
             raw_points = ntree[1][:,0:3]
             self.point_set_holder.AddPoints(raw_points.T, '')
             
