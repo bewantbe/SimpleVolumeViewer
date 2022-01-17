@@ -549,31 +549,37 @@ def GetUndirectedGraph(tr):
     return graph
 
 
-def Get6SurroundingPlanes(center, long_axis_direction, thickness=35, aspect_ratio=5):
-    # The width of this box equals its height
-    def GetUnitOrthogonalVectors(v):
-        a = np.zeros((3,))
-        a[0] = -v[1]
-        a[1] = v[0]
-        b = np.cross(a, v)
-        return a / np.linalg.norm(a), b / np.linalg.norm(b)
-
+def Get6SurroundingPlanes(points,box_scaling = 1,min_boundary_length = 10):
     def InitPlane(origin, normal):
         p = vtkPlane()
         p.SetOrigin(origin)
         p.SetNormal(normal)
         return p
-
-    center = _a(center)
-    long_axis_direction = _a(long_axis_direction)
-    long_axis_direction = long_axis_direction / np.linalg.norm(long_axis_direction)
-    length = thickness * aspect_ratio
-    a, b = GetUnitOrthogonalVectors(long_axis_direction)
-    p1 = InitPlane(center - long_axis_direction * length / 2, long_axis_direction)
-    p2 = InitPlane(center + long_axis_direction * length / 2, -long_axis_direction)
-    p3, p4 = InitPlane(center + thickness * a, -a), InitPlane(center - thickness * a, a)
-    p5, p6 = InitPlane(center + thickness * b, -b), InitPlane(center - thickness * b, b)
-    return [p1, p2, p3, p4, p5, p6]
+    
+    # points                : the Points to calculate the bounding box
+    # min_boundary_length   : the min length/width/height of the bounding box 
+    # box_scaling           : the scale of the bouding box
+    
+    center_point = points.mean(axis = 0)
+    # Use center_point as the origin and calculate the coordinates of points
+    subtracted = points - center_point
+    # Calculate basis vectors
+    uu, dd, V = np.linalg.svd(subtracted)
+    basis_vectors = V
+    # Calculate the projection length of the points
+    projection_length = subtracted @ basis_vectors.T
+    # The length, width and height of the box in the direction of the basis vectors
+    box_LWH_basis = np.ptp(projection_length,axis = 0)
+    # The box center coordinate with respect to basis vectors, using the center_point as the origin
+    box_center_basis = np.min(projection_length,axis = 0) + box_LWH_basis / 2
+    # Convert the coordinate system back
+    box_center = center_point + _a([box_center_basis[i] * basis_vectors[i] for i in range(points.shape[1])]).sum(axis = 0)
+    # Set the minimum length/width/height of the box  
+    box_LWH_basis[np.where(box_LWH_basis < min_boundary_length)] = min_boundary_length
+    # Generate planes
+    plane_vectors = np.vstack((basis_vectors, -basis_vectors))
+    planes = [InitPlane(box_center - box_scaling * plane_vectors[i] * box_LWH_basis[i%3] / 2, plane_vectors[i]) for i in range(plane_vectors.shape[0])]
+    return planes
 
 def UpdatePropertyOTFScale(obj_prop, otf_s):
     pf = obj_prop.GetScalarOpacity()
@@ -1080,9 +1086,8 @@ class MyInteractorStyle(vtkInteractorStyleTerrain):
             if self.selected_pid is not None:
                 # Get undirected graph
                 graph = self.guictrl.point_graph
-                # Use DFS to find five points around
+                # Use DFS to find five-tier points around
                 visited_points = set()
-                # DFS for five layer points
                 dfs(self.selected_pid, 5)
                 visited_points = list(visited_points)
                 # Obtain a line that fits these points
@@ -1097,9 +1102,7 @@ class MyInteractorStyle(vtkInteractorStyleTerrain):
                         m = v.GetMapper()
                         # Take the selected point as the center and the obtained direction
                         # as the long axis to calculate the six planes of the box,
-                        for each_plane in Get6SurroundingPlanes(
-                                _a(self.guictrl.point_set_holder.points[:, self.selected_pid]).T,
-                                direction, thickness=35, aspect_ratio=5):
+                        for each_plane in Get6SurroundingPlanes(_a(self.guictrl.point_set_holder.points[:, visited_points]).T,box_scaling = 1.1):
                             m.AddClippingPlane(each_plane)
                         v = vs.GetNextVolume()
                 else:
