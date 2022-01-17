@@ -686,6 +686,77 @@ def CameraFollowCallbackFunction(caller, ev):
     AlignCameraDirection(cam2, cam1)
     return
 
+
+class VolumeClipper:
+    # Function  : Cut the volume with a box surrounding the points, which is represented by 6 mutually perpendicular planes
+    # Usage     : initialize this class, use 'SetPoints()' to set the points to be surrounded, and call the 'CutVolume()' function 
+    def __init__(self,points, box_scaling=1, min_boundary_length=10):
+        # Parameter description:
+        #   points                  : the Points to calculate the bounding box
+        #   box_scaling             : the scale of the bouding box
+        #   min_boundary_length     : the min length/width/height of the bounding box 
+        self.points = None
+        self.planes = None
+        self.box_scaling = box_scaling
+        self.min_boundary_length = min_boundary_length
+        self.SetPoints(points)
+    
+    # Called by other functions
+    def InitPlane(self,origin, normal):
+        p = vtkPlane()
+        p.SetOrigin(origin)
+        p.SetNormal(normal)
+        return p
+    
+    # Calculate the bounding box and express it in plane form
+    def Get6SurroundingPlanes(self, points, box_scaling=1, min_boundary_length=10):
+        # Parameter description:
+        #   points                : the Points to calculate the bounding box
+        #   min_boundary_length   : the min length/width/height of the bounding box 
+        #   box_scaling           : the scale of the bouding box
+
+        center_point = points.mean(axis=0)
+        # Use center_point as the origin and calculate the coordinates of points
+        subtracted = points - center_point
+        # Calculate basis vectors
+        uu, dd, V = np.linalg.svd(subtracted)
+        basis_vectors = V
+        # Calculate the projection length of the points on the basis vectors
+        projection_length = subtracted @ basis_vectors.T
+        # The length, width and height of the box in the direction of the basis vectors
+        box_LWH_basis = np.ptp(projection_length, axis=0)
+        # The box center coordinate with respect to basis vectors, using the center_point as the origin
+        box_center_basis = np.min(projection_length, axis=0) + box_LWH_basis / 2
+        # Convert the coordinate system back
+        box_center = center_point + _a([box_center_basis[i] * basis_vectors[i] for i in range(points.shape[1])]).sum(
+            axis=0)
+        # Set the minimum length/width/height of the box  
+        box_LWH_basis[np.where(box_LWH_basis < min_boundary_length)] = min_boundary_length
+        # Generate planes
+        plane_vectors = np.vstack((basis_vectors, -basis_vectors))
+        planes = [
+            self.InitPlane(box_center - box_scaling * plane_vectors[i] * box_LWH_basis[i % 3] / 2, plane_vectors[i]) for
+            i in range(plane_vectors.shape[0])]
+        return planes
+
+    # Set the points to be surrounded
+    def SetPoints(self, points):
+        self.points = points
+        self.planes = self.Get6SurroundingPlanes(points)
+
+    # Add clipping planes to the mapper of the volume
+    def CutVolume(self, volume):
+        m = volume.GetMapper()
+        for each_plane in self.planes:
+            m.AddClippingPlane(each_plane)
+
+    @staticmethod
+    def RestoreVolume(volume):
+        m = volume.GetMapper()
+        # Remove all the clipping planes
+        m.RemoveAllClippingPlanes()
+        
+
 class PointPicker():
     def __init__(self, points, renderer):
         ren_win = renderer.GetRenderWindow()
@@ -1075,14 +1146,6 @@ class MyInteractorStyle(vtkInteractorStyleTerrain):
                     visited_points.add(pid)
                     for each in graph[pid]:
                         dfs(each, level - 1)
-
-            def GetLineDirectionFitsPoints(visited_points):
-                ps = _a(self.guictrl.point_set_holder.points[:, visited_points]).T
-                center_point = ps.mean(axis=0)
-                subtracted = ps - center_point
-                uu, dd, V = np.linalg.svd(subtracted)
-                return V[0]
-
             if self.selected_pid is not None:
                 # Get undirected graph
                 graph = self.guictrl.point_graph
@@ -1090,27 +1153,20 @@ class MyInteractorStyle(vtkInteractorStyleTerrain):
                 visited_points = set()
                 dfs(self.selected_pid, 5)
                 visited_points = list(visited_points)
-                # Obtain a line that fits these points
-                direction = GetLineDirectionFitsPoints(visited_points)
                 # Clip volumes
                 vs = self.guictrl.GetMainRenderer().GetVolumes()
                 vs.InitTraversal()
                 v = vs.GetNextVolume()
+                vc = VolumeClipper(_a(self.guictrl.point_set_holder.points[:, visited_points]).T)
                 if not self.is_focused:
                     self.is_focused = True
                     while v is not None:
-                        m = v.GetMapper()
-                        # Take the selected point as the center and the obtained direction
-                        # as the long axis to calculate the six planes of the box,
-                        for each_plane in Get6SurroundingPlanes(_a(self.guictrl.point_set_holder.points[:, visited_points]).T,box_scaling = 1.1):
-                            m.AddClippingPlane(each_plane)
+                        vc.CutVolume(v)
                         v = vs.GetNextVolume()
                 else:
                     self.is_focused = False
                     while v is not None:
-                        m = v.GetMapper()
-                        # Remove all the clipping planes
-                        m.RemoveAllClippingPlanes()
+                        vc.RestoreVolume(v)
                         v = vs.GetNextVolume()
                 iren.GetRenderWindow().Render()
 
