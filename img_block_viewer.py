@@ -548,33 +548,6 @@ def GetUndirectedGraph(tr):
         graph[p[1]].append(p[0])
     return graph
 
-
-def Get6SurroundingPlanes(center, long_axis_direction, thickness=35, aspect_ratio=5):
-    # The width of this box equals its height
-    def GetUnitOrthogonalVectors(v):
-        a = np.zeros((3,))
-        a[0] = -v[1]
-        a[1] = v[0]
-        b = np.cross(a, v)
-        return a / np.linalg.norm(a), b / np.linalg.norm(b)
-
-    def InitPlane(origin, normal):
-        p = vtkPlane()
-        p.SetOrigin(origin)
-        p.SetNormal(normal)
-        return p
-
-    center = _a(center)
-    long_axis_direction = _a(long_axis_direction)
-    long_axis_direction = long_axis_direction / np.linalg.norm(long_axis_direction)
-    length = thickness * aspect_ratio
-    a, b = GetUnitOrthogonalVectors(long_axis_direction)
-    p1 = InitPlane(center - long_axis_direction * length / 2, long_axis_direction)
-    p2 = InitPlane(center + long_axis_direction * length / 2, -long_axis_direction)
-    p3, p4 = InitPlane(center + thickness * a, -a), InitPlane(center - thickness * a, a)
-    p5, p6 = InitPlane(center + thickness * b, -b), InitPlane(center - thickness * b, b)
-    return [p1, p2, p3, p4, p5, p6]
-
 def UpdatePropertyOTFScale(obj_prop, otf_s):
     pf = obj_prop.GetScalarOpacity()
     if hasattr(obj_prop, 'ref_prop'):
@@ -679,6 +652,118 @@ def CameraFollowCallbackFunction(caller, ev):
     cam2 = CameraFollowCallbackFunction.cam2
     AlignCameraDirection(cam2, cam1)
     return
+
+class VolumeClipper:
+    # Function  : Cut the volume with a box surrounding the points, which is represented by 6 mutually perpendicular planes
+    # Usage     : initialize this class, use 'SetPoints()' to set the points to be surrounded, and call the 'CutVolume()' function 
+    def __init__(self,points, box_scaling=1, min_boundary_length=10):
+        # Parameter description:
+        #   points                  : the Points to calculate the bounding box
+        #   box_scaling             : the scale of the bouding box
+        #   min_boundary_length     : the min length/width/height of the bounding box 
+        self.points = None
+        self.planes = None
+        self.box_scaling = box_scaling
+        self.min_boundary_length = min_boundary_length
+        self.SetPoints(points)
+    
+    # Called by other functions
+    def InitPlane(self,origin, normal):
+        p = vtkPlane()
+        p.SetOrigin(origin)
+        p.SetNormal(normal)
+        return p
+    
+    # Calculate the bounding box and express it in plane form
+    def Get6SurroundingPlanes(self, points, box_scaling=1, min_boundary_length=10):
+        # Parameter description:
+        #   points                : the Points to calculate the bounding box
+        #   min_boundary_length   : the min length/width/height of the bounding box 
+        #   box_scaling           : the scale of the bouding box
+
+        center_point = points.mean(axis=0)
+        # Use center_point as the origin and calculate the coordinates of points
+        subtracted = points - center_point
+        # Calculate basis vectors
+        uu, dd, V = np.linalg.svd(subtracted)
+        basis_vectors = V
+        # Calculate the projection length of the points on the basis vectors
+        projection_length = subtracted @ basis_vectors.T
+        # The length, width and height of the box in the direction of the basis vectors
+        box_LWH_basis = np.ptp(projection_length, axis=0)
+        # The box center coordinate with respect to basis vectors, using the center_point as the origin
+        box_center_basis = np.min(projection_length, axis=0) + box_LWH_basis / 2
+        # Convert the coordinate system back
+        box_center = center_point + _a([box_center_basis[i] * basis_vectors[i] for i in range(points.shape[1])]).sum(
+            axis=0)
+        # Set the minimum length/width/height of the box  
+        box_LWH_basis[np.where(box_LWH_basis < min_boundary_length)] = min_boundary_length
+        # Generate planes
+        plane_vectors = np.vstack((basis_vectors, -basis_vectors))
+        planes = [
+            self.InitPlane(box_center - box_scaling * plane_vectors[i] * box_LWH_basis[i % 3] / 2, plane_vectors[i]) for
+            i in range(plane_vectors.shape[0])]
+        return planes
+
+    # Set the points to be surrounded
+    def SetPoints(self, points):
+        self.points = points
+        self.planes = self.Get6SurroundingPlanes(points)
+
+    # Add clipping planes to the mapper of the volume
+    def CutVolume(self, volume):
+        m = volume.GetMapper()
+        for each_plane in self.planes:
+            m.AddClippingPlane(each_plane)
+            
+    def CutVolumes(self, volumes):
+        volumes.InitTraversal()
+        v = volumes.GetNextVolume()
+        while v is not None:
+            self.CutVolume(v)
+            v = volumes.GetNextVolume()
+
+    @staticmethod
+    def RestoreVolume(volume):
+        m = volume.GetMapper()
+        # Remove all the clipping planes
+        m.RemoveAllClippingPlanes()
+        
+    @staticmethod
+    def RestoreVolumes(volumes):
+        volumes.InitTraversal()
+        v=volumes.GetNextVolume()
+        while v is not None:
+            VolumeClipper.RestoreVolume(v)
+            v = volumes.GetNextVolume()
+        
+class PointSearcher:
+    def __init__(self,point_graph,level = 5,points_coor = None):
+        self.point_graph = point_graph
+        self.visited_points = set()
+        self.level = level
+        self.points_coordinate = points_coor
+    def SetTargetPoint(self,target_point):
+        self.visited_points = set()
+        self.target = target_point
+    def SetPointGraph(self,point_graph):
+        self.visited_points = set()
+        self.point_graph=point_graph
+    def SetNumberOfSearchLayers(self,number):
+        self.level = number
+    def dfs(self,pid,level):
+        if pid == -1 or pid in self.visited_points:
+            return
+        if level > 0:
+            self.visited_points.add(pid)
+            for each in self.point_graph[pid]:
+                self.dfs(each, level - 1)
+    def SearchPointsAround(self,pid):
+        self.dfs(pid,self.level)
+        return list(self.visited_points)
+    def SearchPointsAround_coor(self,pid):
+        corr=self.points_coordinate[:,self.SearchPointsAround(pid)]
+        return _a(corr).T
 
 class PointPicker():
     def __init__(self, points, renderer):
@@ -967,10 +1052,10 @@ class MyInteractorStyle(vtkInteractorStyleTerrain):
 
         ppicker = PointPicker(self.guictrl.point_set_holder(), ren)
         pid, pxyz = ppicker.PickAt(clickPos)
-        self.selected_pid = pid
-
+        
         if pxyz.size > 0:
             dbg_print(4, 'picked point', pid, pxyz)
+            self.selected_pid = pid
             self.guictrl.Set3DCursor(pxyz)
         else:
             dbg_print(4, 'picked no point', pid, pxyz)
@@ -1062,54 +1147,22 @@ class MyInteractorStyle(vtkInteractorStyleTerrain):
                 obj_name = self.guictrl.selected_objects[0]
                 self.guictrl.RemoveObject(obj_name)
         elif key_combo == '\'':
-            def dfs(pid, level):
-                if pid == -1 or pid in visited_points:
-                    return
-                if level > 0:
-                    visited_points.add(pid)
-                    for each in graph[pid]:
-                        dfs(each, level - 1)
-
-            def GetLineDirectionFitsPoints(visited_points):
-                ps = _a(self.guictrl.point_set_holder.points[:, visited_points]).T
-                center_point = ps.mean(axis=0)
-                subtracted = ps - center_point
-                uu, dd, V = np.linalg.svd(subtracted)
-                return V[0]
-
-            if self.selected_pid is not None:
+            Volumes = self.guictrl.GetMainRenderer().GetVolumes()
+            if self.is_focused:
+                self.is_focused = False
+                VolumeClipper.RestoreVolumes(Volumes)
+                dbg_print(4, 'unfocus local area')
+            else:
+                self.is_focused = True
                 # Get undirected graph
                 graph = self.guictrl.point_graph
-                # Use DFS to find five points around
-                visited_points = set()
-                # DFS for five layer points
-                dfs(self.selected_pid, 5)
-                visited_points = list(visited_points)
-                # Obtain a line that fits these points
-                direction = GetLineDirectionFitsPoints(visited_points)
+                point_searcher = PointSearcher(graph,points_coor=self.guictrl.point_set_holder.points)
+                visited_points_coor = point_searcher.SearchPointsAround_coor(self.selected_pid)
                 # Clip volumes
-                vs = self.guictrl.GetMainRenderer().GetVolumes()
-                vs.InitTraversal()
-                v = vs.GetNextVolume()
-                if not self.is_focused:
-                    self.is_focused = True
-                    while v is not None:
-                        m = v.GetMapper()
-                        # Take the selected point as the center and the obtained direction
-                        # as the long axis to calculate the six planes of the box,
-                        for each_plane in Get6SurroundingPlanes(
-                                _a(self.guictrl.point_set_holder.points[:, self.selected_pid]).T,
-                                direction, thickness=35, aspect_ratio=5):
-                            m.AddClippingPlane(each_plane)
-                        v = vs.GetNextVolume()
-                else:
-                    self.is_focused = False
-                    while v is not None:
-                        m = v.GetMapper()
-                        # Remove all the clipping planes
-                        m.RemoveAllClippingPlanes()
-                        v = vs.GetNextVolume()
-                iren.GetRenderWindow().Render()
+                vc = VolumeClipper(visited_points_coor) 
+                vc.CutVolumes(Volumes)
+                dbg_print(4, 'focus on local area around point ' + str(self.selected_pid))
+            iren.GetRenderWindow().Render()
 
         # Let's say, disable all default key bindings (except q)
         if not is_default_binding:
