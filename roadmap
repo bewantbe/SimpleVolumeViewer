@@ -3,9 +3,11 @@
   - by box selection, multiple object.
 * "Fly to" an active object.            (done for volume, picked point)
 * Dynamical loading/off-loading.        (done loading, but not off-loading)
+    - On demand loading of ims file and flsm file.
 * Visually focus local area
-  - by mask volume partially.
+  - by mask volume partially.           (done)
   - by rebuild a volume.
+  - also mask outside fiber.
 * Show 3D cursor.                       (done using sphere)
 * Add transition animation framework for moving viewport
   - Make Y direction the up direction.
@@ -13,3 +15,4 @@
 * ability to output scene file corresponding to current view.
 * View up                               (done)
 * Support touch screen (StartPinchEvent, PinchEvent, EndPinchEvent), (SwipeEvent, StartSwipeEvent, EndSwipeEvent)
+

@@ -352,6 +352,10 @@ def read_tiff_meta(tif_path):
 # Read Imaris compatible image file.
 # Returm image array and metadata.
 def read_ims(ims_path, extra_conf = {}, cache_reader_obj = False):
+    dbg_print(4, 'read_ims(): extra_conf =', extra_conf)
+    dim_ranges = slice_from_str(str(extra_conf.get('range', '[:,:,:]')))
+    dbg_print(4, '  Requested dim_range:', dim_ranges)
+    
     # TODO: how to impliment cache_reader_obj?
     ims = h5py.File(ims_path, 'r')
     level      = int(extra_conf.get('level', 0))
@@ -360,7 +364,8 @@ def read_ims(ims_path, extra_conf = {}, cache_reader_obj = False):
     img = ims['DataSet']['ResolutionLevel %d'%(level)] \
                         ['TimePoint %d'%(time_point)] \
                         ['Channel %d'%(channel)]['Data']
-    dbg_print(4, 'image shape: ', img.shape, ' dtype =', img.dtype)
+
+    dbg_print(4, '  Done image selection. Shape: ', img.shape, ' dtype =', img.dtype)
 
     # convert metadata in IMS to python dict
     img_info = ims['DataSetInfo']
@@ -371,15 +376,12 @@ def read_ims(ims_path, extra_conf = {}, cache_reader_obj = False):
             {k:''.join([c.decode('utf-8') for c in v])
                 for k, v in img_info[it].attrs.items()}
 
-    dbg_print(4, 'read_ims(): extra_conf =', extra_conf)
-    dim_ranges = slice_from_str(str(extra_conf.get('range', '[:,:,:]')))
-    dbg_print(4, 'dim_ranges', dim_ranges)
-    
     t0 = time.time()
     img_clip = np.array(img[dim_ranges])         # actually read the data
     dbg_print(4, 'read_ims(): img read time: %6.3f' % (time.time()-t0))
     #img_clip = np.transpose(np.array(img_clip), (2,1,0))
 
+    # TODO: find correct voxel size and whether it is oblique.
     metadata['imagej'] = {'voxel_size_um': '(1.0, 1.0, 1.0)'}
     metadata['oblique_image'] = False
 
@@ -441,9 +443,12 @@ def ImportImageArray(img_arr, img_meta):
         voxel_size_um = (1.0, 1.0, 1.0)
 
     img_importer = vtkImageImport()
+    # Note: if img_arr is contiguous, 'simg is img_arr' is True
     simg = np.ascontiguousarray(img_arr, img_arr.dtype)  # maybe .flatten()?
-    # see also: SetImportVoidPointer
     img_importer.CopyImportVoidPointer(simg.data, simg.nbytes)
+    # To use SetImportVoidPointer, we need to keep a reference to simg some 
+    #  where, to avoid GC and eventually Segmentation fault.
+    #img_importer.SetImportVoidPointer(simg.data)
     if img_arr.dtype == np.uint8:
         img_importer.SetDataScalarTypeToUnsignedChar()
     elif img_arr.dtype == np.uint16:
@@ -1169,6 +1174,7 @@ class MyInteractorStyle(vtkInteractorStyleTerrain):
             else:
                 obj_name = self.guictrl.selected_objects[0]
                 self.guictrl.RemoveObject(obj_name)
+                iren.GetRenderWindow().Render()
         elif key_combo == '`':
             volumes = self.guictrl.GetMainRenderer().GetVolumes()
             if self.is_focused:
@@ -1328,6 +1334,7 @@ class GUIControl:
         if name in self.object_properties:
             # TODO: do we need to remove old mappers?
             dbg_print(2, 'AddObjectProperty(): conflict name: ', name)
+            dbg_print(2, '                     will be overwritten.')
         dbg_print(3, 'AddObjectProperty(): "'+name+'" :', prop_conf)
         if name.startswith('volume'):
             volume_property = vtkVolumeProperty()
@@ -1346,17 +1353,22 @@ class GUIControl:
             if 'opacity_transfer_function' in prop_conf:
                 otf_conf = prop_conf['opacity_transfer_function']
                 otf_v = otf_conf['AddPoint']
-                otf_s = otf_conf['opacity_scale']
+                otf_s = otf_conf.get('opacity_scale', 1.0)
+                # perform scaling
+                otf_v_e = np.array(otf_v).copy()
+                for v in otf_v_e:
+                    v[0] = v[0] *  otf_s
                 # Create transfer mapping scalar value to opacity.
                 otf = vtkPiecewiseFunction()
-                otf.AddPoint(otf_s*otf_v[0][0], otf_v[0][1])
-                otf.AddPoint(otf_s*otf_v[1][0], otf_v[1][1])
+                for v in otf_v_e:
+                    otf.AddPoint(*v)
                 volume_property.SetScalarOpacity(otf)
 
             if 'color_transfer_function' in prop_conf:
                 ctf_conf = prop_conf['color_transfer_function']
                 ctf_v = ctf_conf['AddRGBPoint']
-                ctf_s = ctf_conf['trans_scale']
+                ctf_s = ctf_conf.get('trans_scale', 1.0)
+                # perform scaling
                 ctf_v_e = np.array(ctf_v).copy()
                 for v in ctf_v_e:
                     v[0] = v[0] *  ctf_s
@@ -1381,6 +1393,9 @@ class GUIControl:
         else:
             dbg_print(2, 'AddObjectProperty(): unknown object type')
 
+        if not self.loading_default_config:
+            self.scene_saved['object_properties'][name] = prop_conf
+
         self.object_properties.update({name: object_property})
 
     def ModifyObjectProperty(self, name, prop_conf):
@@ -1404,6 +1419,7 @@ class GUIControl:
             # TODO: do we need to remove old object?
             dbg_print(2, 'AddObject(): conflict name: ', name)
             name = self.GetNonconflitName(name)
+            dbg_print(2, '             rename to: ', name)
 
         renderer = self.renderers[
             obj_conf.get('renderer', '0')]
@@ -1634,10 +1650,12 @@ class GUIControl:
         if name not in self.scene_objects:
             dbg_print(2,'RemoveObject(): object non-exist:', name)
             return
+        dbg_print(3, 'Removing object:', name)
+        # TODO: Do not remove if it is an active camera
         obj = self.scene_objects[name]
         ren = self.GetMainRenderer()
         ren.RemoveActor(obj)
-        # TODO: Do not remove if it is an active camera
+        
         if name in self.selected_objects:
             self.selected_objects.remove(name)
         del self.scene_objects[name]
