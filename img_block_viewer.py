@@ -654,8 +654,10 @@ def CameraFollowCallbackFunction(caller, ev):
     return
 
 class VolumeClipper:
-    # Function  : Cut the volume with a box surrounding the points, which is represented by 6 mutually perpendicular planes
-    # Usage     : initialize this class, use 'SetPoints()' to set the points to be surrounded, and call the 'CutVolume()' function 
+    # Function  : Cut the volume with a box surrounding the points, 
+    #             which is represented by 6 mutually perpendicular planes.
+    # Usage     : initialize this class, use 'SetPoints()' to set the points
+    #              to be surrounded, and call the 'CutVolume()' function .
     def __init__(self,points, box_scaling=1, min_boundary_length=10):
         # Parameter description:
         #   points                  : the Points to calculate the bounding box
@@ -668,14 +670,15 @@ class VolumeClipper:
         self.SetPoints(points)
     
     # Called by other functions
-    def InitPlane(self,origin, normal):
+    def CreatePlane(self, origin, normal):
         p = vtkPlane()
         p.SetOrigin(origin)
         p.SetNormal(normal)
         return p
     
     # Calculate the bounding box and express it in plane form
-    def Get6SurroundingPlanes(self, points, box_scaling=1, min_boundary_length=10):
+    def Get6SurroundingPlanes(self, points, box_scaling = 1,
+                              min_boundary_length = 10):
         # Parameter description:
         #   points                : the Points to calculate the bounding box
         #   min_boundary_length   : the min length/width/height of the bounding box 
@@ -686,23 +689,33 @@ class VolumeClipper:
         subtracted = points - center_point
         # Calculate basis vectors
         uu, dd, V = np.linalg.svd(subtracted)
+        # The natual basis of the point set
         basis_vectors = V
         # Calculate the projection length of the points on the basis vectors
         projection_length = subtracted @ basis_vectors.T
-        # The length, width and height of the box in the direction of the basis vectors
+        # The length, width and height of the box 
+        #  in the direction of the basis vectors
         box_LWH_basis = np.ptp(projection_length, axis=0)
-        # The box center coordinate with respect to basis vectors, using the center_point as the origin
-        box_center_basis = np.min(projection_length, axis=0) + box_LWH_basis / 2
+        # The box center coordinate with respect to basis vectors, 
+        #  using the center_point as the origin
+        box_center_basis = np.min(projection_length, axis=0) + \
+                           box_LWH_basis / 2
         # Convert the coordinate system back
-        box_center = center_point + _a([box_center_basis[i] * basis_vectors[i] for i in range(points.shape[1])]).sum(
-            axis=0)
+        box_center = center_point + box_center_basis @ basis_vectors
         # Set the minimum length/width/height of the box  
-        box_LWH_basis[np.where(box_LWH_basis < min_boundary_length)] = min_boundary_length
+        box_LWH_basis[ np.where(box_LWH_basis < min_boundary_length) ] = \
+            min_boundary_length
         # Generate planes
-        plane_vectors = np.vstack((basis_vectors, -basis_vectors))
+        plane_normals = np.vstack((basis_vectors, -basis_vectors))
         planes = [
-            self.InitPlane(box_center - box_scaling * plane_vectors[i] * box_LWH_basis[i % 3] / 2, plane_vectors[i]) for
-            i in range(plane_vectors.shape[0])]
+            self.CreatePlane(
+                box_center \
+                - (box_scaling * box_LWH_basis[i%3]/2 + min_boundary_length) \
+                   * plane_normals[i],
+                plane_normals[i]
+            )
+            for i in range(plane_normals.shape[0])
+        ]
         return planes
 
     # Set the points to be surrounded
@@ -738,32 +751,38 @@ class VolumeClipper:
             v = volumes.GetNextVolume()
         
 class PointSearcher:
-    def __init__(self,point_graph,level = 5,points_coor = None):
+    def __init__(self, point_graph,level = 5, points_coor = None):
         self.point_graph = point_graph
         self.visited_points = set()
         self.level = level
         self.points_coordinate = points_coor
-    def SetTargetPoint(self,target_point):
+
+    def SetTargetPoint(self, target_point):
         self.visited_points = set()
         self.target = target_point
-    def SetPointGraph(self,point_graph):
+
+    def SetPointGraph(self, point_graph):
         self.visited_points = set()
-        self.point_graph=point_graph
-    def SetNumberOfSearchLayers(self,number):
+        self.point_graph = point_graph
+
+    def SetNumberOfSearchLayers(self, number):
         self.level = number
-    def dfs(self,pid,level):
+
+    def DFS(self, pid, level):
         if pid == -1 or pid in self.visited_points:
             return
         if level > 0:
             self.visited_points.add(pid)
             for each in self.point_graph[pid]:
-                self.dfs(each, level - 1)
-    def SearchPointsAround(self,pid):
-        self.dfs(pid,self.level)
+                self.DFS(each, level - 1)
+
+    def SearchPointsAround(self, pid):
+        self.DFS(pid, self.level)
         return list(self.visited_points)
-    def SearchPointsAround_coor(self,pid):
-        corr=self.points_coordinate[:,self.SearchPointsAround(pid)]
-        return _a(corr).T
+
+    def SearchPointsAround_coor(self, pid):
+        coor = self.points_coordinate[:, self.SearchPointsAround(pid)]
+        return coor.T
 
 class PointPicker():
     def __init__(self, points, renderer):
@@ -862,11 +881,15 @@ class OnDemandVolumeLoader():
         ]
         self.vol_list += ap_list
         self.vol_origin = np.concatenate(
-            (self.vol_origin,
-            _a([it['origin'] for it in ap_list])), axis = 0)
+            (
+                self.vol_origin,
+                _a([it['origin'] for it in ap_list])
+            ), axis = 0)
         self.vol_size = np.concatenate(
-            (self.vol_size,
-            _a([it['size'] for it in ap_list])), axis = 0)
+            (
+                self.vol_size,
+                _a([it['size'] for it in ap_list])
+            ), axis = 0)
 #        print(self.vol_list)
 #        print(self.vol_origin)
 #        print(self.vol_size)
@@ -1146,21 +1169,23 @@ class MyInteractorStyle(vtkInteractorStyleTerrain):
             else:
                 obj_name = self.guictrl.selected_objects[0]
                 self.guictrl.RemoveObject(obj_name)
-        elif key_combo == '\'':
-            Volumes = self.guictrl.GetMainRenderer().GetVolumes()
+        elif key_combo == '`':
+            volumes = self.guictrl.GetMainRenderer().GetVolumes()
             if self.is_focused:
                 self.is_focused = False
-                VolumeClipper.RestoreVolumes(Volumes)
+                VolumeClipper.RestoreVolumes(volumes)
                 dbg_print(4, 'unfocus local area')
             else:
                 self.is_focused = True
                 # Get undirected graph
                 graph = self.guictrl.point_graph
-                point_searcher = PointSearcher(graph,points_coor=self.guictrl.point_set_holder.points)
-                visited_points_coor = point_searcher.SearchPointsAround_coor(self.selected_pid)
+                point_searcher = PointSearcher(graph,
+                    points_coor = self.guictrl.point_set_holder.points)
+                visited_points_coor = point_searcher.SearchPointsAround_coor(
+                    self.selected_pid)
                 # Clip volumes
                 vc = VolumeClipper(visited_points_coor) 
-                vc.CutVolumes(Volumes)
+                vc.CutVolumes(volumes)
                 dbg_print(4, 'focus on local area around point ' + str(self.selected_pid))
             iren.GetRenderWindow().Render()
 
