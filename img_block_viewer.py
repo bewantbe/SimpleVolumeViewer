@@ -46,7 +46,9 @@ import time
 import json
 import pprint
 
+import numpy
 import numpy as np
+import vtk
 from numpy import sin, cos, pi
 from numpy import array as _a
 
@@ -771,6 +773,7 @@ class PointSearcher:
         self.point_graph = point_graph
 
     def SetNumberOfSearchLayers(self, number):
+        self.visited_points = set()
         self.level = number
 
     def DFS(self, pid, level):
@@ -781,13 +784,121 @@ class PointSearcher:
             for each in self.point_graph[pid]:
                 self.DFS(each, level - 1)
 
+    def DFS_path(self, pid, level, path):
+        if pid == -1 or pid in self.visited_points:
+            return
+        if level > 0:
+            self.visited_points.add(pid)
+            for each in self.point_graph[pid]:
+                if each in self.visited_points:
+                    continue
+                path.append([pid, each])
+                self.DFS_path(each, level - 1, path)
+
+    def SearchPathAround(self, pid):
+        self.visited_points = set()
+        path = []
+        self.DFS_path(pid, self.level * 2, path)
+        return list(self.visited_points), path
+
     def SearchPointsAround(self, pid):
+        self.visited_points = set()
         self.DFS(pid, self.level)
         return list(self.visited_points)
 
     def SearchPointsAround_coor(self, pid):
         coor = self.points_coordinate[:, self.SearchPointsAround(pid)]
         return coor.T
+
+# This class manages the focus mode and is mainly responsible for cutting blocks and lines
+class FocusModeController:
+    def __init__(self):
+        self.center_point = None
+        self.point_searcher = None
+        self.volume_clipper = None
+        self.renderer = None
+        self.isOn = False
+        self.gui_controller = None
+        self.swc_polydata = None
+        self.swc_mapper = None
+        self.cut_swc_flag = True
+        self.focus_swc = None
+        self.iren = None
+
+    def SetPointsInfo(self, point_graph, point_coor):
+        self.point_searcher = PointSearcher(point_graph, points_coor=point_coor)
+
+    def SetGUIController(self, gui_controller):
+        self.gui_controller = gui_controller
+        self.renderer = self.gui_controller.GetMainRenderer()
+        self.gui_controller.volume_observers.append(self)
+        self.swc_mapper = self.gui_controller.scene_objects['swc'].GetMapper()
+        self.swc_polydata = self.swc_mapper.GetInput()
+        self.iren = gui_controller.interactor
+        self.point_searcher = PointSearcher(self.gui_controller.point_graph, points_coor=self.gui_controller.point_set_holder.points)
+
+    def SetCenterPoint(self, pid):
+        self.center_point = pid
+        if self.isOn:
+            points = self.point_searcher.SearchPointsAround_coor(self.center_point)
+            if not self.volume_clipper:
+                self.volume_clipper = VolumeClipper(points)
+            else:
+                self.volume_clipper.SetPoints(points)
+            self.gui_controller.UpdateVolumesNear(self.point_searcher.points_coordinate.T[self.center_point])
+            self.volume_clipper.RestoreVolumes(self.renderer.GetVolumes())
+            self.volume_clipper.CutVolumes(self.renderer.GetVolumes())
+            if self.cut_swc_flag:
+                if self.focus_swc:
+                    self.gui_controller.GetMainRenderer().RemoveActor(self.focus_swc)
+                oldClipper = vtk.vtkClipPolyData()
+                oldClipper.SetInputData(self.swc_polydata)
+                oldClipper.SetClipFunction(self.volume_clipper.planes[0])
+                path = self.point_searcher.SearchPathAround(self.center_point)
+                self.swc_mapper.SetInputData(oldClipper.GetOutput())
+                self.CreateLines(path[1])
+            self.iren.GetRenderWindow().Render()
+
+    def Toggle(self):
+        if self.isOn:
+            self.isOn = False
+            self.volume_clipper.RestoreVolumes(self.renderer.GetVolumes())
+            if self.cut_swc_flag:
+                self.swc_mapper.SetInputData(self.swc_polydata)
+                self.gui_controller.GetMainRenderer().RemoveActor(self.focus_swc)
+            self.iren.GetRenderWindow().Render()
+        else:
+            self.isOn = True
+            if self.center_point:
+                self.SetCenterPoint(self.center_point)
+
+    def CreateLines(self, path):
+        points = vtkPoints()
+        points.SetData(numpy_to_vtk(
+            self.gui_controller.point_set_holder.points.T, deep=True))
+        cells = vtkCellArray()
+        for proc in path:
+            polyLine = vtkPolyLine()
+            polyLine.GetPointIds().SetNumberOfIds(len(proc))
+            for i in range(0, len(proc)):
+                polyLine.GetPointIds().SetId(i, proc[i])
+            cells.InsertNextCell(polyLine)
+        polyData = vtkPolyData()
+        polyData.SetPoints(points)
+        polyData.SetLines(cells)
+        colors = vtkNamedColors()
+        mapper = vtkPolyDataMapper()
+        mapper.SetInputData(polyData)
+        actor = vtkActor()
+        actor.SetMapper(mapper)
+        actor.GetProperty().SetColor(
+            colors.GetColor3d('green'))
+        self.gui_controller.GetMainRenderer().AddActor(actor)
+        self.focus_swc = actor
+
+    def Notify(self, volume):
+        if self.isOn:
+            self.volume_clipper.CutVolume(volume)
 
 class PointPicker():
     def __init__(self, points, renderer):
@@ -984,11 +1095,7 @@ class MyInteractorStyle(vtkInteractorStyleTerrain):
 
         # var for picker
         self.picked_actor = None
-        # record the currently selected point
-        self.selected_pid = None
-        # a switch to check whether the user focus on a region
-        self.is_focused = False
-        
+
         # mouse events
         self.fn_modifier = []
         self.AddObserver('LeftButtonPressEvent',
@@ -1033,7 +1140,7 @@ class MyInteractorStyle(vtkInteractorStyleTerrain):
             self.OnMiddleButtonDown()
             self.left_button_press_event_release_fn = \
                 lambda: self.OnMiddleButtonUp()
-    
+
     def left_button_release_event(self, obj, event):
         if self.left_button_press_event_release_fn:
             self.left_button_press_event_release_fn()
@@ -1042,21 +1149,25 @@ class MyInteractorStyle(vtkInteractorStyleTerrain):
 
     def mouse_wheel_event(self, direction):
         def mouse_wheel_action(obj, event, direction = direction):
-            win = obj.iren.GetRenderWindow()
-            rens = win.GetRenderers()
-            rens.InitTraversal()
-            ren1 = rens.GetNextItem()
-            cam = ren1.GetActiveCamera()
-            # modify the distance between camera and the focus point
-            fp = _a(cam.GetFocalPoint())
-            p  = _a(cam.GetPosition())
-            new_p = fp + (p - fp) * (1.2 ** (-direction))
-            cam.SetPosition(new_p)
-            # need to do ResetCameraClippingRange(), since VTK will
-            # automatically reset clipping range after changing camera view
-            # angle. Then the clipping range can be wrong for zooming.
-            ren1.ResetCameraClippingRange()
-            win.Render()
+            if obj.iren.GetShiftKey():
+                if obj.guictrl.selected_pid:
+                    obj.guictrl.SetSelectedPID(obj.guictrl.selected_pid + direction)
+            else:
+                win = obj.iren.GetRenderWindow()
+                rens = win.GetRenderers()
+                rens.InitTraversal()
+                ren1 = rens.GetNextItem()
+                cam = ren1.GetActiveCamera()
+                # modify the distance between camera and the focus point
+                fp = _a(cam.GetFocalPoint())
+                p  = _a(cam.GetPosition())
+                new_p = fp + (p - fp) * (1.2 ** (-direction))
+                cam.SetPosition(new_p)
+                # need to do ResetCameraClippingRange(), since VTK will
+                # automatically reset clipping range after changing camera view
+                # angle. Then the clipping range can be wrong for zooming.
+                ren1.ResetCameraClippingRange()
+                win.Render()
         return mouse_wheel_action
 
     def middle_button_press_event(self, obj, event):
@@ -1083,8 +1194,7 @@ class MyInteractorStyle(vtkInteractorStyleTerrain):
         
         if pxyz.size > 0:
             dbg_print(4, 'picked point', pid, pxyz)
-            self.selected_pid = pid
-            self.guictrl.Set3DCursor(pxyz)
+            self.guictrl.SetSelectedPID(pid)
         else:
             dbg_print(4, 'picked no point', pid, pxyz)
         
@@ -1176,24 +1286,10 @@ class MyInteractorStyle(vtkInteractorStyleTerrain):
                 self.guictrl.RemoveObject(obj_name)
                 iren.GetRenderWindow().Render()
         elif key_combo == '`':
-            volumes = self.guictrl.GetMainRenderer().GetVolumes()
-            if self.is_focused:
-                self.is_focused = False
-                VolumeClipper.RestoreVolumes(volumes)
-                dbg_print(4, 'unfocus local area')
+            if self.guictrl.focusController.isOn:
+                self.guictrl.focusController.Toggle()
             else:
-                self.is_focused = True
-                # Get undirected graph
-                graph = self.guictrl.point_graph
-                point_searcher = PointSearcher(graph,
-                    points_coor = self.guictrl.point_set_holder.points)
-                visited_points_coor = point_searcher.SearchPointsAround_coor(
-                    self.selected_pid)
-                # Clip volumes
-                vc = VolumeClipper(visited_points_coor) 
-                vc.CutVolumes(volumes)
-                dbg_print(4, 'focus on local area around point ' + str(self.selected_pid))
-            iren.GetRenderWindow().Render()
+                self.guictrl.focusController.Toggle()
 
         # Let's say, disable all default key bindings (except q)
         if not is_default_binding:
@@ -1223,6 +1319,10 @@ class GUIControl:
         self.point_set_holder = PointSetHolder()
         # The point graph is initialized when adding SWC type objects and used to find adjacent points
         self.point_graph = None
+        # If a new volume is loaded, it will be clipped by the observers
+        self.volume_observers = []
+        self.selected_pid = None
+        self.focusController = FocusModeController()
 
         # load default settings
         self.loading_default_config = True
@@ -1267,6 +1367,12 @@ class GUIControl:
             dbg_print(4, 'Set 3D cursor to', xyz)
             cursor.SetPosition(xyz)
             self.render_window.Render()
+
+    def SetSelectedPID(self, pid):
+        if pid < len(self.point_set_holder.points.T):
+            self.selected_pid = pid
+            self.focusController.SetCenterPoint(pid)
+            self.Set3DCursor(self.point_set_holder.points.T[pid])
 
     def Get3DCursor(self):
         cursor = self.scene_objects.get('3d_cursor', None)
@@ -1471,7 +1577,7 @@ class GUIControl:
             volume = vtkVolume()
             volume.SetMapper(volume_mapper)
             volume.SetProperty(volume_property)
-            
+            for ob in self.volume_observers: ob.Notify(volume)
             renderer.AddVolume(volume)
 
             view_point = obj_conf.get('view_point', 'auto')
@@ -1525,7 +1631,7 @@ class GUIControl:
                 colors.GetColor3d(obj_conf['color']))
             renderer.AddActor(actor)
             #actor.raw_points = raw_points  # for convenience
-            
+
             scene_object = actor
 
         elif obj_conf['type'] == 'AxesActor':
@@ -1684,6 +1790,34 @@ class GUIControl:
             )
         return vol_list
 
+    def UpdateVolumesNear(self, point_pos, radius = 20):
+        focus_vols = self.volume_loader.LoadVolumeAt(point_pos, radius)
+        scene_vols = self.scene_objects.copy()
+        get_vol_name = lambda p: os.path.splitext(os.path.basename(p))[0]
+        focus_vols_name_set = set()
+        for v in focus_vols:
+            focus_vols_name_set.add('volume' + get_vol_name(v['image_path']))
+        add_set = []
+        for vol in focus_vols:
+            name = 'volume' + get_vol_name(vol['image_path'])
+            if name not in scene_vols:
+                add_set.append(vol)
+        for sv in scene_vols:
+            if sv not in focus_vols_name_set and type(scene_vols[sv]) == vtkmodules.vtkRenderingCore.vtkVolume:
+                if sv is not self.selected_objects[0]:
+                    self.RemoveObject(sv)
+        for each in add_set:
+            self.AddObject(
+                'volume' + get_vol_name(each['image_path']),
+                {
+                    'type': 'volume',
+                    'file_path': each['image_path'],
+                    'origin': each['origin'],
+                    'view_point': 'keep'
+                },
+            )
+
+
     # Used to accept command line inputs which need default parameters.
     def EasyObjectImporter(self, obj_desc):
         if not obj_desc:
@@ -1783,6 +1917,7 @@ class GUIControl:
         self.interactor.Initialize()
         self.render_window.Render()
         self.UtilizerInit()
+        self.focusController.SetGUIController(self)
         self.interactor.Start()
 
 def get_program_parameters():
@@ -1841,4 +1976,4 @@ if __name__ == '__main__':
         gui.AppendToScene(scene_ext)
     gui.EasyObjectImporter(cmd_obj_desc)
     gui.Start()
-    
+
