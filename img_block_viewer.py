@@ -350,8 +350,18 @@ def read_tiff(tif_path, as_np_array = True):
         for page in tif.pages:
             images.append(page.asarray())
 
-    # TODO: determing this value automatically
-    metadata['oblique_image'] = True if metadata['ImageLength']==788 else False
+    # TODO: determing oblique_image more correctly
+    if ('oblique_image' not in metadata) and len(images) > 0:
+        corner_vals = _a([[[images[ii][jj,kk]
+                            for ii in [0,-1]]
+                            for jj in [0,-1]]
+                            for kk in [0,-1]]).flatten()
+        is_tilted = np.all(corner_vals > 0)
+        metadata['oblique_image'] = (metadata['ImageLength']==788) and is_tilted
+        if (not is_tilted) and ('imagej' in metadata) \
+                           and (metadata['imagej'] is not None)\
+                           and ('voxel_size_um' not in metadata['imagej']):
+            metadata['imagej']['voxel_size_um'] = (1.0, 1.0, 2.5)
 
     return images, metadata
 
@@ -1260,7 +1270,7 @@ class MyInteractorStyle(vtkInteractorStyleTerrain):
     def mouse_wheel_event(self, direction):
         """
         wheel rolling: zooming.
-        wheel rolling + Shift: select next(previous) scene object.
+        wheel rolling + Shift: select next/previous scene object.
         """
         def mouse_wheel_action(obj, event, direction = direction):
             if obj.iren.GetShiftKey():
