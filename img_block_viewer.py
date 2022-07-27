@@ -1,7 +1,9 @@
 #!/usr/bin/env python3
-
 # A simple viewer based on PyVTK for volumetric data, 
 # specialized for neuron tracing.
+
+# Dependencies:
+# pip install vtk opencv-python tifffile h5py
 
 # Usage examples:
 # python img_block_viewer.py --filepath RM006_s128_c13_f8906-9056.tif
@@ -46,14 +48,14 @@ import time
 import json
 import pprint
 
-import numpy
 import numpy as np
-import vtk
-from numpy import sin, cos, pi
+from numpy import sqrt, sin, cos, tan, pi
 from numpy import array as _a
 
 import tifffile
 import h5py
+
+import vtk
 
 # noinspection PyUnresolvedReferences
 import vtkmodules.vtkInteractionStyle
@@ -490,7 +492,7 @@ def ImportImageArray(img_arr, img_meta):
     dbg_print(4, 'b_oblique_correction: ', b_oblique_correction)
     if b_oblique_correction:
         img_importer.SetDataSpacing(voxel_size_um[0], voxel_size_um[1],
-                                    voxel_size_um[2]*np.sqrt(2))
+                                    voxel_size_um[2]*sqrt(2))
         rotMat = [ \
             1.0, 0.0,            0.0,
             0.0, cos(45/180*pi), 0.0,
@@ -998,8 +1000,8 @@ class PointPicker():
         self.cam_m = vtkMatrix2array(camera.GetModelViewTransformMatrix())
         self.screen_dims = _a(screen_dims)
         # https://vtk.org/doc/nightly/html/classvtkCamera.html#a2aec83f16c1c492fe87336a5018ad531
-        view_angle = camera.GetViewAngle() / (180/np.pi)
-        view_length = 2*np.tan(view_angle/2)
+        view_angle = camera.GetViewAngle() / (180/pi)
+        view_length = 2 * tan(view_angle/2)
         # aspect = width/height
         aspect_ratio = screen_dims[0] / screen_dims[1]
         if camera.GetUseHorizontalViewAngle():
@@ -1193,6 +1195,9 @@ class MyInteractorStyle(vtkInteractorStyleTerrain):
 
         # var for picker
         self.picked_actor = None
+        # hold the callbacks, to avoid GC.
+        self._mouse_wheel_event_p1 = self.mouse_wheel_event(1)
+        self._mouse_wheel_event_n1 = self.mouse_wheel_event(-1)
 
         # mouse events
         self.fn_modifier = []
@@ -1205,9 +1210,9 @@ class MyInteractorStyle(vtkInteractorStyleTerrain):
         self.AddObserver('MiddleButtonReleaseEvent',
                          self.middle_button_release_event)
         self.AddObserver('MouseWheelForwardEvent',
-                         self.mouse_wheel_event(1))
+                         self._mouse_wheel_event_p1)
         self.AddObserver('MouseWheelBackwardEvent',
-                         self.mouse_wheel_event(-1))
+                         self._mouse_wheel_event_n1)
         self.AddObserver('RightButtonPressEvent',
                          self.right_button_press_event)
         self.AddObserver('RightButtonReleaseEvent',
