@@ -211,16 +211,19 @@ def DefaultSceneConfig():
 
 debug_level = 5
 
-# Used for print error, controlled by debug_level.
-# higher debug_level will show more info.
-# 0 == debug_level will show no info.
 def dbg_print(level, *p, **keys):
+    """
+    Used for print error, controlled by global debug_level.
+    Higher debug_level will show more infomation.
+    debug_level == 0: show no info.
+    """
     if level > debug_level:
         return
     level_str = {1:'Error', 2:'Warning', 3:'Hint', 4:'Message', 5:'Verbose'}
     print(level_str[level] + ':', *p, **keys)
 
 def str2array(s):
+    """ Convert list of numbers in string form to `list`. """
     if not isinstance(s, str):
         return s
     if s[0] == '[':
@@ -232,9 +235,11 @@ def str2array(s):
     return v
 
 def _mat3d(d):
+    """ Convert vector of length 9 to 3x3 numpy array. """
     return np.array(d, dtype=np.float64).reshape(3,3)
 
 def vtkMatrix2array(vtkm):
+    """ Convert VTK matrix to numpy matrix (array) """
     # also use self.cam_m.GetData()[i+4*j]?
     m = np.array(
             [
@@ -243,15 +248,17 @@ def vtkMatrix2array(vtkm):
             ], dtype=np.float64)
     return m
 
-# Utilizer to convert a fraction to integer range
-# mostly copy from VISoR_select_light/pick_big_block/volumeio.py
-# Examples:
-#   rg=[(1, 2)], max_pixel=100: return ( 0,  50)
-#   rg=[(2, 2)], max_pixel=100: return (50, 100)
-#   rg=[],       max_pixel=100: return (0, 100)
-#   rg=(0, 50),  max_pixel=100: return ( 0,  50)
-#   rg=([0.1], [0.2]), max_pixel=100: return ( 10,  20)
 def rg_part_to_pixel(rg, max_pixel):
+    """
+    Utilizer to convert a fraction to integer range.
+    Mostly copy from VISoR_select_light/pick_big_block/volumeio.py
+    Examples:
+      rg=[(1, 2)], max_pixel=100: return ( 0,  50)
+      rg=[(2, 2)], max_pixel=100: return (50, 100)
+      rg=[],       max_pixel=100: return ( 0, 100)
+      rg=(0, 50),  max_pixel=100: return ( 0,  50)
+      rg=([0.1], [0.2]), max_pixel=100: return ( 10,  20)
+    """
     if len(rg) == 0:
         return (0, max_pixel)
     elif len(rg)==1 and len(rg[0])==2:
@@ -269,9 +276,13 @@ def rg_part_to_pixel(rg, max_pixel):
         return rg
 
 def slice_from_str(slice_str):
-    # Construct array slice object.
-    # Ref: https://stackoverflow.com/questions/680826/python-create-slice-object-from-string
-    # Format example: [100:400, :, 20:]
+    """
+    Construct array slice object from string.
+    Ref: https://stackoverflow.com/questions/680826/python-create-slice-object-from-string
+    Example:
+        slice_str = "[100:400, :, 20:]"
+        return: (slice(100,400), slice(None,None), slice(20,None))
+    """
     dim_ranges = slice_str[1:-1].split(',')
     # convert a:b:c to slice(a,b,c)
     dim_ranges = tuple(
@@ -285,8 +296,8 @@ def slice_from_str(slice_str):
                  )
     return dim_ranges
 
-# return a name not occur in name_set
 def GetNonconflitName(prefix, name_set):
+    """ Return a name start with prefix but not occured in name_set. """
     i = 1
     name = prefix
     while name in name_set:
@@ -295,9 +306,11 @@ def GetNonconflitName(prefix, name_set):
     return name
 
 def MergeFullDict(d_contain, d_update):
-    # update dict d_contain by d_update
-    # i.e. overwrite d_contain for items exist in d_update
-    # Ref. https://stackoverflow.com/questions/38987/how-do-i-merge-two-dictionaries-in-a-single-expression-take-union-of-dictionari
+    """
+    Update dict d_contain by d_update.
+    i.e. overwrite d_contain for items exist in d_update
+    Ref. https://stackoverflow.com/questions/38987/how-do-i-merge-two-dictionaries-in-a-single-expression-take-union-of-dictionari
+    """
     def DeepUpdate(d_contain, d_update):
         for key, value in d_update.items(): 
             if key not in d_contain:
@@ -317,10 +330,12 @@ def MergeFullDict(d_contain, d_update):
 
     return d_contain
 
-# copy from volumeio.py
-# Read tiff file, return images and meta data
 def read_tiff(tif_path, as_np_array = True):
-    # see also https://pypi.org/project/tifffile/
+    """
+    Read tiff file, return images (as nparray) and meta data.
+    Copy from volumeio.py
+    See also https://pypi.org/project/tifffile/
+    """
     tif = tifffile.TiffFile(tif_path)
     metadata = {tag_val.name:tag_val.value 
                 for tag_name, tag_val in tif.pages[0].tags.items()}
@@ -338,10 +353,11 @@ def read_tiff(tif_path, as_np_array = True):
 
     return images, metadata
 
-# Read tiff file, return images and meta data
-# Returm image array and metadata.
 def read_tiff_meta(tif_path):
-    # see also https://pypi.org/project/tifffile/
+    """
+    Read tiff file, return image metadata.
+    See also https://pypi.org/project/tifffile/
+    """
     tif = tifffile.TiffFile(tif_path)
     metadata = {tag_name:tag_val.value 
                 for tag_name, tag_val in tif.pages[0].tags.items()}
@@ -351,9 +367,11 @@ def read_tiff_meta(tif_path):
     metadata['n_pages'] = len(tif.pages)
     return metadata
 
-# Read Imaris compatible image file.
-# Returm image array and metadata.
 def read_ims(ims_path, extra_conf = {}, cache_reader_obj = False):
+    """
+    Read Imaris compatible (HDF5) image file.
+    Returm image array and metadata.
+    """
     dbg_print(4, 'read_ims(): extra_conf =', extra_conf)
     dim_ranges = slice_from_str(str(extra_conf.get('range', '[:,:,:]')))
     dbg_print(4, '  Requested dim_range:', dim_ranges)
@@ -397,13 +415,18 @@ def Read3DImageDataFromFile(file_name, *item, **keys):
     dbg_print(5, pprint.pformat(img_meta))
     return img_arr, img_meta
 
-# import image to vtkImageImport() to have a connection
-# img_arr must be a numpy-like array
-#   dimension order: Z C Y X  (full form TZCYXS)
-# img_meta may contain
-#   img_meta['imagej']['voxel_size_um']
-#   img_meta['oblique_image']
 def ImportImageArray(img_arr, img_meta):
+    """
+    Import image array to vtkImageImport() to have a connection.
+    Input:
+        img_arr: a numpy-like array
+                 dimension order: Z C Y X  (full form TZCYXS)
+        img_meta may contain
+            img_meta['imagej']['voxel_size_um']
+            img_meta['oblique_image']
+    Return:
+        vtkImageImport() object
+    """
     # Ref:
     # Numpy 3D array into VTK data types for volume rendering?
     # https://discourse.vtk.org/t/numpy-3d-array-into-vtk-data-types-for-volume-rendering/3455/2
@@ -479,32 +502,50 @@ def ImportImageArray(img_arr, img_meta):
 
     return img_importer
 
-# Import image to vtkImageImport() to have a connection.
-# extra_conf for extra setting to extract the image
-# the extra_conf takes higher priority than meta data in the file
 def ImportImageFile(file_name, extra_conf = None):
+    """
+    Import image to vtkImageImport() to have a connection.
+    Input:
+        file_name: may be .tif .h5 .ims
+        extra_conf: additional metadata, 
+            typically image spacing specification.
+            the extra_conf takes higher priority than meta data in the file
+    Return:
+        a vtkImageImport() object.
+    """
     img_arr, img_meta = Read3DImageDataFromFile(file_name, extra_conf)
     if extra_conf:
         img_meta.update(extra_conf)
     img_import = ImportImageArray(img_arr, img_meta)
     return img_import
 
-# Load tracing result.
 def LoadSWCTree(filepath):
+    """
+    Load SWC file, i.e. tracing result.
+    Return tree data structure.
+    Tree data structure:
+      (
+        [(id, parent_id, type), ...],
+        [(x, y, z, diameter), ...]
+      )
+    """
     d = np.loadtxt(filepath)
     tr = (np.int32(d[:,np.array([0,6,1])]),
           np.float64(d[:, 2:6]))
-    # tree format
-    # (id, parent_id, type), ...
-    # (x,y,z,diameter), ...
     return tr
 
-# Split the tree in swc into linear segments (i.e. processes).
-# return processes in index of tr.
-# tr = LoadSWCTree(name)
 def SplitSWCTree(tr):
-    # Decompose tree to line objects
-    # Assume tr is well and sorted and contain only one tree
+    """
+    Split the tree in a swc into linear segments, i.e. processes.
+    Input : a swc tree ([(id0, pid0, ..), (id1, pid1, ..), ...], [..])
+            not modified.
+    Return: processes in index of tr. [[p0_idx0, p0_idx1, ...], [p1...]]
+            Note that idx# is the index of tr, not the index in tr.
+    Assume tr is well and sorted and contains only one tree.
+    Usage example:
+        tr = LoadSWCTree(name)
+        processes = SplitSWCTree(tr)
+    """
 
     # re-label index in tr, s.t. root is 0 and all followings continued
     tr_idx = tr[0].copy()
@@ -597,12 +638,13 @@ def UpdatePropertyCTFScale(obj_prop, ctf_s):
         ctf.SetNodeValue(k, v[k])
 
 def GetColorScale(obj_prop):
-    # guess values of colorscale for otf and ctf
+    """ Guess values of colorscale for property otf and ctf in obj_prop. """
     otf_v, o_v = UpdatePropertyOTFScale(obj_prop, None)
     ctf_v, c_v = UpdatePropertyCTFScale(obj_prop, None)
     return o_v[-1][0] / otf_v[-1][0], c_v[-1][0] / ctf_v[-1][0]
 
 def SetColorScale(obj_prop, scale):
+    """ Set the color mapping for volume rendering. """
     dbg_print(4, 'Setting colorscale =', scale)
     if hasattr(scale, '__iter__'):
         otf_s = scale[0]
@@ -627,7 +669,10 @@ def ReadScene(scene_file_path):
     return scene
 
 def ShotScreen(render_window):
-    # Take a screenshot
+    """
+    Take a screenshot.
+    Save to 'TestScreenshot.png'
+    """
     # From: https://kitware.github.io/vtk-examples/site/Python/Utilities/Screenshot/
     win2if = vtkWindowToImageFilter()
     win2if.SetInput(render_window)
@@ -643,9 +688,10 @@ def ShotScreen(render_window):
     writer.SetInputConnection(win2if.GetOutputPort())
     writer.Write()
 
-# Align cam2 by cam1
-# make cam2 dist away from origin
 def AlignCameraDirection(cam2, cam1, dist=4.0):
+    """
+    Align direction of cam2 by cam1, and make cam2 dist away from origin.
+    """
     r = np.array(cam1.GetPosition()) - np.array(cam1.GetFocalPoint())
     r = r / np.linalg.norm(r) * dist
 
@@ -661,35 +707,40 @@ def CameraFollowCallbackFunction(caller, ev):
     return
 
 class VolumeClipper:
-    # Function  : Cut the volume with a box surrounding the points, 
-    #             which is represented by 6 mutually perpendicular planes.
-    # Usage     : initialize this class, use 'SetPoints()' to set the points
-    #              to be surrounded, and call the 'CutVolume()' function .
-    def __init__(self,points, box_scaling=1, min_boundary_length=10):
-        # Parameter description:
-        #   points                  : the Points to calculate the bounding box
-        #   box_scaling             : the scale of the bouding box
-        #   min_boundary_length     : the min length/width/height of the bounding box 
+    """
+    Function: Cut the volume with a box surrounding the points, 
+              which is represented by 6 mutually perpendicular planes.
+    Usage   : Initialize this class, use 'SetPoints()' to set the points
+              to be surrounded, and call the 'CutVolume()' function.
+    """
+    def __init__(self, points, box_scaling=1, min_boundary_length=10):
+        """
+        Parameter description:
+          points               : the Points to calculate the bounding box
+          box_scaling          : the scale of the bouding box
+          min_boundary_length  : the min length/width/height of the bounding box 
+        """
         self.points = None
         self.planes = None
         self.box_scaling = box_scaling
         self.min_boundary_length = min_boundary_length
         self.SetPoints(points)
     
-    # Called by other functions
     def CreatePlane(self, origin, normal):
         p = vtkPlane()
         p.SetOrigin(origin)
         p.SetNormal(normal)
         return p
     
-    # Calculate the bounding box and express it in plane form
     def Get6SurroundingPlanes(self, points, box_scaling = 1,
                               min_boundary_length = 10):
-        # Parameter description:
-        #   points                : the Points to calculate the bounding box
-        #   min_boundary_length   : the min length/width/height of the bounding box 
-        #   box_scaling           : the scale of the bouding box
+        """
+        Calculate the bounding box and express it in plane form
+        Parameter description:
+          points              : the points to calculate the bounding box
+          box_scaling         : the scale of the bouding box
+          min_boundary_length : the min length/width/height of the bounding box
+        """
 
         center_point = points.mean(axis=0)
         # Use center_point as the origin and calculate the coordinates of points
@@ -725,17 +776,18 @@ class VolumeClipper:
         ]
         return planes
 
-    # Set the points to be surrounded
     def SetPoints(self, points):
+        """ Set the points to be surrounded. """
+        # TODO: should we remove the planes first?
         self.points = points
         self.planes = self.Get6SurroundingPlanes(points)
 
-    # Add clipping planes to the mapper of the volume
     def CutVolume(self, volume):
+        """ Add clipping planes to the mapper of the volume. """
         m = volume.GetMapper()
         for each_plane in self.planes:
             m.AddClippingPlane(each_plane)
-            
+
     def CutVolumes(self, volumes):
         volumes.InitTraversal()
         v = volumes.GetNextVolume()
@@ -745,20 +797,27 @@ class VolumeClipper:
 
     @staticmethod
     def RestoreVolume(volume):
+        """ Remove all the clipping planes attached to the volume. """
         m = volume.GetMapper()
         # Remove all the clipping planes
         m.RemoveAllClippingPlanes()
-        
+
     @staticmethod
     def RestoreVolumes(volumes):
+        """ Remove all the clipping planes for all the volume in the scene. """
         volumes.InitTraversal()
         v=volumes.GetNextVolume()
         while v is not None:
             VolumeClipper.RestoreVolume(v)
             v = volumes.GetNextVolume()
-        
+
 class PointSearcher:
-    def __init__(self, point_graph,level = 5, points_coor = None):
+    """
+    For a given point coordiante and connectivity graph,
+    search connected nearby points.
+    """
+
+    def __init__(self, point_graph, level = 5, points_coor = None):
         self.point_graph = point_graph
         self.visited_points = set()
         self.level = level
@@ -810,20 +869,22 @@ class PointSearcher:
         coor = self.points_coordinate[:, self.SearchPointsAround(pid)]
         return coor.T
 
-# This class manages the focus mode and is mainly responsible for cutting blocks and lines
 class FocusModeController:
+    """
+    This class manages the focus mode and is mainly responsible for cutting blocks and lines
+    """
     def __init__(self):
-        self.center_point = None
-        self.point_searcher = None
-        self.volume_clipper = None
-        self.renderer = None
-        self.isOn = False
         self.gui_controller = None
+        self.renderer = None
+        self.iren = None
+        self.point_searcher = None
+        self.center_point = None
+        self.volume_clipper = None
+        self.isOn = False
         self.swc_polydata = None
         self.swc_mapper = None
         self.cut_swc_flag = True
         self.focus_swc = None
-        self.iren = None
 
     def SetPointsInfo(self, point_graph, point_coor):
         self.point_searcher = PointSearcher(point_graph, points_coor=point_coor)
@@ -831,21 +892,33 @@ class FocusModeController:
     def SetGUIController(self, gui_controller):
         self.gui_controller = gui_controller
         self.renderer = self.gui_controller.GetMainRenderer()
-        self.gui_controller.volume_observers.append(self)
-        self.swc_mapper = self.gui_controller.scene_objects['swc'].GetMapper()
-        self.swc_polydata = self.swc_mapper.GetInput()
         self.iren = gui_controller.interactor
-        self.point_searcher = PointSearcher(self.gui_controller.point_graph, points_coor=self.gui_controller.point_set_holder.points)
+        self.gui_controller.volume_observers.append(self)
+        if 'swc' in self.gui_controller.scene_objects:
+            self.swc_mapper = self.gui_controller \
+                              .scene_objects['swc'].GetMapper()
+            self.swc_polydata = self.swc_mapper.GetInput()
+        else:
+            self.swc_mapper = None
+            self.swc_polydata = None
+        self.point_searcher = PointSearcher(
+            self.gui_controller.point_graph,
+            points_coor = self.gui_controller.point_set_holder.points)
 
     def SetCenterPoint(self, pid):
+        """
+        Update spot site according to point position.
+        """
         self.center_point = pid
         if self.isOn:
-            points = self.point_searcher.SearchPointsAround_coor(self.center_point)
+            points = self.point_searcher \
+                     .SearchPointsAround_coor(self.center_point)
             if not self.volume_clipper:
                 self.volume_clipper = VolumeClipper(points)
             else:
                 self.volume_clipper.SetPoints(points)
-            self.gui_controller.UpdateVolumesNear(self.point_searcher.points_coordinate.T[self.center_point])
+            self.gui_controller.UpdateVolumesNear(
+                self.point_searcher.points_coordinate.T[self.center_point])
             self.volume_clipper.RestoreVolumes(self.renderer.GetVolumes())
             self.volume_clipper.CutVolumes(self.renderer.GetVolumes())
             if self.cut_swc_flag:
@@ -901,6 +974,16 @@ class FocusModeController:
             self.volume_clipper.CutVolume(volume)
 
 class PointPicker():
+    """
+    Pick a point near the clicked site in the rendered scene.
+    If multiple points exist, return only the nearest one.
+    Input:
+        points   : point set.
+        renderer : scene renderer.
+        posxy    : click site.
+    Output:
+        point ID, point coordinate
+    """
     def __init__(self, points, renderer):
         ren_win = renderer.GetRenderWindow()
         cam = renderer.GetActiveCamera()
@@ -961,6 +1044,11 @@ class PointSetHolder():
         return self.points
 
 class OnDemandVolumeLoader():
+    """
+    Load image blocks upon request. TODO: add off-load.
+    Request parameters are a position and a radius.
+    All image blocks intersect with the sphere will be loaded.
+    """
     def __init__(self):
         self.vol_list = []
         self.vol_origin = np.zeros((0,3), dtype=np.float64)
@@ -1025,8 +1113,8 @@ class OnDemandVolumeLoader():
         selected_vol = [self.vol_list[it] for it in idx_in_range]
         return selected_vol
 
-# Rotate camera
 class execSmoothRotation():
+    """ Continuously rotate camera. """
     def __init__(self, cam, degree_per_sec):
         self.actor = cam
         self.degree_per_sec = degree_per_sec
@@ -1047,8 +1135,14 @@ class execSmoothRotation():
         iren.GetRenderWindow().Render()
         #print('execSmoothRotation: Ren', time_now - self.time_start)
 
-# Sign up to receive TimerEvent
 class RepeatingTimerHandler():
+    """
+    Repeatly execute `exec_obj` in a duration with fixed FPS.
+    Requirements:
+        exec_obj(obj, event, t_now)   Observer obj and event, parameter t_now.
+        exec_obj.startat(t)           parameter t.
+    Implimented by adding interactor observer TimerEvent.
+    """
     def __init__(self, interactor, duration, exec_obj):
         self.exec_obj = exec_obj
         self.interactor = interactor
@@ -1082,12 +1176,16 @@ class RepeatingTimerHandler():
     def __del__(self):
         self.stop()
 
-# Deal with keyboard and mouse interactions.
-# vtkInteractorStyleTerrain
-# vtkInteractorStyleFlight
-# vtkInteractorStyleTrackballCamera
-# vtkInteractorStyleUser
 class MyInteractorStyle(vtkInteractorStyleTerrain):
+    """
+    Deal with keyboard and mouse interactions.
+
+    Possible ancestor classes:
+        vtkInteractorStyleTerrain
+        vtkInteractorStyleFlight
+        vtkInteractorStyleTrackballCamera
+        vtkInteractorStyleUser
+    """
 
     def __init__(self, iren, guictrl):
         self.iren = iren
@@ -1119,8 +1217,11 @@ class MyInteractorStyle(vtkInteractorStyleTerrain):
         # keyboard events
         self.AddObserver('CharEvent', self.OnChar)
 
-    # To test fully quantified 'C' 'A' 'S'.
     def is_kbd_modifier(self, u = ''):
+        """
+        To test fully quantified 'C' 'A' 'S'.
+        Example: u='AS' means Alt and Shift are pressed, but not Ctrl.
+        """
         iren = self.iren
         m = 'C' if iren.GetControlKey() else ' ' + \
             'A' if iren.GetAltKey() else ' ' + \
@@ -1132,6 +1233,10 @@ class MyInteractorStyle(vtkInteractorStyleTerrain):
         return p == m
 
     def left_button_press_event(self, obj, event):
+        """
+        Left mouse: rotate the scene.
+        Left mouse + Shift: Move(translate) the scene.
+        """
         if self.is_kbd_modifier(''):
             self.OnLeftButtonDown()
             self.left_button_press_event_release_fn = \
@@ -1148,6 +1253,10 @@ class MyInteractorStyle(vtkInteractorStyleTerrain):
             self.OnLeftButtonUp()
 
     def mouse_wheel_event(self, direction):
+        """
+        wheel rolling: zooming.
+        wheel rolling + Shift: select next(previous) scene object.
+        """
         def mouse_wheel_action(obj, event, direction = direction):
             if obj.iren.GetShiftKey():
                 if obj.guictrl.selected_pid:
@@ -1171,16 +1280,18 @@ class MyInteractorStyle(vtkInteractorStyleTerrain):
         return mouse_wheel_action
 
     def middle_button_press_event(self, obj, event):
-        print('Middle Button pressed')
+        """ Middle mouse: Move(translate) the scene. """
+        dbg_print(4, 'Middle Button pressed')
         self.OnMiddleButtonDown()
         return
 
     def middle_button_release_event(self, obj, event):
-        print('Middle Button released')
+        dbg_print(4, 'Middle Button released')
         self.OnMiddleButtonUp()
         return
 
     def right_button_press_event(self, obj, event):
+        """ Right mouse: select a point. """
         ren = self.guictrl.GetMainRenderer()
 
         # select object
@@ -1205,6 +1316,11 @@ class MyInteractorStyle(vtkInteractorStyleTerrain):
         return
     
     def OnChar(self, obj, event):
+        """
+        on keyboard stroke
+        TODO: rewrite to allow customized key assignment.
+              e.g. use dict.
+        """
         iren = self.iren
 
         key_sym  = iren.GetKeySym()   # useful for PageUp etc.
@@ -1216,6 +1332,7 @@ class MyInteractorStyle(vtkInteractorStyleTerrain):
         key_combo = ('Ctrl+' if b_C else '') + ('Alt+' if b_A else '') + ('Shift+' if b_S else '') + key_code
         dbg_print(4, 'Pressed:', key_combo, '  key_sym:', key_sym)
         
+        # default key bindings in VTK
         is_default_binding = (key_code.lower() in 'jtca3efprsuw') and \
                              not b_C
 
@@ -1297,6 +1414,10 @@ class MyInteractorStyle(vtkInteractorStyleTerrain):
             # to quit, call TerminateApp()
 
 class GUIControl:
+    """
+    Controller of VTK.
+    Interact with VTK directly to setup the scene and the interaction.
+    """
     def __init__(self):
         # Load configure
         file_name = get_program_parameters()
@@ -1383,8 +1504,8 @@ class GUIControl:
             dbg_print(2, 'Get3DCursor(): no 3d coor found.')
         return center
 
-    # setup window, renderers and interactor
     def GUISetup(self, gui_conf):
+        """ setup window, renderers and interactor """
         dbg_print(4, gui_conf)
         if 'window' in gui_conf:
             # TODO: stop the old window?
@@ -1739,8 +1860,8 @@ class GUIControl:
         
         self.scene_objects.update({name: scene_object})
 
-    # add objects to the renderers
     def AppendToScene(self, scene_conf):
+        """ add objects to the renderers """
         if 'object_properties' in scene_conf:
             for key, prop_conf in scene_conf['object_properties'].items():
                 self.AddObjectProperty(key, prop_conf)
@@ -1818,8 +1939,8 @@ class GUIControl:
             )
 
 
-    # Used to accept command line inputs which need default parameters.
     def EasyObjectImporter(self, obj_desc):
+        """ Used to accept command line inputs which need default parameters. """
         if not obj_desc:
             return
         if isinstance(obj_desc, str):
