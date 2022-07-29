@@ -15,4 +15,7 @@
 * ability to output scene file corresponding to current view.
 * View up                               (done)
 * Support touch screen (StartPinchEvent, PinchEvent, EndPinchEvent), (SwipeEvent, StartSwipeEvent, EndSwipeEvent)
-
+* Custom vulume rendering.
+  - See "Implementing a custom GPU raycasting function"
+    https://discourse.slicer.org/t/implementing-a-custom-gpu-raycastingfunction/13055/4
+    And PRISM: An open source framework for the interactive design of GPU volume rendering shaders

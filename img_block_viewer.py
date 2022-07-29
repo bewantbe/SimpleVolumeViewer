@@ -400,13 +400,14 @@ def read_ims(ims_path, extra_conf = {}, cache_reader_obj = False):
     dbg_print(4, '  Done image selection. Shape: ', img.shape, ' dtype =', img.dtype)
 
     # convert metadata in IMS to python dict
-    img_info = ims['DataSetInfo']
     metadata = {'read_ims':
         {'level': level, 'channel': channel, 'time_point': time_point}}
-    for it in img_info.keys():
-        metadata[it] = \
-            {k:''.join([c.decode('utf-8') for c in v])
-                for k, v in img_info[it].attrs.items()}
+    if 'DataSetInfo' in ims:
+        img_info = ims['DataSetInfo']
+        for it in img_info.keys():
+            metadata[it] = \
+                {k:''.join([c.decode('utf-8') for c in v])
+                    for k, v in img_info[it].attrs.items()}
 
     t0 = time.time()
     img_clip = np.array(img[dim_ranges])         # actually read the data
@@ -415,6 +416,12 @@ def read_ims(ims_path, extra_conf = {}, cache_reader_obj = False):
 
     # TODO: find correct voxel size and whether it is oblique.
     metadata['imagej'] = {'voxel_size_um': '(1.0, 1.0, 1.0)'}
+    b_fmost = False
+    if b_fmost:
+        #l0 = _a([0.35, 0.35, 1.0])
+        l0 = _a([1.0, 1.0, 1.0])
+        lsize = tuple(l0 * (2**level))
+        metadata['imagej'] = {'voxel_size_um': lsize}
     metadata['oblique_image'] = False
 
     return img_clip, metadata
