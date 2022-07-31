@@ -126,7 +126,8 @@ def DefaultGUIConfig():
         "window": {
             "size": [2400, 1800],
             "title": "SimpleRayCast",
-            "number_of_layers": 2
+            "number_of_layers": 2,
+#            "stereo_type": "SplitViewportHorizontal"
         },
 
         "renderers":{
@@ -1419,7 +1420,7 @@ class MyInteractorStyle(vtkInteractorStyleTerrain):
                 k = 1.0 / k
             SetColorScale(obj_prop, [cs_o*k, cs_c*k])
             iren.GetRenderWindow().Render()
-        elif key_sym == 's' and not (b_C or b_S or b_A):
+        elif key_sym == 'p' and not (b_C or b_S or b_A):
             # take a screenshot
             self.guictrl.ShotScreen()
         elif key_sym == 's' and obj.is_kbd_modifier('C'):
@@ -1572,6 +1573,32 @@ class GUIControl:
             if 'number_of_layers' in win_conf:
                 self.render_window.SetNumberOfLayers(
                     win_conf['number_of_layers'])
+            if 'stereo_type' in win_conf:
+                self.render_window.StereoCapableWindowOn()
+                t = win_conf['stereo_type']
+                if t == 'CrystalEyes':
+                    self.render_window.SetStereoTypeToCrystalEyes()
+                elif t == 'RedBlue':
+                    self.render_window.SetStereoTypeToRedBlue()
+                elif t == 'Interlaced':
+                    self.render_window.SetStereoTypeToInterlaced()
+                elif t == 'Left':
+                    self.render_window.SetStereoTypeToLeft()
+                elif t == 'Right':
+                    self.render_window.SetStereoTypeToRight()
+                elif t == 'Dresden':
+                    self.render_window.SetStereoTypeToDresden()
+                elif t == 'Anaglyph':
+                    self.render_window.SetStereoTypeToAnaglyph()
+                elif t == 'Checkerboard':
+                    self.render_window.SetStereoTypeToCheckerboard()
+                elif t == 'SplitViewportHorizontal':
+                    self.render_window.SetStereoTypeToSplitViewportHorizontal()
+                elif t == 'Fake':
+                    self.render_window.SetStereoTypeToFake()
+                elif t == 'Emulate':
+                    self.render_window.SetStereoTypeToEmulate()
+                self.render_window.StereoRenderOn()
 
         # Ref: Demonstrates the use of two renderers. Notice that the second (and subsequent) renderers will have a transparent background.
         # https://kitware.github.io/vtk-examples/site/Python/Rendering/TransparentBackground/
@@ -2018,7 +2045,6 @@ class GUIControl:
                 # assume this a volume
                 obj_conf = {
                     "type": "volume",
-                    "mapper": "GPUVolumeRayCastMapper",
                     "view_point": "auto",
                     "file_path": file_path
                 }
@@ -2026,7 +2052,6 @@ class GUIControl:
                 # assume this a IMS volume
                 obj_conf = {
                     "type": "volume",
-                    "mapper": "GPUVolumeRayCastMapper",
                     "view_point": "auto",
                     "file_path": file_path,
                     "level": obj_desc.get('level', '0'),
@@ -2115,7 +2140,7 @@ def get_program_parameters():
         '+'/'-': Make the image darker or lighter;
                  Press also Ctrl to make it more tender;
         'r': Auto rotate the image for a while;
-        's': Take a screenshot and save it to TestScreenshot.png;
+        'p': Take a screenshot and save it to TestScreenshot.png;
         ' ': Fly to view the selected volume.
         '0': Fly to view the selected point in the fiber.
         'Enter': Load the image block (for Lychnis project).
