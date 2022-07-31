@@ -9,6 +9,7 @@
 # python img_block_viewer.py --filepath RM006_s128_c13_f8906-9056.tif
 # ./img_block_viewer.py --filepath z00060_c3_2.ims --level 3 --range '[400:800, 200:600, 300:700]' --colorscale 10
 # ./img_block_viewer.py --filepath 3864-3596-2992_C3.ims --colorscale 10 --swc R2-N1-A2.json.swc_modified.swc --fibercolor green
+# ./img_block_viewer.py --lychnis_blocks RM006-004-lychnis/image/blocks.json --swc RM006-004-lychnis/F5.json.swc
 # ./img_block_viewer.py --scene scene_example_vol_swc.json
 # ./img_block_viewer.py --scene scene_example_rm006_3.json --lychnis_blocks RM006-004-lychnis/image/blocks.json
 
@@ -55,7 +56,7 @@ from numpy import array as _a
 import tifffile
 import h5py
 
-import vtk
+import vtkmodules.all as vtk
 
 # noinspection PyUnresolvedReferences
 import vtkmodules.vtkInteractionStyle
@@ -143,6 +144,25 @@ def DefaultSceneConfig():
             "volume": {
                 "opacity_transfer_function": {
                     "AddPoint": [
+                        [20, 0.1],
+                        [255, 0.9]
+                    ],
+                    "opacity_scale": 1.0
+                },
+                "color_transfer_function": {
+                    "AddRGBPoint": [
+                        [0.0, 0.0, 0.0, 0.0],
+                        [64.0, 0.0, 0.2, 0.0],
+                        [128.0, 0.0, 0.7, 0.1],
+                        [255.0, 0.0, 1.0, 0.2]
+                    ],
+                    "trans_scale": 1.0
+                },
+                "interpolation": "cubic"
+            },
+            "volume_default_composite": {
+                "opacity_transfer_function": {
+                    "AddPoint": [
                         [20, 0.0],
                         [255, 0.2]
                     ],
@@ -165,7 +185,8 @@ def DefaultSceneConfig():
         "objects": {
             "background": {
                 "type": "Background",
-                "color": "Wheat"
+                "color": "Black"
+#                "color": "Wheat"
             },
             "3d_cursor": {
                 "type": "Sphere",
