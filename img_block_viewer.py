@@ -56,8 +56,6 @@ from numpy import array as _a
 import tifffile
 import h5py
 
-import vtkmodules.all as vtk
-
 # noinspection PyUnresolvedReferences
 import vtkmodules.vtkInteractionStyle
 import vtkmodules.vtkRenderingOpenGL2
@@ -94,6 +92,7 @@ from vtkmodules.vtkRenderingCore import (
     vtkRenderWindow,
     vtkRenderWindowInteractor,
     vtkRenderer,
+    vtkCamera,
     vtkVolume,
     vtkVolumeProperty,
     vtkWindowToImageFilter,
@@ -112,11 +111,15 @@ from vtkmodules.vtkRenderingVolumeOpenGL2 import vtkOpenGLRayCastImageDisplayHel
 
 from vtkmodules.vtkFiltersSources import vtkSphereSource
 
+from vtkmodules.vtkFiltersCore import vtkClipPolyData
+
 from vtkmodules.vtkFiltersHybrid import vtkPolyDataSilhouette
 
 # loading this consumes ~0.1 second!
 # might move it to where it is used.
-from vtk.util.numpy_support import numpy_to_vtk
+from vtkmodules.util.numpy_support import numpy_to_vtk
+
+#import vtkmodules.all as vtk
 
 def DefaultGUIConfig():
     d = {
@@ -228,6 +231,11 @@ def DefaultSceneConfig():
 #                "file_path": file_path,
 #                "origin": [100, 200, 300],
 #                "rotation_matrix": [1,0,0, 0,1,0, 0,0,1],
+#            }
+#            "swc": {
+#                "type": "swc",
+#                "color": "Tomato",
+#                "file_path": "RM006-004-lychnis/F5.json.swc"
 #            }
         }
     }
@@ -965,7 +973,7 @@ class FocusModeController:
             if self.cut_swc_flag:
                 if self.focus_swc:
                     self.gui_controller.GetMainRenderer().RemoveActor(self.focus_swc)
-                oldClipper = vtk.vtkClipPolyData()
+                oldClipper = vtkClipPolyData()
                 oldClipper.SetInputData(self.swc_polydata)
                 oldClipper.SetClipFunction(self.volume_clipper.planes[0])
                 path = self.point_searcher.SearchPathAround(self.center_point)
@@ -1885,7 +1893,7 @@ class GUIControl:
                 else:
                     cam = renderer.MakeCamera()
             else:
-                cam = vtk.vtkCamera()
+                cam = vtkCamera()
 
             if 'clipping_range' in obj_conf:
                 cam.SetClippingRange(obj_conf['clipping_range'])
