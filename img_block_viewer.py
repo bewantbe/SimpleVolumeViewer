@@ -467,6 +467,17 @@ def Read3DImageDataFromFile(file_name, *item, **keys):
     dbg_print(5, pprint.pformat(img_meta))
     return img_arr, img_meta
 
+def Save3DImageToFile(file_name, img_arr, img_meta):
+    img_arr = img_arr[:, np.newaxis, :, :]
+    voxel_size_um = (1.0, 1.0, 1.0)
+    tifffile.imwrite(file_name, img_arr,
+                     imagej=True,
+                     #compression='zlib', compressionargs={'level': 8},
+                     compression=['zlib', 2],
+                     resolution=(1/voxel_size_um[0], 1/voxel_size_um[1]), 
+                     metadata={'spacing': voxel_size_um[2], 'unit': 'um', 
+                               **img_meta})
+
 def ImportImageArray(img_arr, img_meta):
     """
     Import image array to vtkImageImport() to have a connection.
@@ -1462,6 +1473,16 @@ class MyInteractorStyle(vtkInteractorStyleTerrain):
                 self.guictrl.focusController.Toggle()
             else:
                 self.guictrl.focusController.Toggle()
+        elif key_sym == 'g' and obj.is_kbd_modifier('C'):
+            default_script_name = 'test_call.py'
+            print('Running script', 'test_call.py')
+            try:
+                exec(open(default_script_name).read())
+                exec('PluginMain(ren1, iren, self.guictrl)')
+            except Exception as inst:
+                print('Failed to run due to exception:')
+                print(type(inst))
+                print(inst)
 
         # Let's say, disable all default key bindings (except q)
         if not is_default_binding:
@@ -1739,6 +1760,8 @@ class GUIControl:
         if obj_conf['type'] == 'volume':
             file_path = obj_conf['file_path']
             img_importer = ImportImageFile(file_path, obj_conf)
+            # TODO: try
+            # img_importer = ImportImageArray(file_path.img_array, file_path.img_meta)
             # set position scaling and direction
             img_importer.SetDataOrigin(obj_conf.get('origin', [0,0,0]))
             # for 3d rotation and scaling
