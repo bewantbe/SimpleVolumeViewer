@@ -121,6 +121,7 @@ from vtkmodules.util.numpy_support import numpy_to_vtk
 
 #import vtkmodules.all as vtk
 
+# Default and all possible configuration parameters are as follow
 def DefaultGUIConfig():
     d = {
         "window": {
@@ -236,6 +237,7 @@ def DefaultSceneConfig():
 #            "swc": {
 #                "type": "swc",
 #                "color": "Tomato",
+#                "linewidth": 2.0,
 #                "file_path": "RM006-004-lychnis/F5.json.swc"
 #            }
         }
@@ -1843,6 +1845,7 @@ class GUIControl:
             actor.SetMapper(mapper)
             actor.GetProperty().SetColor(
                 colors.GetColor3d(obj_conf['color']))
+            actor.GetProperty().SetLineWidth(obj_conf.get('linewidth', 1.0))
             renderer.AddActor(actor)
             #actor.raw_points = raw_points  # for convenience
 
