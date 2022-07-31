@@ -202,6 +202,7 @@ def DefaultSceneConfig():
 #                "type": "volume",
 #                "property": "volume"
 #                "mapper": "GPUVolumeRayCastMapper",
+#                "mapper_blend_mode": "MAXIMUM_INTENSITY_BLEND",
 #                "view_point": "auto",
 #                "file_path": file_path,
 #                "origin": [100, 200, 300],
@@ -1627,6 +1628,7 @@ class GUIControl:
                     ctf.AddRGBPoint(*v)
                 volume_property.SetColor(ctf)
 
+            # shading only valid for blend mode vtkVolumeMapper::COMPOSITE_BLEND
             volume_property.ShadeOn()
 
             if 'interpolation' in prop_conf:
@@ -1702,6 +1704,19 @@ class GUIControl:
                 volume_mapper = vtkGPUVolumeRayCastMapper()
             #volume_mapper.SetBlendModeToComposite()
             volume_mapper.SetInputConnection(img_importer.GetOutputPort())
+            # Set blend mode (such as MIP)
+            blend_modes = getattr(volume_mapper, 
+                obj_conf.get('mapper_blend_mode', 'MAXIMUM_INTENSITY_BLEND'))
+            # Possible blend_modes:
+            # COMPOSITE_BLEND
+            # MAXIMUM_INTENSITY_BLEND
+            # MINIMUM_INTENSITY_BLEND
+            # AVERAGE_INTENSITY_BLEND
+            # ADDITIVE_BLEND
+            # ISOSURFACE_BLEND
+            # SLICE_BLEND
+            # Ref: https://vtk.org/doc/nightly/html/classvtkVolumeMapper.html#aac00c48c3211f5dba0ca98c7a028e409ab4e0747ca0bcf150fa57a5a6e9a34a14
+            volume_mapper.SetBlendMode(blend_modes)
 
             # get property used in rendering
             ref_prop_conf = obj_conf.get('property', 'volume')
