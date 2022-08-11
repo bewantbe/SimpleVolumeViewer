@@ -12,9 +12,11 @@
 * Add transition animation framework for moving viewport
   - Make Y direction the up direction.
   - rotation.
-* ability to output scene file corresponding to current view.
+* ability to output scene file corresponding to current view. (done)
 * View up                               (done)
 * Support touch screen (StartPinchEvent, PinchEvent, EndPinchEvent), (SwipeEvent, StartSwipeEvent, EndSwipeEvent)
+* Support VR.
+* Support stereo view.                  (done)
 * Custom vulume rendering.
   - See "Implementing a custom GPU raycasting function"
     https://discourse.slicer.org/t/implementing-a-custom-gpu-raycastingfunction/13055/4

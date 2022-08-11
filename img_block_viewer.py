@@ -462,8 +462,10 @@ def read_ims(ims_path, extra_conf = {}, cache_reader_obj = False):
 def Read3DImageDataFromFile(file_name, *item, **keys):
     if file_name.endswith('.tif') or file_name.endswith('.tiff'):
         img_arr, img_meta = read_tiff(file_name)
-    elif file_name.endswith('.ims'):
+    elif file_name.endswith('.ims') or file_name.endswith('.h5'):
         img_arr, img_meta = read_ims(file_name, *item, **keys)
+    else:
+        raise TypeError('file format not supported: ' + file_name)
     dbg_print(5, pprint.pformat(img_meta))
     return img_arr, img_meta
 
@@ -731,7 +733,7 @@ def ReadScene(scene_file_path):
         MergeFullDict(scene, scene_ext)
     return scene
 
-def ShotScreen(render_window):
+def ShotScreen(render_window, filename = 'TestScreenshot.png'):
     """
     Take a screenshot.
     Save to 'TestScreenshot.png'
@@ -747,7 +749,7 @@ def ShotScreen(render_window):
     # https://stackoverflow.com/questions/34789933/vtk-setting-transparent-renderer-background
     
     writer = vtkPNGWriter()
-    writer.SetFileName('TestScreenshot.png')
+    writer.SetFileName(filename)
     writer.SetInputConnection(win2if.GetOutputPort())
     writer.Write()
 
@@ -1191,11 +1193,14 @@ class execSmoothRotation():
     def __call__(self, obj, event, time_now):
         if time_now < self.time_start:
             return
-        t_last_elapsed = time_now - self.time_last_update
-        self.actor.Azimuth(self.degree_per_sec * t_last_elapsed)
+        dt = time_now - self.time_last_update
+        self.actor.Azimuth(self.degree_per_sec * dt)
         self.time_last_update = time_now
         iren = obj
         iren.GetRenderWindow().Render()
+        
+        ShotScreen(iren.GetRenderWindow(), \
+            'pic_tmp/haha_t=%06.4f.png' % (time_now - self.time_start))
         #print('execSmoothRotation: Ren', time_now - self.time_start)
 
 class RepeatingTimerHandler():
@@ -1206,16 +1211,21 @@ class RepeatingTimerHandler():
         exec_obj.startat(t)           parameter t.
     Implimented by adding interactor observer TimerEvent.
     """
-    def __init__(self, interactor, duration, exec_obj):
+    def __init__(self, interactor, duration, exec_obj, fps = 30, b_fixed_clock_rate = False):
         self.exec_obj = exec_obj
         self.interactor = interactor
         self.timerId = None
         self.time_start = 0
         self.duration = duration
-        self.fps = 30
+        self.fps = fps
+        self.b_fixed_clock_rate = b_fixed_clock_rate
 
     def callback(self, obj, event):
-        t_now = time.time()
+        if self.b_fixed_clock_rate:
+            self.tick += 1
+            t_now = self.tick * 1/self.fps + self.time_start
+        else:
+            t_now = time.time()
         if t_now - self.time_start > self.duration:
             # align the time to the exact boundary
             t_now = self.time_start + self.duration
@@ -1229,6 +1239,7 @@ class RepeatingTimerHandler():
         self.time_start = time.time()
         self.exec_obj.startat(self.time_start)
         self.timerId = self.interactor.CreateRepeatingTimer(int(1/self.fps))
+        self.tick = 0
     
     def stop(self):
         if self.timerId:
@@ -1417,7 +1428,7 @@ class MyInteractorStyle(vtkInteractorStyleTerrain):
             cam1 = ren1.GetActiveCamera()
             cam2 = ren2.GetActiveCamera()
             rotator = execSmoothRotation(cam1, 60.0)
-            RepeatingTimerHandler(iren, 6.0, rotator).start()
+            RepeatingTimerHandler(iren, 6.0, rotator, 100, True).start()
         elif (key_sym in ['plus','minus'] or key_combo in ['+','-']) and \
             self.guictrl.selected_objects:
             # Make the image darker or lighter.
