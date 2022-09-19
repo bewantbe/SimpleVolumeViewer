@@ -22,7 +22,7 @@
 #     * Load the image or SWC data.
 #     * Pass the data to VTK for rendering.
 #     * Let VTK to handle the GUI interaction.
-#   So this code essentally translate the object descriptinon to VTK command
+#   Essentally this code translate the object descriptinon to VTK commands
 #   and does the image data loading.
 
 # Code structure in text order:
@@ -66,13 +66,18 @@ from vtkmodules.vtkCommonCore import (
     vtkPoints,
     VTK_CUBIC_INTERPOLATION
 )
-from vtkmodules.vtkCommonColor import vtkNamedColors
+from vtkmodules.vtkCommonColor import (
+    vtkNamedColors,
+    vtkColorSeries
+)
 from vtkmodules.vtkCommonDataModel import (
     vtkPiecewiseFunction,
     vtkCellArray,
     vtkPolyData,
     vtkPolyLine,
-    vtkPlane
+    vtkPlane,
+    vtkColor3ub,
+    vtkColor3d
 )
 from vtkmodules.vtkIOImage import (
     vtkPNGWriter,
@@ -273,6 +278,15 @@ def _mat3d(d):
     """ Convert vector of length 9 to 3x3 numpy array. """
     return np.array(d, dtype=np.float64).reshape(3,3)
 
+def vtkGetColorAny(c):
+    if isinstance(c, str):
+        colors = vtkNamedColors()
+        return colors.GetColor3d(c)
+    elif isinstance(c, vtkColor3ub):
+        return vtkColor3d(c[0]/255, c[1]/255, c[2]/255)
+    else:
+        return c
+
 def vtkMatrix2array(vtkm):
     """ Convert VTK matrix to numpy matrix (array) """
     # also use self.cam_m.GetData()[i+4*j]?
@@ -444,7 +458,7 @@ def read_ims(ims_path, extra_conf = {}, cache_reader_obj = False):
 
     t0 = time.time()
     img_clip = np.array(img[dim_ranges])         # actually read the data
-    dbg_print(4, 'read_ims(): img read time: %6.3f' % (time.time()-t0))
+    dbg_print(4, 'read_ims(): img read time: %6.3f sec.' % (time.time()-t0))
     #img_clip = np.transpose(np.array(img_clip), (2,1,0))
 
     # TODO: find correct voxel size and whether it is oblique.
@@ -1871,14 +1885,12 @@ class GUIControl:
             polyData.SetPoints(points)
             polyData.SetLines(cells)
 
-            colors = vtkNamedColors()
-
             mapper = vtkPolyDataMapper()
             mapper.SetInputData(polyData)
             actor = vtkActor()
             actor.SetMapper(mapper)
             actor.GetProperty().SetColor(
-                colors.GetColor3d(obj_conf['color']))
+                vtkGetColorAny(obj_conf['color']))
             actor.GetProperty().SetLineWidth(obj_conf.get('linewidth', 1.0))
             renderer.AddActor(actor)
             #actor.raw_points = raw_points  # for convenience
@@ -2129,12 +2141,18 @@ class GUIControl:
             
         if 'swc' in obj_desc:
             name = self.GetNonconflitName('swc')
-            obj_conf = {
-                "type": "swc",
-                "color": obj_desc.get('fibercolor','Tomato'),
-                "file_path": obj_desc['swc']
-            }
-            self.AddObject(name, obj_conf)
+            if not isinstance(obj_desc['swc'], (list, tuple)):
+                obj_desc['swc'] = [obj_desc['swc'],]
+            color_scheme = vtkColorSeries()
+            color_scheme.SetColorScheme(color_scheme.SPECTRUM)
+            # color was 'Tomato'
+            for id_s in range(len(obj_desc['swc'])):
+                obj_conf = {
+                    "type": "swc",
+                    "color": obj_desc.get('fibercolor', color_scheme.GetColorRepeating(1+id_s)),
+                    "file_path": obj_desc['swc'][id_s]
+                }
+                self.AddObject(name, obj_conf)
         if 'lychnis_blocks' in cmd_obj_desc:
             self.volume_loader.ImportLychnixVolume( \
                 cmd_obj_desc['lychnis_blocks'])
@@ -2202,7 +2220,7 @@ def get_program_parameters():
     parser.add_argument('--origin', help='Set origin of the volume.')
     parser.add_argument('--rotation_matrix', help='Set rotation matrix of the volume.')
     parser.add_argument('--oblique_image', help='Overwrite the guess of if the image is imaged oblique.')
-    parser.add_argument('--swc', help='Read and draw swc file.')
+    parser.add_argument('--swc', action='append', help='Read and draw swc file.')
     parser.add_argument('--fibercolor', help='Set fiber color.')
     parser.add_argument('--scene', help='Project scene file path. e.g. for batch object loading.')
     parser.add_argument('--lychnis_blocks', help='Path of lychnix blocks.json')
