@@ -1289,17 +1289,20 @@ class ActionSet():
         fn = getattr(self, fn_name.replace('-','_'))
         fn(*args)
 
-    def GetRenderers(self):
+    def GetRenderers(self, n):
         # currently it returns first two renderers
         rens = self.iren.GetRenderWindow().GetRenderers()
         rens.InitTraversal()
         ren1 = rens.GetNextItem()
-        ren2 = rens.GetNextItem()
-        return ren1, ren2
+        if n == 2:
+            ren2 = rens.GetNextItem()
+            return ren1, ren2
+        elif n == 1:
+            return ren1
 
     def auto_rotate(self):
         # Animate rotate camera around the focal point.
-        ren1, ren2 = self.GetRenderers()
+        ren1, ren2 = self.GetRenderers(2)
         cam1 = ren1.GetActiveCamera()
         cam2 = ren2.GetActiveCamera()
         rotator = execSmoothRotation(cam1, 60.0)
@@ -1321,14 +1324,98 @@ class ActionSet():
             k = 1.0 / k
         SetColorScale(obj_prop, [cs_o*k, cs_c*k])
         self.iren.GetRenderWindow().Render()         # TODO inform a refresh in a smart way
+    
+    def screen_shot(self):
+        # Save a screenshot to file.
+        self.guictrl.ShotScreen()
+    
+    def save_scene(self):
+        # Save current scene to a project file.
+        self.guictrl.ExportSceneFile()
+
+    def fly_to_selected(self):
+        # Fly to selected object.
+        if not self.guictrl.selected_objects:
+            return
+        vol_name = self.guictrl.selected_objects[0]  # active object
+        dbg_print(4, 'Fly to:', vol_name)
+        vol = self.guictrl.scene_objects[vol_name]
+        bd = vol.GetBounds()
+        center = [(bd[0]+bd[1])/2, (bd[2]+bd[3])/2, (bd[4]+bd[5])/2]
+        ren1 = self.GetRenderers(1)
+        self.iren.FlyTo(ren1, center)
+
+    def fly_to_cursor(self):
+        # Fly to cursor.
+        center = self.guictrl.Get3DCursor()
+        if (center is not None) and (len(center) == 3):
+            ren1 = self.GetRenderers(1)
+            self.iren.FlyTo(ren1, center)
+        else:
+            dbg_print(3, 'No way to fly to.')
+
+    def load_near_volume(self):
+        # load volume near cursor.
+        center = self.guictrl.Get3DCursor()
+        self.guictrl.LoadVolumeNear(center)
+        self.iren.GetRenderWindow().Render()
+
+    def set_view_up(self):
+        # Set camera view up right.
+        dbg_print(4, 'Setting view up')
+        ren1 = self.GetRenderers(1)
+        cam1 = ren1.GetActiveCamera()
+        cam1.SetViewUp(0,1,0)
+        self.iren.GetRenderWindow().Render()
+
+    def remove_selected_object(self):
+        # Remove the selected object.
+        if len(self.guictrl.selected_objects) == 0:
+            dbg_print(3, 'Nothing to remove.')
+        else:
+            obj_name = self.guictrl.selected_objects[0]
+            self.guictrl.RemoveObject(obj_name)
+            self.iren.GetRenderWindow().Render()
+
+    def toggle_show_local_volume(self):
+        # Toggle showing of local volume
+        if self.guictrl.focusController.isOn:
+            self.guictrl.focusController.Toggle()
+        else:
+            self.guictrl.focusController.Toggle()
+
+    def exec_script(self):
+        default_script_name = 'test_call.py'
+        ren1 = self.GetRenderers(1)
+        iren = self.iren
+        print('Running script', 'test_call.py')
+        try:
+            exec(open(default_script_name).read())
+            exec('PluginMain(ren1, iren, self.guictrl)')
+        except Exception as inst:
+            print('Failed to run due to exception:')
+            print(type(inst))
+            print(inst)
 
 def DefaultKeyBindings():
     d = {
-        'r': 'auto-rotate',
-        '+': 'inc-brightness +',
-        '-': 'inc-brightness -',
-        'Ctrl++': 'inc-brightness C+',
-        'Ctrl+-': 'inc-brightness C-',
+        'r'        : 'auto-rotate',
+        '+'        : 'inc-brightness +',
+        '-'        : 'inc-brightness -',
+        'Ctrl++'   : 'inc-brightness C+',
+        'Ctrl+-'   : 'inc-brightness C-',
+        'p'        : 'screen-shot',
+        'Ctrl+s'   : 'save-scene',
+        ' '        : 'fly-to-selected',
+        '0'        : 'fly-to-cursor',
+        'KP_0'     : 'fly-to-cursor',
+        'Return'   : 'load-near-volume',
+        'KP_Enter' : 'load-near-volume',
+        'KP_8'     : 'set-view-up',
+        'Shift+|'  : 'set-view-up',
+        'x'        : 'remove_selected_object',
+        '`'        : 'toggle_show_local_volume',
+        'Ctrl+g'   : 'exec-script'
     }
     return d
 
@@ -1491,16 +1578,6 @@ class MyInteractorStyle(vtkInteractorStyleTerrain):
         b_A = iren.GetAltKey()
         b_S = iren.GetShiftKey()  # sometimes reflected in key_code
 
-        if key_code == '':
-            key_code = key_sym.replace('plus','+').replace('minus','-')
-
-        # normalize the key strike name
-        key_combo = ('Ctrl+' if b_C else '') + \
-                    ('Alt+' if b_A else '') + \
-                    ('Shift+' if b_S else '') + \
-                    key_code
-        dbg_print(4, 'Pressed:', key_combo, '  key_sym:', key_sym)
-        
         # default key bindings in VTK
         is_default_binding = (key_code.lower() in 'jtca3efprsuw') and \
                              not b_C
@@ -1511,64 +1588,19 @@ class MyInteractorStyle(vtkInteractorStyleTerrain):
         #    e    T    F    T
         #    r    T    F    T
 
-        rens = iren.GetRenderWindow().GetRenderers()
-        rens.InitTraversal()
-        ren1 = rens.GetNextItem()
-
+        # normalize the key strike name
+        if key_code < ' ':
+            key_code = key_sym.replace('plus','+').replace('minus','-')
+        key_combo = ('Ctrl+' if b_C else '') + \
+                    ('Alt+' if b_A else '') + \
+                    ('Shift+' if b_S else '') + \
+                    key_code
+        #print('key_code:', bytearray(key_code.encode('utf-8')))
+        dbg_print(4, 'Pressed:', key_combo, '  key_sym:', key_sym)
+        
         if key_combo in self.key_bindings:
             fn_name = self.key_bindings[key_combo]
             self.ui_action.ExecByCmd(fn_name)
-
-        if key_sym == 'p' and not (b_C or b_S or b_A):
-            # take a screenshot
-            self.guictrl.ShotScreen()
-        elif key_sym == 's' and obj.is_kbd_modifier('C'):
-            self.guictrl.ExportSceneFile()
-        elif key_combo == ' ':
-            # fly to selected object
-            vol_name = self.guictrl.selected_objects[0]  # active object
-            dbg_print(4, 'Fly to:', vol_name)
-            vol = self.guictrl.scene_objects[vol_name]
-            bd = vol.GetBounds()
-            center = [(bd[0]+bd[1])/2, (bd[2]+bd[3])/2, (bd[4]+bd[5])/2]
-            iren.FlyTo(ren1, center)
-        elif key_sym == 'KP_0' or key_sym == '0':
-            center = self.guictrl.Get3DCursor()
-            if (center is not None) and (len(center) == 3):
-                iren.FlyTo(ren1, center)
-            else:
-                dbg_print(3, 'No way to fly to.')
-        elif key_sym in ['Return', 'KP_Enter']:
-            center = self.guictrl.Get3DCursor()
-            self.guictrl.LoadVolumeNear(center)
-            iren.GetRenderWindow().Render()
-        elif (key_sym == 'KP_8') or (key_combo == 'Shift+|'):
-            dbg_print(4, 'Setting view up')
-            cam1 = ren1.GetActiveCamera()
-            cam1.SetViewUp(0,1,0)
-            iren.GetRenderWindow().Render()
-        elif key_sym == 'x' and not (b_C or b_S or b_A):
-            if len(self.guictrl.selected_objects) == 0:
-                dbg_print(3, 'Nothing to remove.')
-            else:
-                obj_name = self.guictrl.selected_objects[0]
-                self.guictrl.RemoveObject(obj_name)
-                iren.GetRenderWindow().Render()
-        elif key_combo == '`':
-            if self.guictrl.focusController.isOn:
-                self.guictrl.focusController.Toggle()
-            else:
-                self.guictrl.focusController.Toggle()
-        elif key_sym == 'g' and obj.is_kbd_modifier('C'):
-            default_script_name = 'test_call.py'
-            print('Running script', 'test_call.py')
-            try:
-                exec(open(default_script_name).read())
-                exec('PluginMain(ren1, iren, self.guictrl)')
-            except Exception as inst:
-                print('Failed to run due to exception:')
-                print(type(inst))
-                print(inst)
 
         # Let's say, disable all default key bindings (except q)
         if not is_default_binding:
