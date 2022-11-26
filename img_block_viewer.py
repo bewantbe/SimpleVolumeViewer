@@ -1275,8 +1275,8 @@ class ActionSet():
         self.iren = iren
         self.guictrl = guictrl
 
-    def ExecByCmd(self, fn_name):
-        # Call the action by name or list of name and arguments.
+    def ExecByCmd(self, fn_name, get_doc_only = False):
+        '''Call the action by name or list of name and arguments.'''
         dbg_print(4, "fn =", fn_name)
         if isinstance(fn_name, list):
             args = fn_name[1:]
@@ -1287,10 +1287,12 @@ class ActionSet():
             fn_name = args[0]
             args = args[1:]
         fn = getattr(self, fn_name.replace('-','_'))
+        if get_doc_only:
+            return fn.__doc__
         fn(*args)
 
     def GetRenderers(self, n):
-        # currently it returns first two renderers
+        '''currently it returns first two renderers'''
         rens = self.iren.GetRenderWindow().GetRenderers()
         rens.InitTraversal()
         ren1 = rens.GetNextItem()
@@ -1301,7 +1303,7 @@ class ActionSet():
             return ren1
 
     def auto_rotate(self):
-        # Animate rotate camera around the focal point.
+        '''Animate rotate camera around the focal point.'''
         ren1, ren2 = self.GetRenderers(2)
         cam1 = ren1.GetActiveCamera()
         cam2 = ren2.GetActiveCamera()
@@ -1309,7 +1311,7 @@ class ActionSet():
         RepeatingTimerHandler(self.iren, 6.0, rotator, 100, True).start()
 
     def inc_brightness(self, cmd):
-        # Make the selected image darker or lighter.
+        '''Make the selected image darker or lighter.'''
         if not self.guictrl.selected_objects:
             return
         vol_name = self.guictrl.selected_objects[0]  # active object
@@ -1326,15 +1328,15 @@ class ActionSet():
         self.iren.GetRenderWindow().Render()         # TODO inform a refresh in a smart way
     
     def screen_shot(self):
-        # Save a screenshot to file.
+        '''Save a screenshot to file.'''
         self.guictrl.ShotScreen()
     
     def save_scene(self):
-        # Save current scene to a project file.
+        '''Save current scene to a project file.'''
         self.guictrl.ExportSceneFile()
 
     def fly_to_selected(self):
-        # Fly to selected object.
+        '''Fly to selected object.'''
         if not self.guictrl.selected_objects:
             return
         vol_name = self.guictrl.selected_objects[0]  # active object
@@ -1346,7 +1348,7 @@ class ActionSet():
         self.iren.FlyTo(ren1, center)
 
     def fly_to_cursor(self):
-        # Fly to cursor.
+        '''Fly to cursor.'''
         center = self.guictrl.Get3DCursor()
         if (center is not None) and (len(center) == 3):
             ren1 = self.GetRenderers(1)
@@ -1355,13 +1357,13 @@ class ActionSet():
             dbg_print(3, 'No way to fly to.')
 
     def load_near_volume(self):
-        # load volume near cursor.
+        '''load volume near cursor.'''
         center = self.guictrl.Get3DCursor()
         self.guictrl.LoadVolumeNear(center)
         self.iren.GetRenderWindow().Render()
 
     def set_view_up(self):
-        # Set camera view up right.
+        '''Set camera view up right.'''
         dbg_print(4, 'Setting view up')
         ren1 = self.GetRenderers(1)
         cam1 = ren1.GetActiveCamera()
@@ -1369,7 +1371,7 @@ class ActionSet():
         self.iren.GetRenderWindow().Render()
 
     def remove_selected_object(self):
-        # Remove the selected object.
+        '''Remove the selected object.'''
         if len(self.guictrl.selected_objects) == 0:
             dbg_print(3, 'Nothing to remove.')
         else:
@@ -1378,13 +1380,14 @@ class ActionSet():
             self.iren.GetRenderWindow().Render()
 
     def toggle_show_local_volume(self):
-        # Toggle showing of local volume
+        '''Toggle showing of local volume.'''
         if self.guictrl.focusController.isOn:
             self.guictrl.focusController.Toggle()
         else:
             self.guictrl.focusController.Toggle()
 
     def exec_script(self):
+        '''Run script.'''
         default_script_name = 'test_call.py'
         ren1 = self.GetRenderers(1)
         iren = self.iren
@@ -1418,6 +1421,13 @@ def DefaultKeyBindings():
         'Ctrl+g'   : 'exec-script'
     }
     return d
+
+def GenerateKeybindingDoc(key_binding, action):
+    s = "\n  Full key bindings:\n"
+    for k, v in key_binding.items():
+        h = action.ExecByCmd(v, get_doc_only = True)
+        s += "%10s : %s\n" % (k, h)
+    return s
 
 class MyInteractorStyle(vtkInteractorStyleTerrain):
     """
@@ -2324,6 +2334,7 @@ def get_program_parameters():
         wheel: zoom;
         right click: select object, support swc points only currently.
     '''
+    epilogue += GenerateKeybindingDoc(DefaultKeyBindings(), ActionSet('', '', ''))
     parser = argparse.ArgumentParser(description=description, epilog=epilogue,
                                      formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument('--filepath', help='image stack filepath')
