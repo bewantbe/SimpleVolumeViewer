@@ -255,7 +255,12 @@ def dbg_print(level, *p, **keys):
     """
     Used for print error, controlled by global debug_level.
     Higher debug_level will show more infomation.
-    debug_level == 0: show no info.
+    debug_level == 0: show no nothing.
+    debug_level == 1: show only error.
+    debug_level == 2: show warning.
+    debug_level == 3: show hint.
+    debug_level == 4: show message.
+    debug_level == 5: most verbose.
     """
     if level > debug_level:
         return
@@ -1213,8 +1218,8 @@ class execSmoothRotation():
         iren = obj
         iren.GetRenderWindow().Render()
         
-        ShotScreen(iren.GetRenderWindow(), \
-            'pic_tmp/haha_t=%06.4f.png' % (time_now - self.time_start))
+        #ShotScreen(iren.GetRenderWindow(), \
+        #    'pic_tmp/haha_t=%06.4f.png' % (time_now - self.time_start))
         #print('execSmoothRotation: Ren', time_now - self.time_start)
 
 class RepeatingTimerHandler():
@@ -1264,6 +1269,69 @@ class RepeatingTimerHandler():
     def __del__(self):
         self.stop()
 
+class ActionSet():
+    def __init__(self, interactor, iren, guictrl):
+        self.interactor = interactor
+        self.iren = iren
+        self.guictrl = guictrl
+
+    def ExecByCmd(self, fn_name):
+        # Call the action by name or list of name and arguments.
+        dbg_print(4, "fn =", fn_name)
+        if isinstance(fn_name, list):
+            args = fn_name[1:]
+            fn_name = fn_name[0]
+        else:
+            # fn_name should be a str, seperate arguments by spaces if any
+            args = fn_name.split(' ')
+            fn_name = args[0]
+            args = args[1:]
+        fn = getattr(self, fn_name.replace('-','_'))
+        fn(*args)
+
+    def GetRenderers(self):
+        # currently it returns first two renderers
+        rens = self.iren.GetRenderWindow().GetRenderers()
+        rens.InitTraversal()
+        ren1 = rens.GetNextItem()
+        ren2 = rens.GetNextItem()
+        return ren1, ren2
+
+    def auto_rotate(self):
+        # Animate rotate camera around the focal point.
+        ren1, ren2 = self.GetRenderers()
+        cam1 = ren1.GetActiveCamera()
+        cam2 = ren2.GetActiveCamera()
+        rotator = execSmoothRotation(cam1, 60.0)
+        RepeatingTimerHandler(self.iren, 6.0, rotator, 100, True).start()
+
+    def inc_brightness(self, cmd):
+        # Make the selected image darker or lighter.
+        if not self.guictrl.selected_objects:
+            return
+        vol_name = self.guictrl.selected_objects[0]  # active object
+        vol = self.guictrl.scene_objects[vol_name]
+        obj_prop = vol.GetProperty()
+        #obj_prop = self.guictrl.object_properties[vol_name]
+        cs_o, cs_c = GetColorScale(obj_prop)
+        k = np.sqrt(np.sqrt(2))
+        if cmd.startswith('C'):
+            k = np.sqrt(np.sqrt(k))
+        if cmd.endswith('+'):
+            k = 1.0 / k
+        SetColorScale(obj_prop, [cs_o*k, cs_c*k])
+        self.iren.GetRenderWindow().Render()         # TODO inform a refresh in a smart way
+
+def DefaultKeyBindings():
+    d = {
+        'r': 'auto-rotate',
+        '+': 'inc-brightness +',
+        '-': 'inc-brightness -',
+        'Ctrl++': 'inc-brightness C+',
+        'Ctrl+-': 'inc-brightness C-',
+    }
+    return d
+
 class MyInteractorStyle(vtkInteractorStyleTerrain):
     """
     Deal with keyboard and mouse interactions.
@@ -1307,6 +1375,9 @@ class MyInteractorStyle(vtkInteractorStyleTerrain):
 
         # keyboard events
         self.AddObserver('CharEvent', self.OnChar)
+
+        self.ui_action = ActionSet(self, iren, guictrl)
+        self.key_bindings = DefaultKeyBindings()
 
     def is_kbd_modifier(self, u = ''):
         """
@@ -1420,7 +1491,14 @@ class MyInteractorStyle(vtkInteractorStyleTerrain):
         b_A = iren.GetAltKey()
         b_S = iren.GetShiftKey()  # sometimes reflected in key_code
 
-        key_combo = ('Ctrl+' if b_C else '') + ('Alt+' if b_A else '') + ('Shift+' if b_S else '') + key_code
+        if key_code == '':
+            key_code = key_sym.replace('plus','+').replace('minus','-')
+
+        # normalize the key strike name
+        key_combo = ('Ctrl+' if b_C else '') + \
+                    ('Alt+' if b_A else '') + \
+                    ('Shift+' if b_S else '') + \
+                    key_code
         dbg_print(4, 'Pressed:', key_combo, '  key_sym:', key_sym)
         
         # default key bindings in VTK
@@ -1436,29 +1514,12 @@ class MyInteractorStyle(vtkInteractorStyleTerrain):
         rens = iren.GetRenderWindow().GetRenderers()
         rens.InitTraversal()
         ren1 = rens.GetNextItem()
-        
-        if key_combo == 'r':
-            ren2 = rens.GetNextItem()
-            cam1 = ren1.GetActiveCamera()
-            cam2 = ren2.GetActiveCamera()
-            rotator = execSmoothRotation(cam1, 60.0)
-            RepeatingTimerHandler(iren, 6.0, rotator, 100, True).start()
-        elif (key_sym in ['plus','minus'] or key_combo in ['+','-']) and \
-            self.guictrl.selected_objects:
-            # Make the image darker or lighter.
-            vol_name = self.guictrl.selected_objects[0]  # active object
-            vol = self.guictrl.scene_objects[vol_name]
-            obj_prop = vol.GetProperty()
-            #obj_prop = self.guictrl.object_properties[vol_name]
-            cs_o, cs_c = GetColorScale(obj_prop)
-            k = np.sqrt(np.sqrt(2))
-            if obj.is_kbd_modifier('C'):
-                k = np.sqrt(np.sqrt(k))
-            if key_sym == 'plus' or key_combo == '+':
-                k = 1.0 / k
-            SetColorScale(obj_prop, [cs_o*k, cs_c*k])
-            iren.GetRenderWindow().Render()
-        elif key_sym == 'p' and not (b_C or b_S or b_A):
+
+        if key_combo in self.key_bindings:
+            fn_name = self.key_bindings[key_combo]
+            self.ui_action.ExecByCmd(fn_name)
+
+        if key_sym == 'p' and not (b_C or b_S or b_A):
             # take a screenshot
             self.guictrl.ShotScreen()
         elif key_sym == 's' and obj.is_kbd_modifier('C'):
