@@ -1668,6 +1668,10 @@ class GUIControl:
                 renderers[key] = renderer
                 # add new renderer to window
                 self.render_window.AddRenderer(renderer)
+                # Off screen rendering
+                # https://discourse.vtk.org/t/status-of-vtk-9-0-with-respect-to-off-screen-rendering-under-ubuntu-with-pip-install/5631/2
+                # TODO: add an option for off screen rendering
+                # self.render_window.SetOffScreenRendering(1)
 
         # first one is the main
         self.main_renderer_name = \
@@ -2143,6 +2147,8 @@ class GUIControl:
             name = self.GetNonconflitName('swc')
             if not isinstance(obj_desc['swc'], (list, tuple)):
                 obj_desc['swc'] = [obj_desc['swc'],]
+            # See also https://vtk.org/doc/nightly/html/classvtkColorSeries.html#details
+            # https://www.kitware.com/off-screen-rendering-through-the-native-platform-interface-egl/
             color_scheme = vtkColorSeries()
             color_scheme.SetColorScheme(color_scheme.SPECTRUM)
             # color was 'Tomato'
@@ -2185,6 +2191,22 @@ class GUIControl:
         self.render_window.Render()
         self.UtilizerInit()
         self.focusController.SetGUIController(self)
+
+        if 0:
+        # TODO add option for rotation rendering
+            time.sleep(1.0)
+
+            obj = self.interactor   # iren
+            event = ''
+            cam1 = self.GetMainRenderer().GetActiveCamera()
+
+            rotator = execSmoothRotation(cam1, 60.0)
+            rotator.startat(0)
+            for k in range(int(60*360/60.0)):
+                t_now = 1.0/60 * k;
+                rotator(obj, event, t_now)
+#                ShotScreen(self.render_window, \
+#                    'pic_tmp/haha_t=%06.4f.png' % (t_now))
         self.interactor.Start()
 
 def get_program_parameters():
