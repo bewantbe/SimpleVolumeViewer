@@ -1269,7 +1269,18 @@ class RepeatingTimerHandler():
     def __del__(self):
         self.stop()
 
-class ActionSet():
+class UIActions():
+    """
+    A collection of UI actions for key binding or mouse binding.
+    As a rule of thumb, try not to use UI backend directly in this class.
+    TODO: use the obj from the events.
+      e.g.
+        win = obj.iren.GetRenderWindow()
+        rens = win.GetRenderers()
+        rens.InitTraversal()
+        ren1 = rens.GetNextItem()
+        cam = ren1.GetActiveCamera()
+    """
     def __init__(self, interactor, iren, guictrl):
         self.interactor = interactor
         self.iren = iren
@@ -1400,6 +1411,28 @@ class ActionSet():
             print(type(inst))
             print(inst)
 
+    def scene_zooming(self, direction, zooming_factor = 1.2):
+        """Zoom in or out."""
+        # direction ==  1: zoom in
+        # direction == -1: zoom out
+        ren1 = self.GetRenderers(1)
+        cam = ren1.GetActiveCamera()
+        # modify the distance between camera and the focus point
+        fp = _a(cam.GetFocalPoint())
+        p  = _a(cam.GetPosition())
+        new_p = fp + (p - fp) * (zooming_factor ** (-direction))
+        cam.SetPosition(new_p)
+        # need to do ResetCameraClippingRange(), since VTK will
+        # automatically reset clipping range after changing camera view
+        # angle. Then the clipping range can be wrong for zooming.
+        ren1.ResetCameraClippingRange()
+        self.iren.GetRenderWindow().Render()
+
+    def scene_object_traverse(self, direction):
+        """Select next/previous scene object."""
+        if self.guictrl.selected_pid:
+            self.guictrl.SetSelectedPID(self.guictrl.selected_pid + direction)
+
 def DefaultKeyBindings():
     d = {
         'r'        : 'auto-rotate',
@@ -1418,11 +1451,16 @@ def DefaultKeyBindings():
         'Shift+|'  : 'set-view-up',
         'x'        : 'remove_selected_object',
         '`'        : 'toggle_show_local_volume',
-        'Ctrl+g'   : 'exec-script'
+        'Ctrl+g'   : 'exec-script',
+        'MouseWheelForward'        : ['scene-zooming',  1],
+        'MouseWheelBackward'       : ['scene-zooming', -1],
+        'Shift+MouseWheelForward'  : ['scene-object-traverse',  1],
+        'Shift+MouseWheelBackward' : ['scene-object-traverse', -1],
     }
     return d
 
-def GenerateKeybindingDoc(key_binding, action):
+def GenerateKeyBindingDoc(key_binding, action):
+    """Generate the key binding description from code, for help message."""
     s = "\n  Full key bindings:\n"
     for k, v in key_binding.items():
         h = action.ExecByCmd(v, get_doc_only = True)
@@ -1473,8 +1511,13 @@ class MyInteractorStyle(vtkInteractorStyleTerrain):
         # keyboard events
         self.AddObserver('CharEvent', self.OnChar)
 
-        self.ui_action = ActionSet(self, iren, guictrl)
+        self.ui_action = UIActions(self, iren, guictrl)
         self.key_bindings = DefaultKeyBindings()
+
+    def execute_key_cmd(self, key_combo):
+        if key_combo in self.key_bindings:
+            fn_name = self.key_bindings[key_combo]
+            self.ui_action.ExecByCmd(fn_name)
 
     def is_kbd_modifier(self, u = ''):
         """
@@ -1518,24 +1561,15 @@ class MyInteractorStyle(vtkInteractorStyleTerrain):
         """
         def mouse_wheel_action(obj, event, direction = direction):
             if obj.iren.GetShiftKey():
-                if obj.guictrl.selected_pid:
-                    obj.guictrl.SetSelectedPID(obj.guictrl.selected_pid + direction)
+                if direction == 1:
+                    self.execute_key_cmd('Shift+MouseWheelForward')
+                else:
+                    self.execute_key_cmd('Shift+MouseWheelBackward')
             else:
-                win = obj.iren.GetRenderWindow()
-                rens = win.GetRenderers()
-                rens.InitTraversal()
-                ren1 = rens.GetNextItem()
-                cam = ren1.GetActiveCamera()
-                # modify the distance between camera and the focus point
-                fp = _a(cam.GetFocalPoint())
-                p  = _a(cam.GetPosition())
-                new_p = fp + (p - fp) * (1.2 ** (-direction))
-                cam.SetPosition(new_p)
-                # need to do ResetCameraClippingRange(), since VTK will
-                # automatically reset clipping range after changing camera view
-                # angle. Then the clipping range can be wrong for zooming.
-                ren1.ResetCameraClippingRange()
-                win.Render()
+                if direction == 1:
+                    self.execute_key_cmd('MouseWheelForward')
+                else:
+                    self.execute_key_cmd('MouseWheelBackward')
         return mouse_wheel_action
 
     def middle_button_press_event(self, obj, event):
@@ -1573,30 +1607,13 @@ class MyInteractorStyle(vtkInteractorStyleTerrain):
     def right_button_release_event(self, obj, event):
         # purposely no call to self.OnRightButtonUp()
         return
-    
-    def OnChar(self, obj, event):
-        """
-        on keyboard stroke
-        TODO: rewrite to allow customized key assignment.
-              e.g. use dict.
-        """
-        iren = self.iren
 
+    def get_normalized_key_combo(self, iren):
         key_sym  = iren.GetKeySym()   # useful for PageUp etc.
         key_code = iren.GetKeyCode()
         b_C = iren.GetControlKey()
         b_A = iren.GetAltKey()
         b_S = iren.GetShiftKey()  # sometimes reflected in key_code
-
-        # default key bindings in VTK
-        is_default_binding = (key_code.lower() in 'jtca3efprsuw') and \
-                             not b_C
-
-        #        shift ctrl alt
-        #    q    T    F    T
-        #    3    F    F    T
-        #    e    T    F    T
-        #    r    T    F    T
 
         # normalize the key strike name
         if key_code < ' ':
@@ -1607,12 +1624,31 @@ class MyInteractorStyle(vtkInteractorStyleTerrain):
                     key_code
         #print('key_code:', bytearray(key_code.encode('utf-8')))
         dbg_print(4, 'Pressed:', key_combo, '  key_sym:', key_sym)
-        
-        if key_combo in self.key_bindings:
-            fn_name = self.key_bindings[key_combo]
-            self.ui_action.ExecByCmd(fn_name)
 
-        # Let's say, disable all default key bindings (except q)
+        # default key bindings in vtkInteractorStyleTerrain
+        is_default_binding = (key_code.lower() in 'jtca3efprsuw') and \
+                             not b_C
+        # default key bindings interaction with control keys
+        #        shift ctrl alt
+        #    q    T    F    T
+        #    3    F    F    T
+        #    e    T    F    T
+        #    r    T    F    T
+
+        return key_combo, is_default_binding
+
+    def OnChar(self, obj, event):
+        """
+        on keyboard stroke
+        """
+        iren = self.iren  # or obj.iren?
+        
+        key_combo, is_default_binding = self.get_normalized_key_combo(iren)
+
+        self.execute_key_cmd(key_combo)
+
+        # Leave all other key binding to the base vtk interactor.
+        # Let's say, disable all default key bindings, except q.
         if not is_default_binding:
             super(MyInteractorStyle, obj).OnChar()
             # to quit, call TerminateApp()
@@ -2334,7 +2370,7 @@ def get_program_parameters():
         wheel: zoom;
         right click: select object, support swc points only currently.
     '''
-    epilogue += GenerateKeybindingDoc(DefaultKeyBindings(), ActionSet('', '', ''))
+    epilogue += GenerateKeyBindingDoc(DefaultKeyBindings(), UIActions('', '', ''))
     parser = argparse.ArgumentParser(description=description, epilog=epilogue,
                                      formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument('--filepath', help='image stack filepath')
