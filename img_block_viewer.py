@@ -1286,7 +1286,7 @@ class UIActions():
         self.iren = iren
         self.guictrl = guictrl
 
-    def ExecByCmd(self, fn_name, get_doc_only = False):
+    def ExecByCmd(self, fn_name, get_attr_name = None):
         '''Call the action by name or list of name and arguments.'''
         dbg_print(4, "fn =", fn_name)
         if isinstance(fn_name, list):
@@ -1298,8 +1298,8 @@ class UIActions():
             fn_name = args[0]
             args = args[1:]
         fn = getattr(self, fn_name.replace('-','_'))
-        if get_doc_only:
-            return fn.__doc__
+        if get_attr_name:   # e.g. '__doc__'
+            return getattr(fn, get_attr_name, None)
         fn(*args)
 
     def GetRenderers(self, n):
@@ -1433,7 +1433,46 @@ class UIActions():
         if self.guictrl.selected_pid:
             self.guictrl.SetSelectedPID(self.guictrl.selected_pid + direction)
 
+    def camera_rotate_around(self):
+        """Rotate the scene by mouse."""
+        self.interactor.OnLeftButtonDown()
+    
+    def camera_rotate_around_release(self):
+        self.interactor.OnLeftButtonUp()
+
+    def camera_move_translational(self):
+        """Move camera translationally in the scene."""
+        self.interactor.OnMiddleButtonDown()
+
+    def camera_move_translational_release(self):
+        self.interactor.OnMiddleButtonUp()
+
+    def select_a_point(self):
+        """Select a point near the pointer."""
+        ren = self.guictrl.GetMainRenderer()
+
+        # select object
+        # Ref. HighlightWithSilhouette
+        # https://kitware.github.io/vtk-examples/site/Python/Picking/HighlightWithSilhouette/
+        clickPos = self.iren.GetEventPosition()
+        dbg_print(4, 'clicked at', clickPos)
+
+        ppicker = PointPicker(self.guictrl.point_set_holder(), ren)
+        pid, pxyz = ppicker.PickAt(clickPos)
+        
+        if pxyz.size > 0:
+            dbg_print(4, 'picked point', pid, pxyz)
+            self.guictrl.SetSelectedPID(pid)
+        else:
+            dbg_print(4, 'picked no point', pid, pxyz)
+        # purposely no call to self.OnRightButtonDown()
+
 def DefaultKeyBindings():
+    """
+    Full table of default key bindings. (except q for exit)
+    Not that if there are multiple modifiers, i.e. Ctrl, Alt, Shift, they have to appear in
+    the order Ctrl, Alt, Shift. and it is case sensitive.
+    """
     d = {
         'r'        : 'auto-rotate',
         '+'        : 'inc-brightness +',
@@ -1452,19 +1491,32 @@ def DefaultKeyBindings():
         'x'        : 'remove_selected_object',
         '`'        : 'toggle_show_local_volume',
         'Ctrl+g'   : 'exec-script',
-        'MouseWheelForward'        : ['scene-zooming',  1],
-        'MouseWheelBackward'       : ['scene-zooming', -1],
-        'Shift+MouseWheelForward'  : ['scene-object-traverse',  1],
-        'Shift+MouseWheelBackward' : ['scene-object-traverse', -1],
+        'MouseLeftButton'               : 'camera-rotate-around',
+        'MouseLeftButtonRelease'        : 'camera-rotate-around-release',
+        'Shift+MouseLeftButton'         : 'camera-move-translational',
+        'Shift+MouseLeftButtonRelease'  : 'camera-move-translational-release',
+        'MouseWheelForward'             : ['scene-zooming',  1],
+        'MouseWheelBackward'            : ['scene-zooming', -1],
+        'Shift+MouseWheelForward'       : ['scene-object-traverse',  1],
+        'Shift+MouseWheelBackward'      : ['scene-object-traverse', -1],
+        'MouseMiddleButton'             : 'camera-move-translational',
+        'MouseMiddleButtonRelease'      : 'camera-move-translational-release',
+        'MouseRightButton'              : 'select-a-point',
     }
+    # For user provided key bindings we need to:
+    # 1. Remove redundant white space.
+    # 2. Sort order of the modifiers.
+    # 3. Add release mappings to mouse button actions.
     return d
 
 def GenerateKeyBindingDoc(key_binding, action):
     """Generate the key binding description from code, for help message."""
     s = "\n  Full key bindings:\n"
     for k, v in key_binding.items():
-        h = action.ExecByCmd(v, get_doc_only = True)
-        s += "%10s : %s\n" % (k, h)
+        h = action.ExecByCmd(v, get_attr_name = '__doc__')
+        if h:
+            l = 30 if 'Mouse' in k else 15
+            s += ("%" + str(l) + "s : %s\n") % (k, h)
     return s
 
 class MyInteractorStyle(vtkInteractorStyleTerrain):
@@ -1484,9 +1536,6 @@ class MyInteractorStyle(vtkInteractorStyleTerrain):
 
         # var for picker
         self.picked_actor = None
-        # hold the callbacks, to avoid GC.
-        self._mouse_wheel_event_p1 = self.mouse_wheel_event(1)
-        self._mouse_wheel_event_n1 = self.mouse_wheel_event(-1)
 
         # mouse events
         self.fn_modifier = []
@@ -1499,14 +1548,16 @@ class MyInteractorStyle(vtkInteractorStyleTerrain):
         self.AddObserver('MiddleButtonReleaseEvent',
                          self.middle_button_release_event)
         self.AddObserver('MouseWheelForwardEvent',
-                         self._mouse_wheel_event_p1)
+                         self.mouse_wheel_forward_event)
         self.AddObserver('MouseWheelBackwardEvent',
-                         self._mouse_wheel_event_n1)
+                         self.mouse_wheel_backward_event)
         self.AddObserver('RightButtonPressEvent',
                          self.right_button_press_event)
         self.AddObserver('RightButtonReleaseEvent',
                          self.right_button_release_event)
-        self.left_button_press_event_release_fn = None
+
+        for m in ['MouseLeftButton', 'MouseMiddleButton', 'MouseRightButton']:
+            setattr(self, self.get_mb_var_name(m), '')
 
         # keyboard events
         self.AddObserver('CharEvent', self.OnChar)
@@ -1514,120 +1565,85 @@ class MyInteractorStyle(vtkInteractorStyleTerrain):
         self.ui_action = UIActions(self, iren, guictrl)
         self.key_bindings = DefaultKeyBindings()
 
-    def execute_key_cmd(self, key_combo):
+    def execute_key_cmd(self, key_combo, attr_name = None):
         if key_combo in self.key_bindings:
             fn_name = self.key_bindings[key_combo]
-            self.ui_action.ExecByCmd(fn_name)
+            return self.ui_action.ExecByCmd(fn_name, attr_name)
+        return None
 
-    def is_kbd_modifier(self, u = ''):
-        """
-        To test fully quantified 'C' 'A' 'S'.
-        Example: u='AS' means Alt and Shift are pressed, but not Ctrl.
-        """
-        iren = self.iren
-        m = 'C' if iren.GetControlKey() else ' ' + \
-            'A' if iren.GetAltKey() else ' ' + \
-            'S' if iren.GetShiftKey() else ' '
-        u = u.upper()
-        p = 'C' if 'C' in u else ' ' + \
-            'A' if 'A' in u else ' ' + \
-            'S' if 'S' in u else ' '
-        return p == m
+    def get_mb_var_name(self, mouse_button_name):
+        return '_last_' + mouse_button_name + '_combo'
 
-    def left_button_press_event(self, obj, event):
-        """
-        Left mouse: rotate the scene.
-        Left mouse + Shift: Move(translate) the scene.
-        """
-        if self.is_kbd_modifier(''):
-            self.OnLeftButtonDown()
-            self.left_button_press_event_release_fn = \
-                lambda: self.OnLeftButtonUp()
-        elif self.is_kbd_modifier('S'):
-            self.OnMiddleButtonDown()
-            self.left_button_press_event_release_fn = \
-                lambda: self.OnMiddleButtonUp()
+    def mouse_press_event_common(self, obj, mouse_button_name):
+        modifier = self.get_key_modifier(obj.iren)
+        cmd_st = modifier + mouse_button_name
+        self.execute_key_cmd(cmd_st)
+        setattr(self, self.get_mb_var_name(mouse_button_name), cmd_st)
 
-    def left_button_release_event(self, obj, event):
-        if self.left_button_press_event_release_fn:
-            self.left_button_press_event_release_fn()
-        else:
+    def mouse_release_event_common(self, obj, mouse_button_name):
+        mb_var_name = self.get_mb_var_name(mouse_button_name)
+        last_combo = getattr(self, mb_var_name, None)
+        if last_combo:
+            self.execute_key_cmd(last_combo + 'Release')
+            setattr(self, mb_var_name, '')
+        else:  # for unusual reason
+            dbg_print(2, 'Singleton mouse button up.')
             self.OnLeftButtonUp()
 
-    def mouse_wheel_event(self, direction):
-        """
-        wheel rolling: zooming.
-        wheel rolling + Shift: select next/previous scene object.
-        """
-        def mouse_wheel_action(obj, event, direction = direction):
-            if obj.iren.GetShiftKey():
-                if direction == 1:
-                    self.execute_key_cmd('Shift+MouseWheelForward')
-                else:
-                    self.execute_key_cmd('Shift+MouseWheelBackward')
-            else:
-                if direction == 1:
-                    self.execute_key_cmd('MouseWheelForward')
-                else:
-                    self.execute_key_cmd('MouseWheelBackward')
-        return mouse_wheel_action
+    def left_button_press_event(self, obj, event):
+        self.mouse_press_event_common(obj, 'MouseLeftButton')
+
+    def left_button_release_event(self, obj, event):
+        self.mouse_release_event_common(obj, 'MouseLeftButton')
+
+    def mouse_wheel_forward_event(self, obj, event):
+        modifier = self.get_key_modifier(obj.iren)
+        self.execute_key_cmd(modifier + 'MouseWheelForward')
+
+    def mouse_wheel_backward_event(self, obj, event):
+        modifier = self.get_key_modifier(obj.iren)
+        self.execute_key_cmd(modifier + 'MouseWheelBackward')
 
     def middle_button_press_event(self, obj, event):
-        """ Middle mouse: Move(translate) the scene. """
-        dbg_print(4, 'Middle Button pressed')
-        self.OnMiddleButtonDown()
+        self.mouse_press_event_common(obj, 'MouseMiddleButton')
         return
 
     def middle_button_release_event(self, obj, event):
-        dbg_print(4, 'Middle Button released')
-        self.OnMiddleButtonUp()
+        self.mouse_release_event_common(obj, 'MouseMiddleButton')
         return
 
     def right_button_press_event(self, obj, event):
-        """ Right mouse: select a point. """
-        ren = self.guictrl.GetMainRenderer()
-
-        # select object
-        # Ref. HighlightWithSilhouette
-        # https://kitware.github.io/vtk-examples/site/Python/Picking/HighlightWithSilhouette/
-        clickPos = self.iren.GetEventPosition()
-        dbg_print(4, 'clicked at', clickPos)
-
-        ppicker = PointPicker(self.guictrl.point_set_holder(), ren)
-        pid, pxyz = ppicker.PickAt(clickPos)
-        
-        if pxyz.size > 0:
-            dbg_print(4, 'picked point', pid, pxyz)
-            self.guictrl.SetSelectedPID(pid)
-        else:
-            dbg_print(4, 'picked no point', pid, pxyz)
-        
-        # purposely no call to self.OnRightButtonDown()
+        self.mouse_press_event_common(obj, 'MouseRightButton')
     
     def right_button_release_event(self, obj, event):
-        # purposely no call to self.OnRightButtonUp()
+        self.mouse_release_event_common(obj, 'MouseRightButton')
         return
+
+    def get_key_modifier(self, iren):
+        """Return key modifier, in fixed order (Ctrl, Alt, Shift)."""
+        b_C = iren.GetControlKey()
+        b_A = iren.GetAltKey()
+        b_S = iren.GetShiftKey()  # sometimes reflected in key_code, like s and S
+        key_modifier = ('Ctrl+'  if b_C else '') + \
+                       ('Alt+'   if b_A else '') + \
+                       ('Shift+' if b_S else '')
+        return key_modifier
 
     def get_normalized_key_combo(self, iren):
         key_sym  = iren.GetKeySym()   # useful for PageUp etc.
         key_code = iren.GetKeyCode()
-        b_C = iren.GetControlKey()
-        b_A = iren.GetAltKey()
-        b_S = iren.GetShiftKey()  # sometimes reflected in key_code
+        key_modifier = self.get_key_modifier(iren)
 
         # normalize the key strike name
         if key_code < ' ':
             key_code = key_sym.replace('plus','+').replace('minus','-')
-        key_combo = ('Ctrl+' if b_C else '') + \
-                    ('Alt+' if b_A else '') + \
-                    ('Shift+' if b_S else '') + \
-                    key_code
+        key_combo = key_modifier + key_code
         #print('key_code:', bytearray(key_code.encode('utf-8')))
         dbg_print(4, 'Pressed:', key_combo, '  key_sym:', key_sym)
 
         # default key bindings in vtkInteractorStyleTerrain
         is_default_binding = (key_code.lower() in 'jtca3efprsuw') and \
-                             not b_C
+                             ('Ctrl' not in key_modifier)
         # default key bindings interaction with control keys
         #        shift ctrl alt
         #    q    T    F    T
