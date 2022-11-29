@@ -1435,17 +1435,17 @@ class UIActions():
 
     def camera_rotate_around(self):
         """Rotate the scene by mouse."""
-        self.interactor.OnLeftButtonDown()
+        self.interactor.OnLeftButtonDown()   # vtkInteractorStyleTerrain
     
     def camera_rotate_around_release(self):
-        self.interactor.OnLeftButtonUp()
+        self.interactor.OnLeftButtonUp()   # vtkInteractorStyleTerrain
 
     def camera_move_translational(self):
         """Move camera translationally in the scene."""
-        self.interactor.OnMiddleButtonDown()
+        self.interactor.OnMiddleButtonDown()   # vtkInteractorStyleTerrain
 
     def camera_move_translational_release(self):
-        self.interactor.OnMiddleButtonUp()
+        self.interactor.OnMiddleButtonUp()   # vtkInteractorStyleTerrain
 
     def select_a_point(self):
         """Select a point near the pointer."""
@@ -1470,6 +1470,7 @@ class UIActions():
 def DefaultKeyBindings():
     """
     Full table of default key bindings. (except q for exit)
+    See class UIAction for all available actions.
     Not that if there are multiple modifiers, i.e. Ctrl, Alt, Shift, they have to appear in
     the order Ctrl, Alt, Shift. and it is case sensitive.
     """
@@ -2399,13 +2400,14 @@ def get_program_parameters():
     parser.add_argument('--rotation_matrix', help='Set rotation matrix of the volume.')
     parser.add_argument('--oblique_image', help='Overwrite the guess of if the image is imaged oblique.')
     parser.add_argument('--swc', action='append', help='Read and draw swc file.')
+    parser.add_argument('--swc-dir', help='Read and draw swc files in the directory.')
     parser.add_argument('--fibercolor', help='Set fiber color.')
     parser.add_argument('--scene', help='Project scene file path. e.g. for batch object loading.')
     parser.add_argument('--lychnis_blocks', help='Path of lychnix blocks.json')
     args = parser.parse_args()
     # convert class attributes to dict
     keys = ['filepath', 'level', 'channel', 'time_point', 'range',
-            'colorscale', 'swc', 'fibercolor', 'origin', 'rotation_matrix',
+            'colorscale', 'swc', 'swc-dir', 'fibercolor', 'origin', 'rotation_matrix',
             'oblique_image', 'scene', 'lychnis_blocks']
     d = {k: getattr(args, k) for k in keys
             if hasattr(args, k) and getattr(args, k)}
