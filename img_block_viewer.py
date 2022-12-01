@@ -2298,7 +2298,15 @@ class GUIControl:
 
             name = self.GetNonconflitName('volume')
             self.AddObject(name, obj_conf)
-            
+        
+        if 'swc_dir' in obj_desc:
+            # note down *.swc files it to obj_desc['swc']
+            import glob
+            fns = glob.glob(obj_desc['swc_dir'] + '/*.swc')
+            if 'swc' not in obj_desc:
+                obj_desc['swc'] = []
+            obj_desc['swc'].extend(fns)
+        
         if 'swc' in obj_desc:
             name = self.GetNonconflitName('swc')
             if not isinstance(obj_desc['swc'], (list, tuple)):
@@ -2400,14 +2408,14 @@ def get_program_parameters():
     parser.add_argument('--rotation_matrix', help='Set rotation matrix of the volume.')
     parser.add_argument('--oblique_image', help='Overwrite the guess of if the image is imaged oblique.')
     parser.add_argument('--swc', action='append', help='Read and draw swc file.')
-    parser.add_argument('--swc-dir', help='Read and draw swc files in the directory.')
+    parser.add_argument('--swc_dir', help='Read and draw swc files in the directory.')
     parser.add_argument('--fibercolor', help='Set fiber color.')
     parser.add_argument('--scene', help='Project scene file path. e.g. for batch object loading.')
     parser.add_argument('--lychnis_blocks', help='Path of lychnix blocks.json')
     args = parser.parse_args()
     # convert class attributes to dict
     keys = ['filepath', 'level', 'channel', 'time_point', 'range',
-            'colorscale', 'swc', 'swc-dir', 'fibercolor', 'origin', 'rotation_matrix',
+            'colorscale', 'swc', 'swc_dir', 'fibercolor', 'origin', 'rotation_matrix',
             'oblique_image', 'scene', 'lychnis_blocks']
     d = {k: getattr(args, k) for k in keys
             if hasattr(args, k) and getattr(args, k)}
