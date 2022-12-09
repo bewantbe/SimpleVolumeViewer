@@ -987,7 +987,7 @@ class FocusModeController:
             self.swc_polydata = None
         self.point_searcher = PointSearcher(
             self.gui_controller.point_graph,
-            points_coor = self.gui_controller.point_set_holder.points)
+            points_coor = self.gui_controller.point_set_holder())
 
     def SetCenterPoint(self, pid):
         """
@@ -1032,7 +1032,7 @@ class FocusModeController:
     def CreateLines(self, path):
         points = vtkPoints()
         points.SetData(numpy_to_vtk(
-            self.gui_controller.point_set_holder.points.T, deep=True))
+            self.gui_controller.point_set_holder().T, deep=True))
         cells = vtkCellArray()
         for proc in path:
             polyLine = vtkPolyLine()
@@ -1102,10 +1102,15 @@ class PointPicker():
         posxy_cam = (_a(posxy) - self.screen_dims / 2) * self.pixel_scale
         v = self.cam_m[0:3,0:3].T @ _a([[posxy_cam[0], posxy_cam[1], -1]]).T
         # compute distance from p to the line r
+        dbg_print(5, 'PickAt(): 2')
         u = p - o
+        dbg_print(5, 'PickAt(): 3')
         t = (v.T @ u) / (v.T @ v)
+        dbg_print(5, 'PickAt(): 4')
         dist = np.linalg.norm(u - v * t, axis=0)
+        dbg_print(5, 'PickAt(): 6')
         angle_dist = dist / t
+        dbg_print(5, 'PickAt(): 8')
         
         # find nearest point
         in_view_tol = (t > cam_min_view_distance) & (angle_dist < selection_angle_tol)
@@ -1117,15 +1122,30 @@ class PointPicker():
 
 class PointSetHolder():
     def __init__(self):
-        self.points = np.array([[],[],[]], dtype=np.float64)
-        self.range_map = {}
+        self._points_list = []
+        self._len = 0
     
     def AddPoints(self, points, name):
-        self.points = np.append(self.points, points, axis=1)
         # TODO, maybe make it possible to find 'name' by point
+        # points shape shoud be space_dim x index_dim
+        self._points_list.append(points)
+        self._len += points.shape[1]
+    
+    def ConstructMergedArray(self):
+        if len(self._points_list) > 1:
+            a = np.concatenate(self._points_list, axis=1)
+            self._points_list = [a]
+            return a
+        elif len(self._points_list) == 1:
+            return self._points_list[0]
+        else:
+            return np.array([[],[],[]], dtype=np.float64)
+    
+    def __len__(self):
+        return self._len
     
     def __call__(self):
-        return self.points
+        return self.ConstructMergedArray()
 
 class OnDemandVolumeLoader():
     """
@@ -1747,10 +1767,13 @@ class GUIControl:
             self.render_window.Render()
 
     def SetSelectedPID(self, pid):
-        if pid < len(self.point_set_holder.points.T):
+        if pid < len(self.point_set_holder):
             self.selected_pid = pid
             self.focusController.SetCenterPoint(pid)
-            self.Set3DCursor(self.point_set_holder.points.T[pid])
+            self.Set3DCursor(self.point_set_holder()[:,pid])
+        else:
+            dbg_print(3, 'SetSelectedPID(): pid=%d out of range, len=%d' \
+                      %(pid, len(self.point_set_holder)))
 
     def Get3DCursor(self):
         cursor = self.scene_objects.get('3d_cursor', None)
