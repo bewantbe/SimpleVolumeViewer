@@ -2336,13 +2336,18 @@ class GUIControl:
                 obj_desc['swc'] = [obj_desc['swc'],]
             # See also https://vtk.org/doc/nightly/html/classvtkColorSeries.html#details
             # https://www.kitware.com/off-screen-rendering-through-the-native-platform-interface-egl/
+            # possible series:
+            #   SPECTRUM (7)
+            #   BREWER_DIVERGING_PURPLE_ORANGE_11
             color_scheme = vtkColorSeries()
-            color_scheme.SetColorScheme(color_scheme.SPECTRUM)
+            color_scheme.SetColorScheme(color_scheme.BREWER_DIVERGING_SPECTRAL_11)
             # color was 'Tomato'
             for id_s in range(len(obj_desc['swc'])):
+                c = color_scheme.GetColorRepeating(1+id_s)
+                c = list(_a([c[0], c[1], c[2]]) / 255.0)
                 obj_conf = {
                     "type": "swc",
-                    "color": obj_desc.get('fibercolor', color_scheme.GetColorRepeating(1+id_s)),
+                    "color": obj_desc.get('fibercolor', c),
                     "file_path": obj_desc['swc'][id_s]
                 }
                 self.AddObject(name, obj_conf)
