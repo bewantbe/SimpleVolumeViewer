@@ -1049,7 +1049,7 @@ class FocusModeController:
         actor = vtkActor()
         actor.SetMapper(mapper)
         actor.GetProperty().SetColor(
-            colors.GetColor3d('green'))
+            colors.GetColor3d('yellow'))
         self.gui_controller.GetMainRenderer().AddActor(actor)
         self.focus_swc = actor
 
@@ -2074,7 +2074,7 @@ class GUIControl:
             actor.SetMapper(mapper)
             actor.GetProperty().SetColor(
                 vtkGetColorAny(obj_conf['color']))
-            actor.GetProperty().SetLineWidth(obj_conf.get('linewidth', 1.0))
+            actor.GetProperty().SetLineWidth(obj_conf.get('linewidth', 2.0))
             renderer.AddActor(actor)
             #actor.raw_points = raw_points  # for convenience
 
