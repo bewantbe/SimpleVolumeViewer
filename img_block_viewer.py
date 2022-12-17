@@ -36,6 +36,18 @@
 #   Commandline related data import function.
 #   Main.
 
+# Memory footprint
+# n_neuron = 1660 (SWC), n_points = 39382068 (0.44 GiB)
+# float32 mode:
+# RAM = 2.4GiB (5.3GiB during pick), 3.2g(after pick),
+# GPU = 1128MiB
+# float64 mode:
+# RAM = 3.3GiB (8.3GiB during pick), 3.6g(after pick),
+# GPU = 1128MiB
+
+# Performance:
+# load 6356 neurons: <19m34.236s
+
 # Ref.
 # Python Wrappers for VTK
 # https://vtk.org/doc/nightly/html/md__builds_gitlab_kitware_sciviz_ci_Documentation_Doxygen_PythonWrappers.html
@@ -250,6 +262,7 @@ def DefaultSceneConfig():
     return d
 
 debug_level = 5
+_point_set_dtype_ = np.float32
 
 def dbg_print(level, *p, **keys):
     """
@@ -1095,12 +1108,15 @@ class PointPicker():
     def PickAt(self, posxy):
         cam_min_view_distance = 0
         selection_angle_tol = 0.01
-        p = self.p
+        dbg_print(5, 'PickAt(): number of points:', self.p.shape[1])
+        p = self.p.astype(_point_set_dtype_)
         # constructing picker line: r = v * t + o
         o = - self.cam_m[0:3,0:3].T @ self.cam_m[0:3, 3:4]  # cam pos in world
+        o = o.astype(_point_set_dtype_)
         #   click pos in cam
         posxy_cam = (_a(posxy) - self.screen_dims / 2) * self.pixel_scale
         v = self.cam_m[0:3,0:3].T @ _a([[posxy_cam[0], posxy_cam[1], -1]]).T
+        v = v.astype(_point_set_dtype_)
         # compute distance from p to the line r
         dbg_print(5, 'PickAt(): 2')
         u = p - o
@@ -1128,7 +1144,7 @@ class PointSetHolder():
     def AddPoints(self, points, name):
         # TODO, maybe make it possible to find 'name' by point
         # points shape shoud be space_dim x index_dim
-        self._points_list.append(points)
+        self._points_list.append(points.astype(_point_set_dtype_))
         self._len += points.shape[1]
     
     def ConstructMergedArray(self):
@@ -1139,7 +1155,7 @@ class PointSetHolder():
         elif len(self._points_list) == 1:
             return self._points_list[0]
         else:
-            return np.array([[],[],[]], dtype=np.float64)
+            return np.array([[],[],[]], dtype=_point_set_dtype_)
     
     def __len__(self):
         return self._len
