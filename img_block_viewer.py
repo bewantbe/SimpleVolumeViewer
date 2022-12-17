@@ -1505,10 +1505,13 @@ def DefaultKeyBindings():
         ' '        : 'fly-to-selected',
         '0'        : 'fly-to-cursor',
         'KP_0'     : 'fly-to-cursor',
+        'KP_Insert': 'fly-to-cursor',         # LEGION
         'Return'   : 'load-near-volume',
         'KP_Enter' : 'load-near-volume',
         'KP_8'     : 'set-view-up',
+        'KP_Up'    : 'set-view-up',           # LEGION
         'Shift+|'  : 'set-view-up',
+        'Shift+\\' : 'set-view-up',           # LEGION
         'x'        : 'remove_selected_object',
         '`'        : 'toggle_show_local_volume',
         'Ctrl+g'   : 'exec-script',
