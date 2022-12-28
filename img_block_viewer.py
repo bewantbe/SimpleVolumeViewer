@@ -1513,7 +1513,9 @@ def DefaultKeyBindings():
     d = {
         'r'        : 'auto-rotate',
         '+'        : 'inc-brightness +',
+        'KP_Add'   : 'inc-brightness +',    # LEGION
         '-'        : 'inc-brightness -',
+        'KP_Subtract': 'inc-brightness -',    # LEGION
         'Ctrl++'   : 'inc-brightness C+',
         'Ctrl+-'   : 'inc-brightness C-',
         'p'        : 'screen-shot',
@@ -1708,6 +1710,148 @@ class MyInteractorStyle(vtkInteractorStyleTerrain):
         if not is_default_binding:
             super(MyInteractorStyle, obj).OnChar()
             # to quit, call TerminateApp()
+
+class ObjTranslator:
+    """
+    The collection of translators to convert json discription to computer 
+    graphic objects.
+    The ideal is that eventually GUIControl do not contain any
+    implimentation details.
+    All the translator units should not have state.
+    Also handle commandline parse.
+    """
+
+    class TranslatorUnit:
+        cmd_line_opt = ''
+
+        def __init__(self, gui_ctrl, renderer):
+            self.gui_ctrl = gui_ctrl
+            self.renderer = renderer
+
+        def parse(self, st):
+            """
+            translate json discription to obj on screen.
+            """
+            pass
+
+    class obj_volume(TranslatorUnit):
+        obj_conf_type = 'volume'
+        def parse(self, obj_conf):
+            file_path = obj_conf['file_path']
+            img_importer = ImportImageFile(file_path, obj_conf)
+            # TODO: try
+            # img_importer = ImportImageArray(file_path.img_array, file_path.img_meta)
+            # set position scaling and direction
+            img_importer.SetDataOrigin(obj_conf.get('origin', [0,0,0]))
+            # for 3d rotation and scaling
+            dir3d = img_importer.GetDataDirection()
+            idmat = [1,0,0,0,1,0,0,0,1]
+            rot3d = obj_conf.get('rotation_matrix', idmat)
+            dir3d = (_mat3d(rot3d) @ _mat3d(dir3d)).flatten()
+            img_importer.SetDataDirection(dir3d)
+
+            # vtkVolumeMapper
+            # https://vtk.org/doc/nightly/html/classvtkVolumeMapper.html
+            mapper_name = obj_conf.get('mapper', 'GPUVolumeRayCastMapper')
+            if mapper_name == 'GPUVolumeRayCastMapper':
+                volume_mapper = vtkGPUVolumeRayCastMapper()
+            elif mapper_name == 'FixedPointVolumeRayCastMapper':
+                volume_mapper = vtkFixedPointVolumeRayCastMapper()
+            else:
+                # TODO: consider use vtkMultiBlockVolumeMapper
+                # OR: vtkSmartVolumeMapper https://vtk.org/doc/nightly/html/classvtkSmartVolumeMapper.html#details
+                # vtkOpenGLGPUVolumeRayCastMapper
+                volume_mapper = vtkGPUVolumeRayCastMapper()
+            #volume_mapper.SetBlendModeToComposite()
+            volume_mapper.SetInputConnection(img_importer.GetOutputPort())
+            # Set blend mode (such as MIP)
+            blend_modes = getattr(volume_mapper, 
+                obj_conf.get('mapper_blend_mode', 'MAXIMUM_INTENSITY_BLEND'))
+            # Possible blend_modes:
+            # COMPOSITE_BLEND
+            # MAXIMUM_INTENSITY_BLEND
+            # MINIMUM_INTENSITY_BLEND
+            # AVERAGE_INTENSITY_BLEND
+            # ADDITIVE_BLEND
+            # ISOSURFACE_BLEND
+            # SLICE_BLEND
+            # Ref: https://vtk.org/doc/nightly/html/classvtkVolumeMapper.html#aac00c48c3211f5dba0ca98c7a028e409ab4e0747ca0bcf150fa57a5a6e9a34a14
+            volume_mapper.SetBlendMode(blend_modes)
+
+            # get property used in rendering
+            ref_prop_conf = obj_conf.get('property', 'volume')
+            if isinstance(ref_prop_conf, dict):
+                # add new property
+                prop_name = self.gui_ctrl.GetNonconflitName('volume', 'property')
+                dbg_print(3, 'AddObject(): Adding prop:', prop_name)
+                self.gui_ctrl.AddObjectProperty(prop_name, ref_prop_conf)
+                volume_property = self.gui_ctrl.object_properties[prop_name]
+            else:
+                dbg_print(3, 'AddObject(): Using existing prop:', ref_prop_conf)
+                volume_property = self.gui_ctrl.object_properties[ref_prop_conf]
+
+            # The volume holds the mapper and the property and
+            # can be used to position/orient the volume.
+            volume = vtkVolume()
+            volume.SetMapper(volume_mapper)
+            volume.SetProperty(volume_property)
+            for ob in self.gui_ctrl.volume_observers: ob.Notify(volume)
+            self.renderer.AddVolume(volume)
+
+            view_point = obj_conf.get('view_point', 'auto')
+            if view_point == 'auto':
+                # auto view all actors
+                self.renderer.ResetCamera()
+            
+            return volume
+
+    class obj_swc(TranslatorUnit):
+        obj_conf_type = 'swc'
+        def parse(self, obj_conf):
+            ntree = LoadSWCTree(obj_conf['file_path'])
+            processes = SplitSWCTree(ntree)
+            
+            self.gui_ctrl.point_graph = GetUndirectedGraph(ntree)
+            raw_points = ntree[1][:,0:3]
+            self.gui_ctrl.point_set_holder.AddPoints(raw_points.T, '')
+            
+            # ref: 
+            # https://kitware.github.io/vtk-examples/site/Python/GeometricObjects/PolyLine/
+            # https://kitware.github.io/vtk-examples/site/Cxx/GeometricObjects/LinearCellDemo/
+            # The procedure to add lines is:
+            #    vtkPoints()  ---------------------+> vtkPolyData()
+            #    vtkPolyLine() -> vtkCellArray()  /
+            #   then
+            #    vtkPolyData() -> vtkPolyDataMapper() -> vtkActor() -> 
+            #         vtkRenderer()
+            
+            points = vtkPoints()
+            points.SetData( numpy_to_vtk(raw_points, deep=True) )
+            
+            cells = vtkCellArray()
+            for proc in processes:
+                polyLine = vtkPolyLine()
+                polyLine.GetPointIds().SetNumberOfIds(len(proc))
+                for i in range(0, len(proc)):
+                    polyLine.GetPointIds().SetId(i, proc[i])
+                cells.InsertNextCell(polyLine)
+
+            polyData = vtkPolyData()
+            polyData.SetPoints(points)
+            polyData.SetLines(cells)
+
+            mapper = vtkPolyDataMapper()
+            mapper.SetInputData(polyData)
+            actor = vtkActor()
+            actor.SetMapper(mapper)
+            actor.GetProperty().SetColor(
+                vtkGetColorAny(obj_conf['color']))
+            actor.GetProperty().SetLineWidth(obj_conf.get('linewidth', 2.0))
+            self.renderer.AddActor(actor)
+            #actor.raw_points = raw_points  # for convenience
+
+            return actor
+        
 
 class GUIControl:
     """
@@ -1985,119 +2129,13 @@ class GUIControl:
         dbg_print(4, 'renderer: ',  obj_conf.get('renderer', '0'))
 
         if obj_conf['type'] == 'volume':
-            file_path = obj_conf['file_path']
-            img_importer = ImportImageFile(file_path, obj_conf)
-            # TODO: try
-            # img_importer = ImportImageArray(file_path.img_array, file_path.img_meta)
-            # set position scaling and direction
-            img_importer.SetDataOrigin(obj_conf.get('origin', [0,0,0]))
-            # for 3d rotation and scaling
-            dir3d = img_importer.GetDataDirection()
-            idmat = [1,0,0,0,1,0,0,0,1]
-            rot3d = obj_conf.get('rotation_matrix', idmat)
-            dir3d = (_mat3d(rot3d) @ _mat3d(dir3d)).flatten()
-            img_importer.SetDataDirection(dir3d)
-
-            # vtkVolumeMapper
-            # https://vtk.org/doc/nightly/html/classvtkVolumeMapper.html
-            mapper_name = obj_conf.get('mapper', 'GPUVolumeRayCastMapper')
-            if mapper_name == 'GPUVolumeRayCastMapper':
-                volume_mapper = vtkGPUVolumeRayCastMapper()
-            elif mapper_name == 'FixedPointVolumeRayCastMapper':
-                volume_mapper = vtkFixedPointVolumeRayCastMapper()
-            else:
-                # TODO: consider use vtkMultiBlockVolumeMapper
-                # OR: vtkSmartVolumeMapper https://vtk.org/doc/nightly/html/classvtkSmartVolumeMapper.html#details
-                # vtkOpenGLGPUVolumeRayCastMapper
-                volume_mapper = vtkGPUVolumeRayCastMapper()
-            #volume_mapper.SetBlendModeToComposite()
-            volume_mapper.SetInputConnection(img_importer.GetOutputPort())
-            # Set blend mode (such as MIP)
-            blend_modes = getattr(volume_mapper, 
-                obj_conf.get('mapper_blend_mode', 'MAXIMUM_INTENSITY_BLEND'))
-            # Possible blend_modes:
-            # COMPOSITE_BLEND
-            # MAXIMUM_INTENSITY_BLEND
-            # MINIMUM_INTENSITY_BLEND
-            # AVERAGE_INTENSITY_BLEND
-            # ADDITIVE_BLEND
-            # ISOSURFACE_BLEND
-            # SLICE_BLEND
-            # Ref: https://vtk.org/doc/nightly/html/classvtkVolumeMapper.html#aac00c48c3211f5dba0ca98c7a028e409ab4e0747ca0bcf150fa57a5a6e9a34a14
-            volume_mapper.SetBlendMode(blend_modes)
-
-            # get property used in rendering
-            ref_prop_conf = obj_conf.get('property', 'volume')
-            if isinstance(ref_prop_conf, dict):
-                # add new property
-                prop_name = self.GetNonconflitName('volume', 'property')
-                dbg_print(3, 'AddObject(): Adding prop:', prop_name)
-                self.AddObjectProperty(prop_name, ref_prop_conf)
-                volume_property = self.object_properties[prop_name]
-            else:
-                dbg_print(3, 'AddObject(): Using existing prop:', ref_prop_conf)
-                volume_property = self.object_properties[ref_prop_conf]
-
-            # The volume holds the mapper and the property and
-            # can be used to position/orient the volume.
-            volume = vtkVolume()
-            volume.SetMapper(volume_mapper)
-            volume.SetProperty(volume_property)
-            for ob in self.volume_observers: ob.Notify(volume)
-            renderer.AddVolume(volume)
-
-            view_point = obj_conf.get('view_point', 'auto')
-            if view_point == 'auto':
-                # auto view all actors
-                renderer.ResetCamera()
-            
+            o = ObjTranslator.obj_volume(self,renderer).parse(obj_conf)
             self.selected_objects = [name]
-            scene_object = volume
+            scene_object = o
 
         elif obj_conf['type'] == 'swc':
-            ntree = LoadSWCTree(obj_conf['file_path'])
-            processes = SplitSWCTree(ntree)
-            
-            self.point_graph = GetUndirectedGraph(ntree)
-            raw_points = ntree[1][:,0:3]
-            self.point_set_holder.AddPoints(raw_points.T, '')
-            
-            # ref: 
-            # https://kitware.github.io/vtk-examples/site/Python/GeometricObjects/PolyLine/
-            # https://kitware.github.io/vtk-examples/site/Cxx/GeometricObjects/LinearCellDemo/
-            # The procedure to add lines is:
-            #    vtkPoints()  ---------------------+> vtkPolyData()
-            #    vtkPolyLine() -> vtkCellArray()  /
-            #   then
-            #    vtkPolyData() -> vtkPolyDataMapper() -> vtkActor() -> 
-            #         vtkRenderer()
-            
-            points = vtkPoints()
-            points.SetData( numpy_to_vtk(raw_points, deep=True) )
-            
-            cells = vtkCellArray()
-            for proc in processes:
-                polyLine = vtkPolyLine()
-                polyLine.GetPointIds().SetNumberOfIds(len(proc))
-                for i in range(0, len(proc)):
-                    polyLine.GetPointIds().SetId(i, proc[i])
-                cells.InsertNextCell(polyLine)
-
-            polyData = vtkPolyData()
-            polyData.SetPoints(points)
-            polyData.SetLines(cells)
-
-            mapper = vtkPolyDataMapper()
-            mapper.SetInputData(polyData)
-            actor = vtkActor()
-            actor.SetMapper(mapper)
-            actor.GetProperty().SetColor(
-                vtkGetColorAny(obj_conf['color']))
-            actor.GetProperty().SetLineWidth(obj_conf.get('linewidth', 2.0))
-            renderer.AddActor(actor)
-            #actor.raw_points = raw_points  # for convenience
-
-            scene_object = actor
+            o = ObjTranslator.obj_swc(self,renderer).parse(obj_conf)
+            scene_object = o
 
         elif obj_conf['type'] == 'AxesActor':
             # Create Axes object to indicate the orientation
