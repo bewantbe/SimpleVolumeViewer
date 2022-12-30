@@ -1719,7 +1719,13 @@ class ObjTranslator:
     implimentation details.
     All the translator units should not have state.
     Also handle commandline parse.
+    External code should be easy to modify this class to extend its function.
     """
+
+    def translate_obj_conf(self, gui_ctrl, renderer, obj_conf):
+        obj_type = obj_conf['type']
+        tl_unit = getattr(self, 'obj_' + obj_type)(gui_ctrl, renderer)
+        return tl_unit.parse(obj_conf)
 
     class TranslatorUnit:
         cmd_line_opt = ''
@@ -1851,7 +1857,115 @@ class ObjTranslator:
             #actor.raw_points = raw_points  # for convenience
 
             return actor
-        
+    class obj_AxesActor(TranslatorUnit):
+        obj_conf_type = 'AxesActor'
+        def parse(self, obj_conf):
+            # Create Axes object to indicate the orientation
+            # vtkCubeAxesActor()
+            # https://kitware.github.io/vtk-examples/site/Python/Visualization/CubeAxesActor/
+
+            # Dynamically change position of Axes
+            # https://discourse.vtk.org/t/dynamically-change-position-of-axes/691
+            # Method 1
+            axes = vtkAxesActor()
+            axes.SetTotalLength(obj_conf.get('length', [1.0, 1.0, 1.0]))
+            axes.SetAxisLabels(obj_conf.get('ShowAxisLabels', False))
+
+            self.renderer.AddActor(axes)
+            return axes
+
+    class obj_Sphere(TranslatorUnit):
+        obj_conf_type = 'Sphere'
+        def parse(self, obj_conf):
+            colors = vtkNamedColors()
+
+            sphereSource = vtkSphereSource()
+            sphereSource.SetCenter(0.0, 0.0, 0.0)
+            sphereSource.SetRadius(2)
+            sphereSource.SetPhiResolution(30)
+            sphereSource.SetThetaResolution(30)
+            
+            mapper = vtkPolyDataMapper()
+            mapper.SetInputConnection(sphereSource.GetOutputPort())
+            
+            actor = vtkActor()
+            actor.GetProperty().SetColor(colors.GetColor3d('Peacock'))
+            actor.GetProperty().SetSpecular(0.6)
+            actor.GetProperty().SetSpecularPower(30)
+            actor.SetMapper(mapper)
+            
+            self.renderer.AddActor(actor)
+            return actor
+
+    class obj_OrientationMarker(TranslatorUnit):
+        obj_conf_type = 'OrientationMarker'
+        def parse(self, obj_conf):
+            # Method 2
+            # Ref: https://kitware.github.io/vtk-examples/site/Python/Interaction/CallBack/
+            axes = vtkAxesActor()
+            axes.SetTotalLength([1.0, 1.0, 1.0])
+            axes.SetAxisLabels(obj_conf.get('ShowAxisLabels', False))
+            axes.SetAxisLabels(True)
+
+            # Ref: https://vtk.org/doc/nightly/html/classvtkOrientationMarkerWidget.html
+            om = vtkOrientationMarkerWidget()
+            om.SetOrientationMarker(axes)
+            om.SetInteractor(self.gui_ctrl.interactor)
+            om.SetDefaultRenderer(self.renderer)
+            om.EnabledOn()
+            om.SetInteractive(False)
+            #om.InteractiveOn()
+            om.SetViewport(0, 0, 0.2, 0.2)
+            # TODO: the vtkOrientationMarkerWidget and RepeatingTimerHandler can cause program lose respons or Segmentation fault, for unknown reason.
+
+            return om
+    class obj_Background(TranslatorUnit):
+        obj_conf_type = 'Background'
+        def parse(self, obj_conf):
+            colors = vtkNamedColors()
+            self.renderer.SetBackground(colors.GetColor3d(obj_conf['color']))
+            return self.renderer
+
+    class obj_Camera(TranslatorUnit):
+        obj_conf_type = 'Camera'
+        def parse(self, obj_conf):
+            if 'renderer' in obj_conf:
+                if obj_conf.get('new', False) == False:
+                    cam = self.renderer.GetActiveCamera()
+                    self.renderer.ResetCameraClippingRange()
+                    self.renderer.ResetCamera()
+                else:
+                    cam = self.renderer.MakeCamera()
+            else:
+                cam = vtkCamera()
+
+            if 'clipping_range' in obj_conf:
+                cam.SetClippingRange(obj_conf['clipping_range'])
+
+            item_name = {
+                'Set':['Position', 'FocalPoint', 'ViewUp', 'ViewAngle'],
+                ''   :['Azimuth', 'Elevation']
+            }
+            for f_prefix, its in item_name.items():
+                for it in its:
+                    if it in obj_conf:
+                        getattr(cam, f_prefix + it)(obj_conf[it])
+
+            if 'follow_direction' in obj_conf:
+                cam_ref = self.gui_ctrl.scene_objects[
+                              obj_conf['follow_direction']]
+                cam.DeepCopy(cam_ref)
+                cam.SetClippingRange(0.1, 1000)
+                AlignCameraDirection(cam, cam_ref)
+
+                CameraFollowCallbackFunction.cam1 = cam_ref
+                CameraFollowCallbackFunction.cam2 = cam
+
+                cam_ref.AddObserver( \
+                    'ModifiedEvent', CameraFollowCallbackFunction)
+
+            return cam
+
 
 class GUIControl:
     """
@@ -2138,104 +2252,24 @@ class GUIControl:
             scene_object = o
 
         elif obj_conf['type'] == 'AxesActor':
-            # Create Axes object to indicate the orientation
-            # vtkCubeAxesActor()
-            # https://kitware.github.io/vtk-examples/site/Python/Visualization/CubeAxesActor/
-
-            # Dynamically change position of Axes
-            # https://discourse.vtk.org/t/dynamically-change-position-of-axes/691
-            # Method 1
-            axes = vtkAxesActor()
-            axes.SetTotalLength(obj_conf.get('length', [1.0, 1.0, 1.0]))
-            axes.SetAxisLabels(obj_conf.get('ShowAxisLabels', False))
-
-            renderer.AddActor(axes)
-            scene_object = axes
+            o = ObjTranslator.obj_AxesActor(self,renderer).parse(obj_conf)
+            scene_object = o
 
         elif obj_conf['type'] == 'Sphere':
-            colors = vtkNamedColors()
-
-            sphereSource = vtkSphereSource()
-            sphereSource.SetCenter(0.0, 0.0, 0.0)
-            sphereSource.SetRadius(2)
-            sphereSource.SetPhiResolution(30)
-            sphereSource.SetThetaResolution(30)
-            
-            mapper = vtkPolyDataMapper()
-            mapper.SetInputConnection(sphereSource.GetOutputPort())
-            
-            actor = vtkActor()
-            actor.GetProperty().SetColor(colors.GetColor3d('Peacock'))
-            actor.GetProperty().SetSpecular(0.6)
-            actor.GetProperty().SetSpecularPower(30)
-            actor.SetMapper(mapper)
-            
-            renderer.AddActor(actor)
-            scene_object = actor
+            o = ObjTranslator.obj_Sphere(self,renderer).parse(obj_conf)
+            scene_object = o
 
         elif obj_conf['type'] == 'OrientationMarker':
-            # Method 2
-            # Ref: https://kitware.github.io/vtk-examples/site/Python/Interaction/CallBack/
-            axes = vtkAxesActor()
-            axes.SetTotalLength([1.0, 1.0, 1.0])
-            axes.SetAxisLabels(obj_conf.get('ShowAxisLabels', False))
-            axes.SetAxisLabels(True)
-
-            # Ref: https://vtk.org/doc/nightly/html/classvtkOrientationMarkerWidget.html
-            om = vtkOrientationMarkerWidget()
-            om.SetOrientationMarker(axes)
-            om.SetInteractor(self.interactor)
-            om.SetDefaultRenderer(renderer)
-            om.EnabledOn()
-            om.SetInteractive(False)
-            #om.InteractiveOn()
-            om.SetViewport(0, 0, 0.2, 0.2)
-            # TODO: the vtkOrientationMarkerWidget and RepeatingTimerHandler can cause program lose respons or Segmentation fault, for unknown reason.
-
-            scene_object = om
+            o = ObjTranslator.obj_OrientationMarker(self,renderer).parse(obj_conf)
+            scene_object = o
 
         elif obj_conf['type'] == 'Background':
-            colors = vtkNamedColors()
-            renderer.SetBackground(colors.GetColor3d(obj_conf['color']))
-            scene_object = renderer
+            o = ObjTranslator.obj_Background(self,renderer).parse(obj_conf)
+            scene_object = o
 
         elif obj_conf['type'] == 'Camera':
-            if 'renderer' in obj_conf:
-                if obj_conf.get('new', False) == False:
-                    cam = renderer.GetActiveCamera()
-                    renderer.ResetCameraClippingRange()
-                    renderer.ResetCamera()
-                    name = old_name  # Reuse old name
-                else:
-                    cam = renderer.MakeCamera()
-            else:
-                cam = vtkCamera()
-
-            if 'clipping_range' in obj_conf:
-                cam.SetClippingRange(obj_conf['clipping_range'])
-
-            item_name = {
-                'Set':['Position', 'FocalPoint', 'ViewUp', 'ViewAngle'],
-                ''   :['Azimuth', 'Elevation']
-            }
-            for f_prefix, its in item_name.items():
-                for it in its:
-                    if it in obj_conf:
-                        getattr(cam, f_prefix + it)(obj_conf[it])
-
-            if 'follow_direction' in obj_conf:
-                cam_ref = self.scene_objects[obj_conf['follow_direction']]
-                cam.DeepCopy(cam_ref)
-                cam.SetClippingRange(0.1, 1000)
-                AlignCameraDirection(cam, cam_ref)
-
-                CameraFollowCallbackFunction.cam1 = cam_ref
-                CameraFollowCallbackFunction.cam2 = cam
-
-                cam_ref.AddObserver( \
-                    'ModifiedEvent', CameraFollowCallbackFunction)
-
-            scene_object = cam
+            o = ObjTranslator.obj_Camera(self,renderer).parse(obj_conf)
+            scene_object = o
 
         if not self.loading_default_config:
             self.scene_saved['objects'][name] = obj_conf
