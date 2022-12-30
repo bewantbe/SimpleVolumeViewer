@@ -2242,34 +2242,11 @@ class GUIControl:
         dbg_print(3, 'AddObject: "' + name + '" :', obj_conf)
         dbg_print(4, 'renderer: ',  obj_conf.get('renderer', '0'))
 
+        o = ObjTranslator().translate_obj_conf(self, renderer, obj_conf)
+        scene_object = o
+
         if obj_conf['type'] == 'volume':
-            o = ObjTranslator.obj_volume(self,renderer).parse(obj_conf)
             self.selected_objects = [name]
-            scene_object = o
-
-        elif obj_conf['type'] == 'swc':
-            o = ObjTranslator.obj_swc(self,renderer).parse(obj_conf)
-            scene_object = o
-
-        elif obj_conf['type'] == 'AxesActor':
-            o = ObjTranslator.obj_AxesActor(self,renderer).parse(obj_conf)
-            scene_object = o
-
-        elif obj_conf['type'] == 'Sphere':
-            o = ObjTranslator.obj_Sphere(self,renderer).parse(obj_conf)
-            scene_object = o
-
-        elif obj_conf['type'] == 'OrientationMarker':
-            o = ObjTranslator.obj_OrientationMarker(self,renderer).parse(obj_conf)
-            scene_object = o
-
-        elif obj_conf['type'] == 'Background':
-            o = ObjTranslator.obj_Background(self,renderer).parse(obj_conf)
-            scene_object = o
-
-        elif obj_conf['type'] == 'Camera':
-            o = ObjTranslator.obj_Camera(self,renderer).parse(obj_conf)
-            scene_object = o
 
         if not self.loading_default_config:
             self.scene_saved['objects'][name] = obj_conf
