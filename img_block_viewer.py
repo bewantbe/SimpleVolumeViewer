@@ -2242,8 +2242,8 @@ class GUIControl:
         dbg_print(3, 'AddObject: "' + name + '" :', obj_conf)
         dbg_print(4, 'renderer: ',  obj_conf.get('renderer', '0'))
 
-        o = ObjTranslator().translate_obj_conf(self, renderer, obj_conf)
-        scene_object = o
+        scene_object = ObjTranslator() \
+                       .translate_obj_conf(self, renderer, obj_conf)
 
         if obj_conf['type'] == 'volume':
             self.selected_objects = [name]
