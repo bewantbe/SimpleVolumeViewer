@@ -164,6 +164,7 @@ def DefaultSceneConfig():
     d = {
         "object_properties": {
             "volume": {
+                "type": "volume",
                 "opacity_transfer_function": {
                     "AddPoint": [
                         [20, 0.1],
@@ -183,6 +184,7 @@ def DefaultSceneConfig():
                 "interpolation": "cubic"
             },
             "volume_default_composite": {
+                "type": "volume",
                 "opacity_transfer_function": {
                     "AddPoint": [
                         [20, 0.0],
@@ -1722,10 +1724,19 @@ class ObjTranslator:
     External code should be easy to modify this class to extend its function.
     """
 
-    def translate_obj_conf(self, gui_ctrl, renderer, obj_conf):
+    def translate(self, gui_ctrl, renderer, prefix_class, obj_conf):
+        """
+        prefix_class = 'obj_' or 'prop_'
+        """
         obj_type = obj_conf['type']
-        tl_unit = getattr(self, 'obj_' + obj_type)(gui_ctrl, renderer)
+        tl_unit = getattr(self, prefix_class + obj_type)(gui_ctrl, renderer)
         return tl_unit.parse(obj_conf)
+
+    def translate_obj_conf(self, gui_ctrl, renderer, obj_conf):
+        return self.translate(gui_ctrl, renderer, 'obj_', obj_conf)
+
+    def translate_prop_conf(self, gui_ctrl, prop_conf):
+        return self.translate(gui_ctrl, None, 'prop_', prop_conf)
 
     class TranslatorUnit:
         cmd_line_opt = ''
@@ -1739,6 +1750,79 @@ class ObjTranslator:
             translate json discription to obj on screen.
             """
             pass
+
+    class prop_volume(TranslatorUnit):
+        def parse(self, prop_conf):
+            volume_property = vtkVolumeProperty()
+            
+            if 'copy_from' in prop_conf:
+                dbg_print(4, 'Copy propperty from', prop_conf['copy_from'])
+                # construct a volume property by copying from exist
+                ref_prop = self.gui_ctrl.object_properties[
+                               prop_conf['copy_from']]
+                volume_property.DeepCopy(ref_prop)
+                volume_property.prop_conf = prop_conf
+                volume_property.ref_prop = ref_prop
+                self.modify(volume_property, prop_conf)
+                return volume_property
+
+            if 'opacity_transfer_function' in prop_conf:
+                otf_conf = prop_conf['opacity_transfer_function']
+                otf_v = otf_conf['AddPoint']
+                otf_s = otf_conf.get('opacity_scale', 1.0)
+                # perform scaling
+                otf_v_e = np.array(otf_v).copy()
+                for v in otf_v_e:
+                    v[0] = v[0] *  otf_s
+                # Create transfer mapping scalar value to opacity.
+                otf = vtkPiecewiseFunction()
+                for v in otf_v_e:
+                    otf.AddPoint(*v)
+                volume_property.SetScalarOpacity(otf)
+
+            if 'color_transfer_function' in prop_conf:
+                ctf_conf = prop_conf['color_transfer_function']
+                ctf_v = ctf_conf['AddRGBPoint']
+                ctf_s = ctf_conf.get('trans_scale', 1.0)
+                # perform scaling
+                ctf_v_e = np.array(ctf_v).copy()
+                for v in ctf_v_e:
+                    v[0] = v[0] *  ctf_s
+                # Create transfer mapping scalar value to color.
+                ctf = vtkColorTransferFunction()
+                for v in ctf_v_e:
+                    ctf.AddRGBPoint(*v)
+                volume_property.SetColor(ctf)
+
+            # shading only valid for blend mode vtkVolumeMapper::COMPOSITE_BLEND
+            volume_property.ShadeOn()
+
+            if 'interpolation' in prop_conf:
+                if prop_conf['interpolation'] == 'cubic':
+                    volume_property.SetInterpolationType(
+                        VTK_CUBIC_INTERPOLATION)
+                elif prop_conf['interpolation'] == 'linear':
+                    volume_property.SetInterpolationTypeToLinear()
+                else:
+                    dbg_print(2, 'AddObjectProperty(): unknown interpolation type')
+            volume_property.prop_conf = prop_conf
+            return volume_property
+        
+        def modify(self, obj_prop, prop_conf):
+            dbg_print(4, 'ModifyObjectProperty():')
+            #if name.startswith('volume'):
+            # both obj_prop and prop_conf will be updated
+            if 'opacity_transfer_function' in prop_conf:
+                otf_conf = prop_conf['opacity_transfer_function']
+                if 'opacity_scale' in otf_conf:
+                    otf_s = otf_conf['opacity_scale']
+                    UpdatePropertyOTFScale(obj_prop, otf_s)
+            if 'color_transfer_function' in prop_conf:
+                ctf_conf = prop_conf['color_transfer_function']
+                if 'trans_scale' in ctf_conf:
+                    ctf_s = ctf_conf['trans_scale']
+                    UpdatePropertyCTFScale(obj_prop, ctf_s)
+
 
     class obj_volume(TranslatorUnit):
         obj_conf_type = 'volume'
@@ -2151,60 +2235,8 @@ class GUIControl:
             dbg_print(2, '                     will be overwritten.')
         dbg_print(3, 'AddObjectProperty(): "'+name+'" :', prop_conf)
         if name.startswith('volume'):
-            volume_property = vtkVolumeProperty()
-            
-            if 'copy_from' in prop_conf:
-                dbg_print(4, 'Copy propperty from', prop_conf['copy_from'])
-                # construct a volume property by copying from exist
-                ref_prop = self.object_properties[prop_conf['copy_from']]
-                volume_property.DeepCopy(ref_prop)
-                volume_property.prop_conf = prop_conf
-                volume_property.ref_prop = ref_prop
-                self.object_properties.update({name: volume_property})
-                self.ModifyObjectProperty(name, prop_conf)
-                return
-
-            if 'opacity_transfer_function' in prop_conf:
-                otf_conf = prop_conf['opacity_transfer_function']
-                otf_v = otf_conf['AddPoint']
-                otf_s = otf_conf.get('opacity_scale', 1.0)
-                # perform scaling
-                otf_v_e = np.array(otf_v).copy()
-                for v in otf_v_e:
-                    v[0] = v[0] *  otf_s
-                # Create transfer mapping scalar value to opacity.
-                otf = vtkPiecewiseFunction()
-                for v in otf_v_e:
-                    otf.AddPoint(*v)
-                volume_property.SetScalarOpacity(otf)
-
-            if 'color_transfer_function' in prop_conf:
-                ctf_conf = prop_conf['color_transfer_function']
-                ctf_v = ctf_conf['AddRGBPoint']
-                ctf_s = ctf_conf.get('trans_scale', 1.0)
-                # perform scaling
-                ctf_v_e = np.array(ctf_v).copy()
-                for v in ctf_v_e:
-                    v[0] = v[0] *  ctf_s
-                # Create transfer mapping scalar value to color.
-                ctf = vtkColorTransferFunction()
-                for v in ctf_v_e:
-                    ctf.AddRGBPoint(*v)
-                volume_property.SetColor(ctf)
-
-            # shading only valid for blend mode vtkVolumeMapper::COMPOSITE_BLEND
-            volume_property.ShadeOn()
-
-            if 'interpolation' in prop_conf:
-                if prop_conf['interpolation'] == 'cubic':
-                    volume_property.SetInterpolationType(
-                        VTK_CUBIC_INTERPOLATION)
-                elif prop_conf['interpolation'] == 'linear':
-                    volume_property.SetInterpolationTypeToLinear()
-                else:
-                    dbg_print(2, 'AddObjectProperty(): unknown interpolation type')
-            volume_property.prop_conf = prop_conf
-            object_property = volume_property
+            object_property = ObjTranslator() \
+                            .translate_prop_conf(self, prop_conf)
         else:
             dbg_print(2, 'AddObjectProperty(): unknown object type')
 
@@ -2212,21 +2244,6 @@ class GUIControl:
             self.scene_saved['object_properties'][name] = prop_conf
 
         self.object_properties.update({name: object_property})
-
-    def ModifyObjectProperty(self, name, prop_conf):
-        obj_prop = self.object_properties[name]
-        dbg_print(4, 'ModifyObjectProperty():', name)
-        if name.startswith('volume'):
-            if 'opacity_transfer_function' in prop_conf:
-                otf_conf = prop_conf['opacity_transfer_function']
-                if 'opacity_scale' in otf_conf:
-                    otf_s = otf_conf['opacity_scale']
-                    UpdatePropertyOTFScale(obj_prop, otf_s)
-            if 'color_transfer_function' in prop_conf:
-                ctf_conf = prop_conf['color_transfer_function']
-                if 'trans_scale' in ctf_conf:
-                    ctf_s = ctf_conf['trans_scale']
-                    UpdatePropertyCTFScale(obj_prop, ctf_s)
 
     def AddObject(self, name, obj_conf):
         old_name = name
