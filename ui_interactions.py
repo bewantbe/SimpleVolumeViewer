@@ -489,6 +489,28 @@ def DefaultKeyBindings():
     # 3. Add release mappings to mouse button actions.
     return d
 
+def DefaultKeyBindingsHelpDoc():
+    d = '''
+    Keyboard shortcuts:
+        '+'/'-': Make the image darker or lighter;
+                 Press also Ctrl to make it more tender;
+        'r': Auto rotate the image for a while;
+        'p': Take a screenshot and save it to TestScreenshot.png;
+        ' ': Fly to view the selected volume.
+        '0': Fly to view the selected point in the fiber.
+        'Enter': Load the image block (for Lychnis project).
+        '|' or '8' in numpad: use Y as view up.
+        Ctrl+s : Save the scene and viewport.
+        'q': Exit the program.
+
+    Mouse function:
+        left: drag to view in different angle;
+        middle, left+shift: Move the view point.
+        wheel: zoom;
+        right click: select object, support swc points only currently.
+    '''
+    return d
+
 def GenerateKeyBindingDoc(key_binding, action):
     """Generate the key binding description from code, for help message."""
     s = "\n  Full key bindings:\n"

@@ -236,6 +236,76 @@ def ImportImageFile(file_name, extra_conf = None):
     img_import = ImportImageArray(img_arr, img_meta)
     return img_import
 
+class OnDemandVolumeLoader():
+    """
+    Load image blocks upon request. TODO: add off-load.
+    Request parameters are a position and a radius.
+    All image blocks intersect with the sphere will be loaded.
+    """
+    def __init__(self):
+        self.vol_list = []
+        self.vol_origin = np.zeros((0,3), dtype=np.float64)
+        self.vol_size   = np.zeros((0,3), dtype=np.float64)
+    
+    def ImportLychnixVolume(self, vol_list_file):
+        from os.path import dirname, join, normpath
+        jn = json.loads(open(vol_list_file).read())
+        base_dir = normpath(join(dirname(vol_list_file), jn['image_path']))
+        dbg_print(4,  'ImportLychnixVolume():')
+        dbg_print(4,  '  voxel_size:', jn['voxel_size'])
+        dbg_print(4,  '  channels  :', jn['channels'])
+        dbg_print(4,  '  base_dir  :', base_dir)
+        self.ImportVolumeList(jn['images'], basedir=base_dir)
+
+    def ImportVolumeList(self, vol_list, basedir=''):
+        from os.path import dirname, join, normpath
+        # format of vol_list:
+        # vol_list = [
+        #   {
+        #       "image_path": "full/path/to/tiff",
+        #       "origin": [x, y, z],
+        #       "size": [i, j, k]
+        #   },
+        #   ...
+        # ]
+        ap_list = [
+            {
+                'image_path': normpath(join(basedir, it['image_path'])),
+                'origin': str2array(it['origin']),
+                'size': str2array(it['size'])
+            }
+            for it in vol_list
+        ]
+        self.vol_list += ap_list
+        self.vol_origin = np.concatenate(
+            (
+                self.vol_origin,
+                _a([it['origin'] for it in ap_list])
+            ), axis = 0)
+        self.vol_size = np.concatenate(
+            (
+                self.vol_size,
+                _a([it['size'] for it in ap_list])
+            ), axis = 0)
+#        print(self.vol_list)
+#        print(self.vol_origin)
+#        print(self.vol_size)
+        
+    def LoadVolumeAt(self, pos, radius=0):
+        pos = _a([[pos[0], pos[1], pos[2]]])
+        vol_center = self.vol_origin + self.vol_size / 2
+        distance = np.abs(vol_center - pos)
+        idx_in_range = np.flatnonzero(
+            (distance[:,0] <= self.vol_size[:,0]/2 + radius) &
+            (distance[:,1] <= self.vol_size[:,1]/2 + radius) &
+            (distance[:,2] <= self.vol_size[:,2]/2 + radius) )
+#        print(idx_in_range)
+#        print('pos', pos)
+#        print('origin:', self.vol_origin[idx_in_range, :])
+#        print('size  :', self.vol_size  [idx_in_range, :])
+        selected_vol = [self.vol_list[it] for it in idx_in_range]
+        return selected_vol
+
 def LoadSWCTree(filepath):
     """
     Load SWC file, i.e. tracing result.

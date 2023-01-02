@@ -10,14 +10,15 @@ debug_level = 5
 
 def dbg_print(level, *p, **keys):
     """
-    Used for print error, controlled by global debug_level.
+    Used for printing error and debugging information.
+    Controlled by global (module) debug_level.
     Higher debug_level will show more infomation.
-    debug_level == 0: show no nothing.
-    debug_level == 1: show only error.
-    debug_level == 2: show warning.
-    debug_level == 3: show hint.
-    debug_level == 4: show message.
-    debug_level == 5: most verbose.
+        debug_level == 0: show nothing.
+        debug_level == 1: show only error.
+        debug_level == 2: show warning.
+        debug_level == 3: show hint.
+        debug_level == 4: show message.
+        debug_level == 5: most verbose.
     """
     if level > debug_level:
         return

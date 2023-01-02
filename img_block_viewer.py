@@ -123,9 +123,10 @@ from ui_interactions import (
     MyInteractorStyle,
     GenerateKeyBindingDoc,
     DefaultKeyBindings,
-    PointSetHolder
+    PointSetHolder,
+    DefaultKeyBindingsHelpDoc
 )
-
+from data_loader import OnDemandVolumeLoader
 from cg_translators import ObjTranslator
 
 # Default and all possible configuration parameters are as follow
@@ -554,76 +555,6 @@ class FocusModeController:
         if self.isOn:
             self.volume_clipper.CutVolume(volume)
 
-class OnDemandVolumeLoader():
-    """
-    Load image blocks upon request. TODO: add off-load.
-    Request parameters are a position and a radius.
-    All image blocks intersect with the sphere will be loaded.
-    """
-    def __init__(self):
-        self.vol_list = []
-        self.vol_origin = np.zeros((0,3), dtype=np.float64)
-        self.vol_size   = np.zeros((0,3), dtype=np.float64)
-    
-    def ImportLychnixVolume(self, vol_list_file):
-        from os.path import dirname, join, normpath
-        jn = json.loads(open(vol_list_file).read())
-        base_dir = normpath(join(dirname(vol_list_file), jn['image_path']))
-        dbg_print(4,  'ImportLychnixVolume():')
-        dbg_print(4,  '  voxel_size:', jn['voxel_size'])
-        dbg_print(4,  '  channels  :', jn['channels'])
-        dbg_print(4,  '  base_dir  :', base_dir)
-        self.ImportVolumeList(jn['images'], basedir=base_dir)
-
-    def ImportVolumeList(self, vol_list, basedir=''):
-        from os.path import dirname, join, normpath
-        # format of vol_list:
-        # vol_list = [
-        #   {
-        #       "image_path": "full/path/to/tiff",
-        #       "origin": [x, y, z],
-        #       "size": [i, j, k]
-        #   },
-        #   ...
-        # ]
-        ap_list = [
-            {
-                'image_path': normpath(join(basedir, it['image_path'])),
-                'origin': str2array(it['origin']),
-                'size': str2array(it['size'])
-            }
-            for it in vol_list
-        ]
-        self.vol_list += ap_list
-        self.vol_origin = np.concatenate(
-            (
-                self.vol_origin,
-                _a([it['origin'] for it in ap_list])
-            ), axis = 0)
-        self.vol_size = np.concatenate(
-            (
-                self.vol_size,
-                _a([it['size'] for it in ap_list])
-            ), axis = 0)
-#        print(self.vol_list)
-#        print(self.vol_origin)
-#        print(self.vol_size)
-        
-    def LoadVolumeAt(self, pos, radius=0):
-        pos = _a([[pos[0], pos[1], pos[2]]])
-        vol_center = self.vol_origin + self.vol_size / 2
-        distance = np.abs(vol_center - pos)
-        idx_in_range = np.flatnonzero(
-            (distance[:,0] <= self.vol_size[:,0]/2 + radius) &
-            (distance[:,1] <= self.vol_size[:,1]/2 + radius) &
-            (distance[:,2] <= self.vol_size[:,2]/2 + radius) )
-#        print(idx_in_range)
-#        print('pos', pos)
-#        print('origin:', self.vol_origin[idx_in_range, :])
-#        print('size  :', self.vol_size  [idx_in_range, :])
-        selected_vol = [self.vol_list[it] for it in idx_in_range]
-        return selected_vol
-
 class GUIControl:
     """
     Controller of VTK.
@@ -631,8 +562,6 @@ class GUIControl:
     """
     def __init__(self):
         # Load configure
-        file_name = get_program_parameters()
-
         self.renderers = {}
         self.render_window = None
         self.interactor = None
@@ -824,7 +753,7 @@ class GUIControl:
             # TODO: do we need to remove old object?
             dbg_print(2, 'AddObject(): conflict name: ', name)
             name = self.GetNonconflitName(name)
-            dbg_print(2, '             rename to: ', name)
+            dbg_print(2, '             renamed to: ', name)
 
         renderer = self.renderers[
             obj_conf.get('renderer', '0')]
@@ -922,96 +851,23 @@ class GUIControl:
             )
 
 
-    def EasyObjectImporter(self, obj_desc):
-        """ Used to accept command line inputs which need default parameters. """
-        if not obj_desc:
+    def EasyObjectImporter(self, cmd_obj_desc):
+        """
+        Used to accept command line inputs which need default parameters.
+        """
+        if not cmd_obj_desc:
             return
-        if isinstance(obj_desc, str):
-            obj_desc = {'filepath': obj_desc}
+        if isinstance(cmd_obj_desc, str):
+            cmd_obj_desc = {'filepath': cmd_obj_desc}
         
-        if 'filepath' in obj_desc:
-            file_path = obj_desc['filepath']
-            if file_path.endswith('.tif'):
-                # assume this a volume
-                obj_conf = {
-                    "type": "volume",
-                    "view_point": "auto",
-                    "file_path": file_path
-                }
-            elif file_path.endswith('.ims') or file_path.endswith('.h5'):
-                # assume this a IMS volume
-                obj_conf = {
-                    "type": "volume",
-                    "view_point": "auto",
-                    "file_path": file_path,
-                    "level": obj_desc.get('level', '0'),
-                    "channel": obj_desc.get('channel', '0'),
-                    "time_point": obj_desc.get('time_point', '0'),
-                    "range": obj_desc.get('range', '[:,:,:]')
-                }
-            else:
-                dbg_print(1, 'Unreconized source format.')
-                return
-            
-            if 'origin' in obj_desc:
-                obj_conf.update({
-                    'origin': str2array(obj_desc['origin'])
-                })
-            if 'rotation_matrix' in obj_desc:
-                obj_conf.update({
-                    'rotation_matrix': str2array(obj_desc['rotation_matrix'])
-                })
-            if 'oblique_image' in obj_desc:
-                obj_conf.update({
-                    'oblique_image': obj_desc['oblique_image'].lower() \
-                                     in ['true', '1']
-                })
-            
-            if 'colorscale' in obj_desc:
-                s = float(obj_desc['colorscale'])
-                obj_conf.update({'property': {
-                    'copy_from': 'volume',
-                    'opacity_transfer_function': {'opacity_scale': s},
-                    'color_transfer_function'  : {'trans_scale': s}
-                }})
-            else:
-                obj_conf.update({'property': 'volume'})
+        scene_ext = ObjTranslator.init_scene.parse_init_cmd_args(cmd_obj_desc)
+        self.AppendToScene(scene_ext)
 
-            name = self.GetNonconflitName('volume')
+        li_obj_conf = ObjTranslator().parse_cmd_args(cmd_obj_desc)
+
+        for obj_conf in li_obj_conf:
+            name = self.GetNonconflitName(obj_conf['type'])
             self.AddObject(name, obj_conf)
-        
-        if 'swc_dir' in obj_desc:
-            # note down *.swc files it to obj_desc['swc']
-            import glob
-            fns = glob.glob(obj_desc['swc_dir'] + '/*.swc')
-            if 'swc' not in obj_desc:
-                obj_desc['swc'] = []
-            obj_desc['swc'].extend(fns)
-        
-        if 'swc' in obj_desc:
-            name = self.GetNonconflitName('swc')
-            if not isinstance(obj_desc['swc'], (list, tuple)):
-                obj_desc['swc'] = [obj_desc['swc'],]
-            # See also https://vtk.org/doc/nightly/html/classvtkColorSeries.html#details
-            # https://www.kitware.com/off-screen-rendering-through-the-native-platform-interface-egl/
-            # possible series:
-            #   SPECTRUM (7)
-            #   BREWER_DIVERGING_PURPLE_ORANGE_11
-            color_scheme = vtkColorSeries()
-            color_scheme.SetColorScheme(color_scheme.BREWER_DIVERGING_SPECTRAL_11)
-            # color was 'Tomato'
-            for id_s in range(len(obj_desc['swc'])):
-                c = color_scheme.GetColorRepeating(1+id_s)
-                c = list(_a([c[0], c[1], c[2]]) / 255.0)
-                obj_conf = {
-                    "type": "swc",
-                    "color": obj_desc.get('fibercolor', c),
-                    "file_path": obj_desc['swc'][id_s]
-                }
-                self.AddObject(name, obj_conf)
-        if 'lychnis_blocks' in cmd_obj_desc:
-            self.volume_loader.ImportLychnixVolume( \
-                cmd_obj_desc['lychnis_blocks'])
 
     def ShotScreen(self):
         ShotScreen(self.render_window)
@@ -1043,7 +899,7 @@ class GUIControl:
         self.focusController.SetGUIController(self)
 
         if 0:
-        # TODO add option for rotation rendering
+        # TODO add an option for rotation rendering
             time.sleep(1.0)
 
             obj = self.interactor   # iren
@@ -1062,59 +918,23 @@ class GUIControl:
 def get_program_parameters():
     import argparse
     description = 'Simple volume image viewer based on PyVTK.'
-    epilogue = '''
-    Keyboard shortcuts:
-        '+'/'-': Make the image darker or lighter;
-                 Press also Ctrl to make it more tender;
-        'r': Auto rotate the image for a while;
-        'p': Take a screenshot and save it to TestScreenshot.png;
-        ' ': Fly to view the selected volume.
-        '0': Fly to view the selected point in the fiber.
-        'Enter': Load the image block (for Lychnis project).
-        '|' or '8' in numpad: use Y as view up.
-        Ctrl+s : Save the scene and viewport.
-        'q': Exit the program.
-
-    Mouse function:
-        left: drag to view in different angle;
-        middle, left+shift: Move the view point.
-        wheel: zoom;
-        right click: select object, support swc points only currently.
-    '''
+    epilogue = DefaultKeyBindingsHelpDoc()
     epilogue += GenerateKeyBindingDoc(DefaultKeyBindings(), UIActions('', '', ''))
     parser = argparse.ArgumentParser(description=description, epilog=epilogue,
                                      formatter_class=argparse.RawDescriptionHelpFormatter)
-    parser.add_argument('--filepath', help='image stack filepath')
-    parser.add_argument('--level', help='for multi-level image (.ims), load only that level')
-    parser.add_argument('--channel', help='Select channel for IMS image.')
-    parser.add_argument('--time_point', help='Select time point for IMS image.')
-    parser.add_argument('--range', help='Select range within image.')
-    parser.add_argument('--colorscale', help='Set scale of color transfer function.')
-    parser.add_argument('--origin', help='Set origin of the volume.')
-    parser.add_argument('--rotation_matrix', help='Set rotation matrix of the volume.')
-    parser.add_argument('--oblique_image', help='Overwrite the guess of if the image is imaged oblique.')
-    parser.add_argument('--swc', action='append', help='Read and draw swc file.')
-    parser.add_argument('--swc_dir', help='Read and draw swc files in the directory.')
-    parser.add_argument('--fibercolor', help='Set fiber color.')
-    parser.add_argument('--scene', help='Project scene file path. e.g. for batch object loading.')
-    parser.add_argument('--lychnis_blocks', help='Path of lychnix blocks.json')
+    ObjTranslator().add_argument_to(parser)
+    parser.add_argument('--verbosity', type=int, choices=[0, 1, 2, 3, 4, 5],
+                        help="output verbosity(0(nothing),1(error)~5(message))")
     args = parser.parse_args()
-    # convert class attributes to dict
-    keys = ['filepath', 'level', 'channel', 'time_point', 'range',
-            'colorscale', 'swc', 'swc_dir', 'fibercolor', 'origin', 'rotation_matrix',
-            'oblique_image', 'scene', 'lychnis_blocks']
-    d = {k: getattr(args, k) for k in keys
-            if hasattr(args, k) and getattr(args, k)}
-    dbg_print(3, 'get_program_parameters(): d=', d)
-    return d
+    if args.verbosity is not None:
+        utils.debug_level = args.verbosity
+    args = {k:v for k,v in vars(args).items() if v is not None}
+    dbg_print(3, 'get_program_parameters(): d=', args)
+    return args
 
 if __name__ == '__main__':
     gui = GUIControl()
     cmd_obj_desc = get_program_parameters()
-    if 'scene' in cmd_obj_desc:
-        # TODO: maybe move this before init of gui, and pass it as init param.
-        scene_ext = json.loads(open(cmd_obj_desc['scene']).read())
-        gui.AppendToScene(scene_ext)
     gui.EasyObjectImporter(cmd_obj_desc)
     gui.Start()
 
