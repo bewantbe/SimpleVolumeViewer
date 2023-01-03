@@ -748,12 +748,17 @@ class GUIControl:
         self.object_properties.update({name: object_property})
 
     def AddObject(self, name, obj_conf):
-        old_name = name
         if name in self.scene_objects:
-            # TODO: do we need to remove old object?
-            dbg_print(2, 'AddObject(): conflict name: ', name)
-            name = self.GetNonconflitName(name)
-            dbg_print(2, '             renamed to: ', name)
+            if (obj_conf['type'] == 'Camera') and \
+                obj_conf.get('new', False) == False:
+                # Special rule for camera: we mostly update (modify) camera.
+                # in this case, we do not update the object name.
+                dbg_print(4, 'AddObject(): update Camera.')
+            else:
+                # new object desired
+                dbg_print(2, 'AddObject(): conflict name: ', name)
+                name = self.GetNonconflitName(name)
+                dbg_print(2, '             renamed to: ', name)
 
         renderer = self.renderers[
             obj_conf.get('renderer', '0')]
@@ -768,7 +773,10 @@ class GUIControl:
             self.selected_objects = [name]
 
         if not self.loading_default_config:
-            self.scene_saved['objects'][name] = obj_conf
+            if name in self.scene_saved['objects']:
+                self.scene_saved['objects'][name].update(obj_conf)
+            else:
+                self.scene_saved['objects'][name] = obj_conf
         
         self.scene_objects.update({name: scene_object})
 
