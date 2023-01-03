@@ -12,71 +12,16 @@ from vtkmodules.vtkInteractionStyle import (
     vtkInteractorStyleTerrain,
     vtkInteractorStyleUser
 )
-
 from utils import (
     dbg_print,
     vtkMatrix2array
 )
+from cg_translators import (
+    GetColorScale,
+    SetColorScale
+)
 
 _point_set_dtype_ = np.float32
-
-def UpdatePropertyOTFScale(obj_prop, otf_s):
-    pf = obj_prop.GetScalarOpacity()
-    if hasattr(obj_prop, 'ref_prop'):
-        obj_prop = obj_prop.ref_prop
-    otf_v = obj_prop.prop_conf['opacity_transfer_function']['AddPoint']
-    
-    # initialize an array of array
-    # get all control point coordinates
-    v = np.zeros((pf.GetSize(), 4))
-    for k in range(pf.GetSize()):
-        pf.GetNodeValue(k, v[k])
-
-    if otf_s is None:  # return old otf and current setting
-        return otf_v, v
-
-    for k in range(pf.GetSize()):
-        v[k][0] = otf_s * otf_v[k][0]
-        pf.SetNodeValue(k, v[k])
-
-def UpdatePropertyCTFScale(obj_prop, ctf_s):
-    ctf = obj_prop.GetRGBTransferFunction()
-    # get all control point coordinates
-    # location (X), R, G, and B values, midpoint (0.5), and sharpness(0) values
-
-    if hasattr(obj_prop, 'ref_prop'):
-        obj_prop = obj_prop.ref_prop
-    ctf_v = obj_prop.prop_conf['color_transfer_function']['AddRGBPoint']
-    
-    # initialize an array of array
-    # get all control point coordinates
-    v = np.zeros((ctf.GetSize(), 6))
-    for k in range(ctf.GetSize()):
-        ctf.GetNodeValue(k, v[k])
-
-    if ctf_s is None:  # return old ctf and current setting
-        return ctf_v, v
-
-    for k in range(ctf.GetSize()):
-        v[k][0] = ctf_s * ctf_v[k][0]
-        ctf.SetNodeValue(k, v[k])
-
-def GetColorScale(obj_prop):
-    """ Guess values of colorscale for property otf and ctf in obj_prop. """
-    otf_v, o_v = UpdatePropertyOTFScale(obj_prop, None)
-    ctf_v, c_v = UpdatePropertyCTFScale(obj_prop, None)
-    return o_v[-1][0] / otf_v[-1][0], c_v[-1][0] / ctf_v[-1][0]
-
-def SetColorScale(obj_prop, scale):
-    """ Set the color mapping for volume rendering. """
-    dbg_print(4, 'Setting colorscale =', scale)
-    if hasattr(scale, '__iter__'):
-        otf_s = scale[0]
-        ctf_s = scale[1]
-    else:  # scalar
-        otf_s = ctf_s = scale
-    UpdatePropertyOTFScale(obj_prop, otf_s)
-    UpdatePropertyCTFScale(obj_prop, ctf_s)
 
 class execSmoothRotation():
     """ Continuously rotate camera. """
