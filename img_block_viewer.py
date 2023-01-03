@@ -850,7 +850,6 @@ class GUIControl:
                 },
             )
 
-
     def EasyObjectImporter(self, cmd_obj_desc):
         """
         Used to accept command line inputs which need default parameters.

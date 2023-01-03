@@ -2,6 +2,7 @@
 
 import pprint
 import json
+import time
 
 import numpy as np
 from numpy import sqrt, sin, cos, tan, pi
@@ -12,7 +13,8 @@ import h5py
 
 from utils import (
     dbg_print,
-    str2array
+    str2array,
+    slice_from_str
 )
 
 from vtkmodules.vtkIOImage import (

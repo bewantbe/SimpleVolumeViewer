@@ -383,7 +383,7 @@ class ObjTranslator:
                     "file_path": obj_desc['lychnis_blocks'],
                 }
             else:
-                obj_conf = {}
+                obj_conf = None
             return obj_conf
 
     class obj_swc(TranslatorUnit):
