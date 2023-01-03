@@ -336,7 +336,7 @@ class ObjTranslator:
                 }
             else:
                 dbg_print(1, 'Unreconized source format.')
-                return
+                return None
             
             if 'origin' in obj_desc:
                 obj_conf.update({
@@ -367,15 +367,24 @@ class ObjTranslator:
 
     class obj_lychnis_blocks(TranslatorUnit):
         #TODO: we might return ourself instead of volume_loader
+        def parse(self, obj_conf):
+            self.gui_ctrl.volume_loader.ImportLychnixVolume( \
+                obj_conf['file_path'])
+            return self.gui_ctrl.volume_loader
+        
         def add_argument_to(self, parser):
             parser.add_argument('--lychnis_blocks',
                     help='Path of lychnix blocks.json')
 
         def parse_cmd_args(self, obj_desc):
             if 'lychnis_blocks' in obj_desc:
-                self.gui_ctrl.volume_loader.ImportLychnixVolume( \
-                    obj_desc['lychnis_blocks'])
-
+                obj_conf = {
+                    "type"     : "lychnis_blocks",
+                    "file_path": obj_desc['lychnis_blocks'],
+                }
+            else:
+                obj_conf = {}
+            return obj_conf
 
     class obj_swc(TranslatorUnit):
         obj_conf_type = 'swc'

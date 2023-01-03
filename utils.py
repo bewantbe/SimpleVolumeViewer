@@ -5,6 +5,9 @@ from vtkmodules.vtkCommonDataModel import (
     vtkColor3ub,
     vtkColor3d
 )
+from vtkmodules.vtkCommonColor import (
+    vtkNamedColors,
+)
 
 debug_level = 5
 

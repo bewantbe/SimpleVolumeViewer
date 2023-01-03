@@ -1,6 +1,7 @@
 # data loader that do not involve too much of VTK
 
 import pprint
+import json
 
 import numpy as np
 from numpy import sqrt, sin, cos, tan, pi
@@ -10,7 +11,8 @@ import tifffile
 import h5py
 
 from utils import (
-    dbg_print
+    dbg_print,
+    str2array
 )
 
 from vtkmodules.vtkIOImage import (
