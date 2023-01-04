@@ -175,13 +175,13 @@ class ObjTranslator:
     def add_argument_to(self, args_parser):
         for tl_u in self.get_all_tl_unit():
             if hasattr(tl_u, 'add_argument_to'):
-                getattr(tl_u(None, None), 'add_argument_to')(args_parser)
+                getattr(tl_u, 'add_argument_to')(args_parser)
 
     def parse_cmd_args(self, cmd_obj_desc):
         li_obj_conf = []
         for tl_u in self.get_all_tl_unit():
             if hasattr(tl_u, 'parse_cmd_args'):
-                c = getattr(tl_u(None,None), 'parse_cmd_args')(cmd_obj_desc)
+                c = getattr(tl_u, 'parse_cmd_args')(cmd_obj_desc)
                 if isinstance(c, list):
                     li_obj_conf.extend(c)
                 elif c is not None:
@@ -192,7 +192,8 @@ class ObjTranslator:
         def parse(self, obj_conf):
             pass
 
-        def add_argument_to(self, parser):
+        @staticmethod
+        def add_argument_to(parser):
             parser.add_argument('--scene',
                     help='Project scene file path. e.g. for batch object loading.')
 
@@ -277,7 +278,6 @@ class ObjTranslator:
                     ctf_s = ctf_conf['trans_scale']
                     UpdatePropertyCTFScale(obj_prop, ctf_s)
 
-
     class obj_volume(TranslatorUnit):
         obj_conf_type = 'volume'
         def parse(self, obj_conf):
@@ -349,7 +349,8 @@ class ObjTranslator:
             
             return volume
 
-        def add_argument_to(self, parser):
+        @staticmethod
+        def add_argument_to(parser):
             parser.add_argument('--filepath',
                     help='image stack filepath')
             parser.add_argument('--level',
@@ -369,7 +370,8 @@ class ObjTranslator:
             parser.add_argument('--oblique_image',
                     help='Overwrite the guess of if the image is imaged oblique.')
 
-        def parse_cmd_args(self, obj_desc):
+        @staticmethod
+        def parse_cmd_args(obj_desc):
             if 'filepath' not in obj_desc:
                 return None
 
@@ -423,7 +425,6 @@ class ObjTranslator:
 
             return obj_conf
 
-
     class obj_lychnis_blocks(TranslatorUnit):
         #TODO: we might return ourself instead of volume_loader
         def parse(self, obj_conf):
@@ -431,11 +432,13 @@ class ObjTranslator:
                 obj_conf['file_path'])
             return self.gui_ctrl.volume_loader
         
-        def add_argument_to(self, parser):
+        @staticmethod
+        def add_argument_to(parser):
             parser.add_argument('--lychnis_blocks',
                     help='Path of lychnix blocks.json')
 
-        def parse_cmd_args(self, obj_desc):
+        @staticmethod
+        def parse_cmd_args(obj_desc):
             if 'lychnis_blocks' in obj_desc:
                 obj_conf = {
                     "type"     : "lychnis_blocks",
@@ -492,7 +495,8 @@ class ObjTranslator:
 
             return actor
 
-        def add_argument_to(self, parser):
+        @staticmethod
+        def add_argument_to(parser):
             parser.add_argument('--swc', action='append',
                     help='Read and draw swc file.')
             parser.add_argument('--swc_dir',
@@ -500,7 +504,8 @@ class ObjTranslator:
             parser.add_argument('--fibercolor',
                     help='Set fiber color.')
 
-        def parse_cmd_args(self, obj_desc):
+        @staticmethod
+        def parse_cmd_args(obj_desc):
             if ('swc' not in obj_desc) and ('swc_dir' not in obj_desc):
                 return None
 
@@ -597,6 +602,7 @@ class ObjTranslator:
             # TODO: the vtkOrientationMarkerWidget and RepeatingTimerHandler can cause program lose respons or Segmentation fault, for unknown reason.
 
             return om
+
     class obj_Background(TranslatorUnit):
         obj_conf_type = 'Background'
         def parse(self, obj_conf):
