@@ -145,6 +145,15 @@ class ObjTranslator:
         return li_obj_conf
 
     class init_window(TranslatorUnit):
+        """
+        prototype:
+        "window": {
+            "size": [2400, 1800],
+            "title": "SimpleRayCast",
+            "number_of_layers": 2,
+#            "stereo_type": "SplitViewportHorizontal"
+        },
+        """
         def parse(self, win_conf):
             # TODO: should we stop the old window?
             # TODO: try vtkVRRenderWindow?
@@ -225,6 +234,18 @@ Possible types:
             return win_conf
 
     class init_renderers(TranslatorUnit):
+        """
+        prototype:
+        "renderers":{
+            "0":{
+                "layer": 0
+            },
+            "1":{
+                "layer": 1,
+                "view_port": [0.0, 0.0, 0.2, 0.2]
+            }
+        }
+        """
         def parse(self, renderers_conf):
             # Ref: Demonstrates the use of two renderers. Notice that the second (and subsequent) renderers will have a transparent background.
             # https://kitware.github.io/vtk-examples/site/Python/Rendering/TransparentBackground/
@@ -261,6 +282,12 @@ Possible types:
             return interactor
 
     class init_scene(TranslatorUnit):
+        """
+        {
+            "object_properties": {...},
+            "objects": {}
+        }
+        """
         def parse(self, obj_conf):
             pass
 
@@ -279,6 +306,29 @@ Possible types:
             return scene_ext
 
     class prop_volume(TranslatorUnit):
+        """
+        prototype:
+        "volume": {
+            "type": "volume",
+            "opacity_transfer_function": {
+                "AddPoint": [
+                    [20, 0.1],
+                    [255, 0.9]
+                ],
+                "opacity_scale": 1.0
+            },
+            "color_transfer_function": {
+                "AddRGBPoint": [
+                    [0.0, 0.0, 0.0, 0.0],
+                    [64.0, 0.0, 0.2, 0.0],
+                    [128.0, 0.0, 0.7, 0.1],
+                    [255.0, 0.0, 1.0, 0.2]
+                ],
+                "trans_scale": 1.0
+            },
+            "interpolation": "cubic"
+        },
+        """
         def parse(self, prop_conf):
             volume_property = vtkVolumeProperty()
             
@@ -351,7 +401,19 @@ Possible types:
                     UpdatePropertyCTFScale(obj_prop, ctf_s)
 
     class obj_volume(TranslatorUnit):
-        obj_conf_type = 'volume'
+        """
+        prototype:
+        "volume": {
+            "type": "volume",
+            "property": "volume"
+            "mapper": "GPUVolumeRayCastMapper",
+            "mapper_blend_mode": "MAXIMUM_INTENSITY_BLEND",
+            "view_point": "auto",
+            "file_path": file_path,
+            "origin": [100, 200, 300],
+            "rotation_matrix": [1,0,0, 0,1,0, 0,0,1],
+        }
+        """
         def parse(self, obj_conf):
             file_path = obj_conf['file_path']
             img_importer = ImportImageFile(file_path, obj_conf)
@@ -498,6 +560,13 @@ Possible types:
             return obj_conf
 
     class obj_lychnis_blocks(TranslatorUnit):
+        """
+        prototype:
+        {
+            "type"     : "lychnis_blocks",
+            "file_path": obj_desc['lychnis_blocks'],
+        }
+        """
         #TODO: we might return ourself instead of volume_loader
         def parse(self, obj_conf):
             self.gui_ctrl.volume_loader.ImportLychnixVolume( \
@@ -521,7 +590,15 @@ Possible types:
             return obj_conf
 
     class obj_swc(TranslatorUnit):
-        obj_conf_type = 'swc'
+        """
+        prototype:
+        "swc": {
+            "type": "swc",
+            "color": "Tomato",
+            "linewidth": 2.0,
+            "file_path": "RM006-004-lychnis/F5.json.swc"
+        }
+        """
         def parse(self, obj_conf):
             ntree = LoadSWCTree(obj_conf['file_path'])
             processes = SplitSWCTree(ntree)
@@ -613,7 +690,15 @@ Possible types:
             return li_obj_conf
 
     class obj_AxesActor(TranslatorUnit):
-        obj_conf_type = 'AxesActor'
+        """
+        prototype:
+        "axes": {
+            "type": "AxesActor",
+            "ShowAxisLabels": False,
+            "length": [100,100,100],
+            "renderer": "0"
+        },
+        """
         def parse(self, obj_conf):
             # Create Axes object to indicate the orientation
             # vtkCubeAxesActor()
@@ -630,7 +715,12 @@ Possible types:
             return axes
 
     class obj_Sphere(TranslatorUnit):
-        obj_conf_type = 'Sphere'
+        """
+        prototype:
+        "3d_cursor": {
+            "type": "Sphere",
+        },
+        """
         def parse(self, obj_conf):
             colors = vtkNamedColors()
 
@@ -653,7 +743,14 @@ Possible types:
             return actor
 
     class obj_OrientationMarker(TranslatorUnit):
-        obj_conf_type = 'OrientationMarker'
+        """
+        prototype:
+        "orientation": {
+            "type": "OrientationMarker",
+            "ShowAxisLabels": False,
+            "renderer": "0"
+        },
+        """
         def parse(self, obj_conf):
             # Method 2
             # Ref: https://kitware.github.io/vtk-examples/site/Python/Interaction/CallBack/
@@ -676,14 +773,36 @@ Possible types:
             return om
 
     class obj_Background(TranslatorUnit):
-        obj_conf_type = 'Background'
+        """
+        prototype:
+        "background": {
+            "type": "Background",
+            "color": "Black"
+#            "color": "Wheat"
+        },
+        """
         def parse(self, obj_conf):
             colors = vtkNamedColors()
             self.renderer.SetBackground(colors.GetColor3d(obj_conf['color']))
             return self.renderer
 
     class obj_Camera(TranslatorUnit):
-        obj_conf_type = 'Camera'
+        """
+        prototype:
+        "camera1": {
+            "type": "Camera",
+            "renderer": "0",
+            "Azimuth": 45,
+            "Elevation": 30,
+            "clipping_range": [0.0001, 100000]
+        },
+        Or:
+        "camera2": {
+            "type": "Camera",
+            "renderer": "1",
+            "follow_direction": "camera1"
+        },
+        """
         def parse(self, obj_conf):
             if 'renderer' in obj_conf:
                 if obj_conf.get('new', False) == False:
@@ -723,6 +842,15 @@ Possible types:
             return cam
 
     class animation_rotation(TranslatorUnit):
+        """
+        prototype:
+        {
+            'time'           : 6.0,
+            'fps'            : 60.0,
+            'degree_per_sec' : 60.0,
+            'save_pic_path'  : 'pic_tmp/haha_t=%06.4f.png',
+        }
+        """
         def parse(self, cg_conf):
             if not cg_conf: return
             time.sleep(1.0)         # to prevent bug (let fully init)

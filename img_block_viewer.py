@@ -97,7 +97,6 @@ from vtkmodules.vtkRenderingCore import (
 # noinspection PyUnresolvedReferences
 from vtkmodules.vtkRenderingVolumeOpenGL2 import vtkOpenGLRayCastImageDisplayHelper
 
-
 from vtkmodules.vtkFiltersCore import vtkClipPolyData
 
 from vtkmodules.vtkFiltersHybrid import vtkPolyDataSilhouette
@@ -129,7 +128,6 @@ def DefaultGUIConfig():
             "size": [2400, 1800],
             "title": "SimpleRayCast",
             "number_of_layers": 2,
-#            "stereo_type": "SplitViewportHorizontal"
         },
 
         "renderers":{
@@ -194,7 +192,6 @@ def DefaultSceneConfig():
             "background": {
                 "type": "Background",
                 "color": "Black"
-#                "color": "Wheat"
             },
             "3d_cursor": {
                 "type": "Sphere",
@@ -216,33 +213,6 @@ def DefaultSceneConfig():
                 "ShowAxisLabels": False,
                 "renderer": "1",
             },
-#            "axes": {
-#                "type": "AxesActor",
-#                "ShowAxisLabels": False,
-#                "length": [100,100,100],
-#                "renderer": "0"
-#            },
-#            "orientation": {
-#                "type": "OrientationMarker",
-#                "ShowAxisLabels": False,
-#                "renderer": "0"
-#            },
-#            "volume": {
-#                "type": "volume",
-#                "property": "volume"
-#                "mapper": "GPUVolumeRayCastMapper",
-#                "mapper_blend_mode": "MAXIMUM_INTENSITY_BLEND",
-#                "view_point": "auto",
-#                "file_path": file_path,
-#                "origin": [100, 200, 300],
-#                "rotation_matrix": [1,0,0, 0,1,0, 0,0,1],
-#            }
-#            "swc": {
-#                "type": "swc",
-#                "color": "Tomato",
-#                "linewidth": 2.0,
-#                "file_path": "RM006-004-lychnis/F5.json.swc"
-#            }
         }
     }
     return d
