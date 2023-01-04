@@ -53,6 +53,7 @@ from utils import (
 
 from ui_interactions import (
     MyInteractorStyle,
+    execSmoothRotation,
 )
 
 from data_loader import *
@@ -130,7 +131,6 @@ class ObjTranslator:
     def add_all_arguments_to(self, args_parser):
         for tl_u in self.get_all_tl_unit():
             if hasattr(tl_u, 'add_argument_to'):
-                dbg_print(5, 'tl_u', tl_u)
                 getattr(tl_u, 'add_argument_to')(args_parser)
 
     def parse_all_cmd_args_obj(self, cmd_obj_desc):
@@ -191,6 +191,11 @@ class ObjTranslator:
             # TODO: add an option for off screen rendering
             if win_conf.get('off_screen_rendering', False):
                 self.gui_ctrl.render_window.SetOffScreenRendering(1)
+                self.gui_ctrl.off_screen_enabled = True
+            else:
+                self.gui_ctrl.off_screen_enabled = False
+            # Hint: you may use xdotoll to control an off-screen program
+            # e.g. xdotool search --name SimpleRayCast key 'q'
 
         @staticmethod
         def add_argument_to(parser):
@@ -716,4 +721,45 @@ Possible types:
                     'ModifiedEvent', CameraFollowCallbackFunction)
 
             return cam
+
+    class animation_rotation(TranslatorUnit):
+        def parse(self, cg_conf):
+            if not cg_conf: return
+            time.sleep(1.0)         # to prevent bug (let fully init)
+
+            save_pic_path = cg_conf['save_pic_path']
+
+            obj = self.gui_ctrl.interactor   # iren
+            event = ''
+            cam1 = self.gui_ctrl.GetMainRenderer().GetActiveCamera()
+
+            rotator = execSmoothRotation(cam1, cg_conf['degree_per_sec'])
+            rotator.startat(0)
+            for k in range(int(cg_conf['fps'] * cg_conf['time'])):
+                t_now = 1.0/cg_conf['fps'] * k;
+                rotator(obj, event, t_now)
+                if save_pic_path:
+                    self.gui_ctrl.ShotScreen( \
+                        save_pic_path % (t_now))
+
+        @staticmethod
+        def add_argument_to(parser):
+            # usually, you would use it like
+            # --off_screen_rendering 1 --animation 1
+            parser.add_argument('--animation', type=int,
+                    help='Run an off-screen animation and exit.')
+
+        @staticmethod
+        def parse_cmd_args(cmd_obj_desc):
+            if ('animation' not in cmd_obj_desc) or \
+               (cmd_obj_desc['animation'] == 0):
+                return None
+
+            cg_conf = {
+                'time'           : 6.0,
+                'fps'            : 60.0,
+                'degree_per_sec' : 60.0,
+                'save_pic_path'  : 'pic_tmp/haha_t=%06.4f.png',
+            }
+            return cg_conf
 

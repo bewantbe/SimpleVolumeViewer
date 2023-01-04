@@ -261,7 +261,7 @@ def ReadScene(scene_file_path):
         MergeFullDict(scene, scene_ext)
     return scene
 
-def ShotScreen(render_window, filename = 'TestScreenshot.png'):
+def ShotScreen(render_window, filename):
     """
     Take a screenshot.
     Save to 'TestScreenshot.png'
@@ -563,6 +563,8 @@ class GUIControl:
         self.scene_objects = {}
         self.selected_objects = []
         self.main_renderer_name = None
+        self.off_screen_enabled = False
+        self.cg_conf = None
         
         self.utility_objects = {}
         self.volume_loader = OnDemandVolumeLoader()
@@ -806,6 +808,9 @@ class GUIControl:
         if isinstance(cmd_obj_desc, str):
             cmd_obj_desc = {'filepath': cmd_obj_desc}
 
+        self.cg_conf = self.translator.animation_rotation \
+                       .parse_cmd_args(cmd_obj_desc)
+
         tl_win = self.translator.init_window(self, None)
         win_conf = tl_win.parse_cmd_args(cmd_obj_desc)
         tl_win.parse(win_conf)
@@ -822,8 +827,8 @@ class GUIControl:
             name = self.GetNonconflitName(obj_conf['type'])
             self.AddObject(name, obj_conf)
 
-    def ShotScreen(self):
-        ShotScreen(self.render_window)
+    def ShotScreen(self, filename = 'TestScreenshot.png'):
+        ShotScreen(self.render_window, filename)
 
     def ExportSceneFile(self):
         # export camera data
@@ -851,22 +856,13 @@ class GUIControl:
         self.UtilizerInit()
         self.focusController.SetGUIController(self)
 
-        if 0:
-        # TODO add an option for rotation rendering
-            time.sleep(1.0)
-
-            obj = self.interactor   # iren
-            event = ''
-            cam1 = self.GetMainRenderer().GetActiveCamera()
-
-            rotator = execSmoothRotation(cam1, 60.0)
-            rotator.startat(0)
-            for k in range(int(60*360/60.0)):
-                t_now = 1.0/60 * k;
-                rotator(obj, event, t_now)
-#                ShotScreen(self.render_window, \
-#                    'pic_tmp/haha_t=%06.4f.png' % (t_now))
-        self.interactor.Start()
+        if self.cg_conf:
+            tl_animation = self.translator \
+                           .animation_rotation(self, self.GetMainRenderer())
+            tl_animation.parse(self.cg_conf)
+        
+        if not self.off_screen_enabled:
+            self.interactor.Start()
 
 def get_program_parameters():
     import argparse
@@ -877,7 +873,7 @@ def get_program_parameters():
                                      formatter_class=argparse.RawDescriptionHelpFormatter)
     ObjTranslator().add_all_arguments_to(parser)
     parser.add_argument('--verbosity', type=int, choices=[0, 1, 2, 3, 4, 5],
-                        help="output verbosity(0(nothing),1(error)~5(verbose))")
+                        help="output verbosity(0(nothing), 1(error) ~ 5(verbose))")
     args = parser.parse_args()
     if args.verbosity is not None:
         utils.debug_level = args.verbosity
