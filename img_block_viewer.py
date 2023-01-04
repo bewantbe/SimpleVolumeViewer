@@ -87,9 +87,6 @@ from vtkmodules.vtkIOImage import (
 from vtkmodules.vtkInteractionWidgets import vtkOrientationMarkerWidget
 from vtkmodules.vtkCommonTransforms import vtkTransform
 from vtkmodules.vtkRenderingCore import (
-    vtkRenderWindow,
-    vtkRenderWindowInteractor,
-    vtkRenderer,
     vtkWindowToImageFilter,
     vtkPropPicker,
     vtkPointPicker,
@@ -119,12 +116,8 @@ from utils import (
 utils.debug_level = 5
 
 from ui_interactions import (
-    UIActions,
-    MyInteractorStyle,
     GenerateKeyBindingDoc,
-    DefaultKeyBindings,
     PointSetHolder,
-    DefaultKeyBindingsHelpDoc
 )
 from data_loader import OnDemandVolumeLoader
 from cg_translators import ObjTranslator
@@ -565,6 +558,7 @@ class GUIControl:
         self.renderers = {}
         self.render_window = None
         self.interactor = None
+        self.translator = ObjTranslator()
         self.object_properties = {}
         self.scene_objects = {}
         self.selected_objects = []
@@ -651,80 +645,25 @@ class GUIControl:
         """ setup window, renderers and interactor """
         dbg_print(4, gui_conf)
         if 'window' in gui_conf:
-            # TODO: stop the old window?
-            # TODO: try vtkVRRenderWindow?
-            if self.render_window is None:
-                self.render_window = vtkRenderWindow()
             win_conf = gui_conf['window']
-            if 'size' in win_conf:
-                self.render_window.SetSize(win_conf['size'])
-            if 'title' in win_conf:
-                self.render_window.SetWindowName(win_conf['title'])
-            if 'number_of_layers' in win_conf:
-                self.render_window.SetNumberOfLayers(
-                    win_conf['number_of_layers'])
-            if 'stereo_type' in win_conf:
-                self.render_window.StereoCapableWindowOn()
-                t = win_conf['stereo_type']
-                if t == 'CrystalEyes':
-                    self.render_window.SetStereoTypeToCrystalEyes()
-                elif t == 'RedBlue':
-                    self.render_window.SetStereoTypeToRedBlue()
-                elif t == 'Interlaced':
-                    self.render_window.SetStereoTypeToInterlaced()
-                elif t == 'Left':
-                    self.render_window.SetStereoTypeToLeft()
-                elif t == 'Right':
-                    self.render_window.SetStereoTypeToRight()
-                elif t == 'Dresden':
-                    self.render_window.SetStereoTypeToDresden()
-                elif t == 'Anaglyph':
-                    self.render_window.SetStereoTypeToAnaglyph()
-                elif t == 'Checkerboard':
-                    self.render_window.SetStereoTypeToCheckerboard()
-                elif t == 'SplitViewportHorizontal':
-                    self.render_window.SetStereoTypeToSplitViewportHorizontal()
-                elif t == 'Fake':
-                    self.render_window.SetStereoTypeToFake()
-                elif t == 'Emulate':
-                    self.render_window.SetStereoTypeToEmulate()
-                self.render_window.StereoRenderOn()
+            self.translator.init_window(self, None).parse(win_conf)
 
-        # Ref: Demonstrates the use of two renderers. Notice that the second (and subsequent) renderers will have a transparent background.
-        # https://kitware.github.io/vtk-examples/site/Python/Rendering/TransparentBackground/
         if 'renderers' in gui_conf:
-            # get our renderer list
-            renderers = self.renderers
-            # load new renderers
-            for key, ren_conf in gui_conf['renderers'].items():
-                if key in renderers:
-                    # remove old renderer
-                    self.render_window.RemoveRenderer(renderers[key])
-                # https://kitware.github.io/vtk-examples/site/Python/Rendering/TransparentBackground/
-                # setup new renderer
-                renderer = vtkRenderer()
-                if 'layer' in ren_conf:
-                    renderer.SetLayer(ren_conf['layer'])
-                if 'view_port' in ren_conf:
-                    renderer.SetViewport(ren_conf['view_port'])
-                renderers[key] = renderer
-                # add new renderer to window
-                self.render_window.AddRenderer(renderer)
-                # Off screen rendering
-                # https://discourse.vtk.org/t/status-of-vtk-9-0-with-respect-to-off-screen-rendering-under-ubuntu-with-pip-install/5631/2
-                # TODO: add an option for off screen rendering
-                # self.render_window.SetOffScreenRendering(1)
+            self.translator.init_renderers(self, self.renderers) \
+                            .parse(gui_conf['renderers'])
 
         # first one is the main
         self.main_renderer_name = \
             next(iter(self.renderers.keys()))
 
-        # Create the interactor (for keyboard and mouse)
-        interactor = vtkRenderWindowInteractor()
-        interactor.SetInteractorStyle(MyInteractorStyle(interactor, self))
-    #    interactor.AddObserver('ModifiedEvent', ModifiedCallbackFunction)
-        interactor.SetRenderWindow(self.render_window)
-        self.interactor = interactor
+        if 'window' in gui_conf:
+            win_conf = gui_conf['window']
+            self.translator.init_window(self, self.renderers) \
+                            .parse_post_renderers(win_conf)
+
+        self.interactor = self.translator \
+                .init_interactor(self, self.renderers) \
+                .parse(None)
         
         # first time render, for 'Timer' event to work in Windows
         self.render_window.Render()
@@ -737,7 +676,7 @@ class GUIControl:
             dbg_print(2, '                     will be overwritten.')
         dbg_print(3, 'AddObjectProperty(): "'+name+'" :', prop_conf)
         if name.startswith('volume'):
-            object_property = ObjTranslator() \
+            object_property = self.translator \
                             .translate_prop_conf(self, prop_conf)
         else:
             dbg_print(2, 'AddObjectProperty(): unknown object type')
@@ -766,7 +705,7 @@ class GUIControl:
         dbg_print(3, 'AddObject: "' + name + '" :', obj_conf)
         dbg_print(4, 'renderer: ',  obj_conf.get('renderer', '0'))
 
-        scene_object = ObjTranslator() \
+        scene_object = self.translator \
                        .translate_obj_conf(self, renderer, obj_conf)
 
         if obj_conf['type'] == 'volume':
@@ -866,12 +805,19 @@ class GUIControl:
             return
         if isinstance(cmd_obj_desc, str):
             cmd_obj_desc = {'filepath': cmd_obj_desc}
+
+        tl_win = self.translator.init_window(self, None)
+        win_conf = tl_win.parse_cmd_args(cmd_obj_desc)
+        tl_win.parse(win_conf)
+        tl_win.parse_post_renderers(win_conf)
         
-        scene_ext = ObjTranslator.init_scene.parse_init_cmd_args(cmd_obj_desc)
+        # so far, init_renderers, init_interactor do not have cmd options.
+        
+        scene_ext = self.translator.init_scene \
+                    .parse_cmd_args(cmd_obj_desc)
         self.AppendToScene(scene_ext)
 
-        li_obj_conf = ObjTranslator().parse_cmd_args(cmd_obj_desc)
-
+        li_obj_conf = self.translator.parse_all_cmd_args_obj(cmd_obj_desc)
         for obj_conf in li_obj_conf:
             name = self.GetNonconflitName(obj_conf['type'])
             self.AddObject(name, obj_conf)
@@ -925,16 +871,17 @@ class GUIControl:
 def get_program_parameters():
     import argparse
     description = 'Simple volume image viewer based on PyVTK.'
-    epilogue = DefaultKeyBindingsHelpDoc()
-    epilogue += GenerateKeyBindingDoc(DefaultKeyBindings(), UIActions('', '', ''))
-    parser = argparse.ArgumentParser(description=description, epilog=epilogue,
+    epilogue = GenerateKeyBindingDoc()
+    parser = argparse.ArgumentParser(description=description,
+                                     epilog=epilogue,
                                      formatter_class=argparse.RawDescriptionHelpFormatter)
-    ObjTranslator().add_argument_to(parser)
+    ObjTranslator().add_all_arguments_to(parser)
     parser.add_argument('--verbosity', type=int, choices=[0, 1, 2, 3, 4, 5],
-                        help="output verbosity(0(nothing),1(error)~5(message))")
+                        help="output verbosity(0(nothing),1(error)~5(verbose))")
     args = parser.parse_args()
     if args.verbosity is not None:
         utils.debug_level = args.verbosity
+    # convert args from Namespace to dict, and filter out None values.
     args = {k:v for k,v in vars(args).items() if v is not None}
     dbg_print(3, 'get_program_parameters(): d=', args)
     return args

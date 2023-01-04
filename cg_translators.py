@@ -20,6 +20,9 @@ from vtkmodules.vtkCommonColor import (
     vtkColorSeries
 )
 from vtkmodules.vtkRenderingCore import (
+    vtkRenderWindow,
+    vtkRenderWindowInteractor,
+    vtkRenderer,
     vtkColorTransferFunction,
     vtkCamera,
     vtkVolume,
@@ -43,7 +46,13 @@ from utils import (
     GetNonconflitName,
     vtkGetColorAny,
     _mat3d,
-    dbg_print
+    dbg_print,
+    UpdatePropertyOTFScale,
+    UpdatePropertyCTFScale
+)
+
+from ui_interactions import (
+    MyInteractorStyle,
 )
 
 from data_loader import *
@@ -66,64 +75,6 @@ def CameraFollowCallbackFunction(caller, ev):
     AlignCameraDirection(cam2, cam1)
     return
 
-def UpdatePropertyOTFScale(obj_prop, otf_s):
-    pf = obj_prop.GetScalarOpacity()
-    if hasattr(obj_prop, 'ref_prop'):
-        obj_prop = obj_prop.ref_prop
-    otf_v = obj_prop.prop_conf['opacity_transfer_function']['AddPoint']
-    
-    # initialize an array of array
-    # get all control point coordinates
-    v = np.zeros((pf.GetSize(), 4))
-    for k in range(pf.GetSize()):
-        pf.GetNodeValue(k, v[k])
-
-    if otf_s is None:  # return old otf and current setting
-        return otf_v, v
-
-    for k in range(pf.GetSize()):
-        v[k][0] = otf_s * otf_v[k][0]
-        pf.SetNodeValue(k, v[k])
-
-def UpdatePropertyCTFScale(obj_prop, ctf_s):
-    ctf = obj_prop.GetRGBTransferFunction()
-    # get all control point coordinates
-    # location (X), R, G, and B values, midpoint (0.5), and sharpness(0) values
-
-    if hasattr(obj_prop, 'ref_prop'):
-        obj_prop = obj_prop.ref_prop
-    ctf_v = obj_prop.prop_conf['color_transfer_function']['AddRGBPoint']
-    
-    # initialize an array of array
-    # get all control point coordinates
-    v = np.zeros((ctf.GetSize(), 6))
-    for k in range(ctf.GetSize()):
-        ctf.GetNodeValue(k, v[k])
-
-    if ctf_s is None:  # return old ctf and current setting
-        return ctf_v, v
-
-    for k in range(ctf.GetSize()):
-        v[k][0] = ctf_s * ctf_v[k][0]
-        ctf.SetNodeValue(k, v[k])
-
-def GetColorScale(obj_prop):
-    """ Guess values of colorscale for property otf and ctf in obj_prop. """
-    otf_v, o_v = UpdatePropertyOTFScale(obj_prop, None)
-    ctf_v, c_v = UpdatePropertyCTFScale(obj_prop, None)
-    return o_v[-1][0] / otf_v[-1][0], c_v[-1][0] / ctf_v[-1][0]
-
-def SetColorScale(obj_prop, scale):
-    """ Set the color mapping for volume rendering. """
-    dbg_print(4, 'Setting colorscale =', scale)
-    if hasattr(scale, '__iter__'):
-        otf_s = scale[0]
-        ctf_s = scale[1]
-    else:  # scalar
-        otf_s = ctf_s = scale
-    UpdatePropertyOTFScale(obj_prop, otf_s)
-    UpdatePropertyCTFScale(obj_prop, ctf_s)
-
 class ObjTranslator:
     """
     The collection of translators to convert json discription to computer 
@@ -145,9 +96,11 @@ class ObjTranslator:
             translate json discription to obj on screen.
             """
             pass
-        #def add_argument_to(self, args_parser):
+        #@staticmethod
+        #def add_argument_to(args_parser):
         #    pass
-        #def parse_cmd_args(self, cmd_obj_desc):
+        #@staticmethod
+        #def parse_cmd_args(cmd_obj_desc):
         #    pass
 
     def translate(self, gui_ctrl, renderer, prefix_class, obj_conf):
@@ -164,22 +117,25 @@ class ObjTranslator:
     def translate_prop_conf(self, gui_ctrl, prop_conf):
         return self.translate(gui_ctrl, None, 'prop_', prop_conf)
 
-    def get_all_tl_unit(self):
+    def get_all_tl_unit(self, tl_prefix = []):
         return [getattr(self, a)
                   for a in dir(self)
-                    if (not a.startswith('_')) and (a != 'TranslatorUnit') and
+                    if (not a.startswith('_')) and 
+                       (a != 'TranslatorUnit') and
                        isinstance(getattr(self, a), type) and
                        issubclass(getattr(self, a),
-                                  ObjTranslator.TranslatorUnit)]
+                                  ObjTranslator.TranslatorUnit) and
+                       (not tl_prefix or (a.split('_',1)[0] in tl_prefix))]
 
-    def add_argument_to(self, args_parser):
+    def add_all_arguments_to(self, args_parser):
         for tl_u in self.get_all_tl_unit():
             if hasattr(tl_u, 'add_argument_to'):
+                dbg_print(5, 'tl_u', tl_u)
                 getattr(tl_u, 'add_argument_to')(args_parser)
 
-    def parse_cmd_args(self, cmd_obj_desc):
+    def parse_all_cmd_args_obj(self, cmd_obj_desc):
         li_obj_conf = []
-        for tl_u in self.get_all_tl_unit():
+        for tl_u in self.get_all_tl_unit(['obj', 'prop']):
             if hasattr(tl_u, 'parse_cmd_args'):
                 c = getattr(tl_u, 'parse_cmd_args')(cmd_obj_desc)
                 if isinstance(c, list):
@@ -187,6 +143,117 @@ class ObjTranslator:
                 elif c is not None:
                     li_obj_conf.append(c)
         return li_obj_conf
+
+    class init_window(TranslatorUnit):
+        def parse(self, win_conf):
+            # TODO: should we stop the old window?
+            # TODO: try vtkVRRenderWindow?
+            if self.gui_ctrl.render_window is None:
+                self.gui_ctrl.render_window = vtkRenderWindow()
+            render_window = self.gui_ctrl.render_window
+            if 'size' in win_conf:
+                render_window.SetSize(win_conf['size'])
+            if 'title' in win_conf:
+                render_window.SetWindowName(win_conf['title'])
+            if 'number_of_layers' in win_conf:
+                render_window.SetNumberOfLayers(
+                    win_conf['number_of_layers'])
+            if 'stereo_type' in win_conf:
+                render_window.StereoCapableWindowOn()
+                t = win_conf['stereo_type']
+                if t == 'CrystalEyes':
+                    render_window.SetStereoTypeToCrystalEyes()
+                elif t == 'RedBlue':
+                    render_window.SetStereoTypeToRedBlue()
+                elif t == 'Interlaced':
+                    render_window.SetStereoTypeToInterlaced()
+                elif t == 'Left':
+                    render_window.SetStereoTypeToLeft()
+                elif t == 'Right':
+                    render_window.SetStereoTypeToRight()
+                elif t == 'Dresden':
+                    render_window.SetStereoTypeToDresden()
+                elif t == 'Anaglyph':
+                    render_window.SetStereoTypeToAnaglyph()
+                elif t == 'Checkerboard':
+                    render_window.SetStereoTypeToCheckerboard()
+                elif t == 'SplitViewportHorizontal':
+                    render_window.SetStereoTypeToSplitViewportHorizontal()
+                elif t == 'Fake':
+                    render_window.SetStereoTypeToFake()
+                elif t == 'Emulate':
+                    render_window.SetStereoTypeToEmulate()
+                render_window.StereoRenderOn()
+
+        def parse_post_renderers(self, win_conf):
+            # Off screen rendering
+            # https://discourse.vtk.org/t/status-of-vtk-9-0-with-respect-to-off-screen-rendering-under-ubuntu-with-pip-install/5631/2
+            # TODO: add an option for off screen rendering
+            if win_conf.get('off_screen_rendering', False):
+                self.gui_ctrl.render_window.SetOffScreenRendering(1)
+
+        @staticmethod
+        def add_argument_to(parser):
+            parser.add_argument('--off_screen_rendering',
+                    type=int, choices=[0, 1],
+                    help='Enable off-screen rendering. 1=Enable, 0=Disable.')
+            parser.add_argument('--stereo_type',
+                    help=
+"""
+Enable stereo rendering, set the type here.
+Possible types:
+  CrystalEyes, RedBlue, Interlaced, Left, Right, Fake, Emulate,
+  Dresden, Anaglyph, Checkerboard, SplitViewportHorizontal
+""")
+
+        @staticmethod
+        def parse_cmd_args(cmd_obj_desc):
+            win_conf = {}
+            if 'off_screen_rendering' in cmd_obj_desc:
+                win_conf.update({
+                    'off_screen_rendering': cmd_obj_desc['off_screen_rendering'] > 0
+                })
+            if 'stereo_type' in cmd_obj_desc:
+                win_conf.update({
+                    'stereo_type': cmd_obj_desc['stereo_type']
+                })
+            return win_conf
+
+    class init_renderers(TranslatorUnit):
+        def parse(self, renderers_conf):
+            # Ref: Demonstrates the use of two renderers. Notice that the second (and subsequent) renderers will have a transparent background.
+            # https://kitware.github.io/vtk-examples/site/Python/Rendering/TransparentBackground/
+            # get our renderer list
+            renderers = self.renderer
+            render_window = self.gui_ctrl.render_window
+            # load new renderers
+            for key, ren_conf in renderers_conf.items():
+                if key in renderers:
+                    # remove old renderer
+                    render_window.RemoveRenderer(renderers[key])
+                # https://kitware.github.io/vtk-examples/site/Python/Rendering/TransparentBackground/
+                # setup new renderer
+                renderer = vtkRenderer()
+                if 'layer' in ren_conf:
+                    renderer.SetLayer(ren_conf['layer'])
+                if 'view_port' in ren_conf:
+                    renderer.SetViewport(ren_conf['view_port'])
+                renderers[key] = renderer
+                # add new renderer to window
+                render_window.AddRenderer(renderer)
+
+    class init_interactor(TranslatorUnit):
+        def parse(self, ui_conf):
+            if (not ui_conf) and (self.gui_ctrl.interactor):
+                # it is initialized, so do not change anything
+                return self.gui_ctrl.interactor
+            # Create the interactor (for keyboard and mouse)
+            interactor = vtkRenderWindowInteractor()
+            interactor.SetInteractorStyle(
+                    MyInteractorStyle(interactor, self.gui_ctrl))
+        #    interactor.AddObserver('ModifiedEvent', ModifiedCallbackFunction)
+            interactor.SetRenderWindow(self.gui_ctrl.render_window)
+            return interactor
 
     class init_scene(TranslatorUnit):
         def parse(self, obj_conf):
@@ -198,7 +265,7 @@ class ObjTranslator:
                     help='Project scene file path. e.g. for batch object loading.')
 
         @staticmethod
-        def parse_init_cmd_args(cmd_obj_desc):
+        def parse_cmd_args(cmd_obj_desc):
             if 'scene' in cmd_obj_desc:
                 # TODO: maybe move this before init of gui, and pass it as init param.
                 scene_ext = json.loads(open(cmd_obj_desc['scene']).read())

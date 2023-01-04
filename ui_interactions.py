@@ -14,11 +14,9 @@ from vtkmodules.vtkInteractionStyle import (
 )
 from utils import (
     dbg_print,
-    vtkMatrix2array
-)
-from cg_translators import (
+    vtkMatrix2array,
     GetColorScale,
-    SetColorScale
+    SetColorScale,
 )
 
 _point_set_dtype_ = np.float32
@@ -456,9 +454,11 @@ def DefaultKeyBindingsHelpDoc():
     '''
     return d
 
-def GenerateKeyBindingDoc(key_binding, action):
+def GenerateKeyBindingDoc(key_binding = DefaultKeyBindings(),
+                          action = UIActions('', '', '')):
     """Generate the key binding description from code, for help message."""
-    s = "\n  Full key bindings:\n"
+    s = DefaultKeyBindingsHelpDoc()  # TODO remove this?
+    s += "\n  Full key bindings:\n"
     for k, v in key_binding.items():
         h = action.ExecByCmd(v, get_attr_name = '__doc__')
         if h:
