@@ -15,8 +15,6 @@ from vtkmodules.vtkInteractionStyle import (
 from utils import (
     dbg_print,
     vtkMatrix2array,
-    GetColorScale,
-    SetColorScale,
 )
 
 _point_set_dtype_ = np.float32
@@ -243,16 +241,12 @@ class UIActions():
         if not self.guictrl.selected_objects:
             return
         vol_name = self.guictrl.selected_objects[0]  # active object
-        vol = self.guictrl.scene_objects[vol_name]
-        obj_prop = vol.GetProperty()
-        #obj_prop = self.guictrl.object_properties[vol_name]
-        cs_o, cs_c = GetColorScale(obj_prop)
         k = sqrt(sqrt(2))
         if cmd.startswith('C'):
             k = sqrt(sqrt(k))
         if cmd.endswith('+'):
             k = 1.0 / k
-        SetColorScale(obj_prop, [cs_o*k, cs_c*k])
+        self.guictrl.scene_objects[vol_name].set_color_scale_mul_by(k)
         self.iren.GetRenderWindow().Render()         # TODO inform a refresh in a smart way
     
     def screen_shot(self):
@@ -269,9 +263,7 @@ class UIActions():
             return
         vol_name = self.guictrl.selected_objects[0]  # active object
         dbg_print(4, 'Fly to:', vol_name)
-        vol = self.guictrl.scene_objects[vol_name]
-        bd = vol.GetBounds()
-        center = [(bd[0]+bd[1])/2, (bd[2]+bd[3])/2, (bd[4]+bd[5])/2]
+        center = self.guictrl.scene_objects[vol_name].get_center()
         ren1 = self.GetRenderers(1)
         self.iren.FlyTo(ren1, center)
 
@@ -346,7 +338,7 @@ class UIActions():
         self.iren.GetRenderWindow().Render()
 
     def scene_object_traverse(self, direction):
-        """Select next/previous scene object."""
+        """Select next/previous scene object, usually a point on swc."""
         if self.guictrl.selected_pid:
             self.guictrl.SetSelectedPID(self.guictrl.selected_pid + direction)
 

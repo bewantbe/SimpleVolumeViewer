@@ -441,7 +441,7 @@ class FocusModeController:
         self.gui_controller.volume_observers.append(self)
         if 'swc' in self.gui_controller.scene_objects:
             self.swc_mapper = self.gui_controller \
-                              .scene_objects['swc'].GetMapper()
+                              .scene_objects['swc'].actor.GetMapper()
             self.swc_polydata = self.swc_mapper.GetInput()
         else:
             self.swc_mapper = None
@@ -533,8 +533,8 @@ class GUIControl:
         self.scene_objects = {}
         self.selected_objects = []
         self.main_renderer_name = None
-        self.off_screen_enabled = False
-        self.cg_conf = None
+        self.do_not_start_interaction = False
+        self.li_cg_conf = []
         
         self.utility_objects = {}
         self.volume_loader = OnDemandVolumeLoader()
@@ -589,10 +589,9 @@ class GUIControl:
     def Set3DCursor(self, xyz):
         # operate on object: 3d_cursor
         if '3d_cursor' in self.scene_objects:
-            cursor = self.scene_objects['3d_cursor']
-            cursor.world_coor = xyz
             dbg_print(4, 'Set 3D cursor to', xyz)
-            cursor.SetPosition(xyz)
+            cursor = self.scene_objects['3d_cursor']
+            cursor.position = xyz
             self.render_window.Render()
 
     def SetSelectedPID(self, pid):
@@ -606,8 +605,8 @@ class GUIControl:
 
     def Get3DCursor(self):
         cursor = self.scene_objects.get('3d_cursor', None)
-        if hasattr(cursor, 'world_coor'):
-            center = cursor.world_coor
+        if cursor:
+            center = cursor.position
         else:
             center = None
             dbg_print(2, 'Get3DCursor(): no 3d coor found.')
@@ -710,9 +709,7 @@ class GUIControl:
             return
         dbg_print(3, 'Removing object:', name)
         # TODO: Do not remove if it is an active camera
-        obj = self.scene_objects[name]
-        ren = self.GetMainRenderer()
-        ren.RemoveActor(obj)
+        self.scene_objects[name].remove()
         
         if name in self.selected_objects:
             self.selected_objects.remove(name)
@@ -755,7 +752,7 @@ class GUIControl:
             if name not in scene_vols:
                 add_set.append(vol)
         for sv in scene_vols:
-            if sv not in focus_vols_name_set and type(scene_vols[sv]) == vtkmodules.vtkRenderingCore.vtkVolume:
+            if sv not in focus_vols_name_set and type(scene_vols[sv]) == self.translator.obj_volume:
                 if sv is not self.selected_objects[0]:
                     self.RemoveObject(sv)
         for each in add_set:
@@ -778,8 +775,8 @@ class GUIControl:
         if isinstance(cmd_obj_desc, str):
             cmd_obj_desc = {'filepath': cmd_obj_desc}
 
-        self.cg_conf = self.translator.animation_rotation \
-                       .parse_cmd_args(cmd_obj_desc)
+        self.li_cg_conf = self.translator \
+                          .parse_all_cmd_args_obj(cmd_obj_desc, 'animation')
 
         tl_win = self.translator.init_window(self, None)
         win_conf = tl_win.parse_cmd_args(cmd_obj_desc)
@@ -826,12 +823,11 @@ class GUIControl:
         self.UtilizerInit()
         self.focusController.SetGUIController(self)
 
-        if self.cg_conf:
-            tl_animation = self.translator \
-                           .animation_rotation(self, self.GetMainRenderer())
-            tl_animation.parse(self.cg_conf)
+        for cg_conf in self.li_cg_conf:
+            self.translator.translate(self, self.GetMainRenderer(),
+                                      'animation_', cg_conf)
         
-        if not self.off_screen_enabled:
+        if not self.do_not_start_interaction:
             self.interactor.Start()
 
 def get_program_parameters():

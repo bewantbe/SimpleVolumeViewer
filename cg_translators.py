@@ -1,6 +1,7 @@
 # Computer graphics translators, the real workhorse.
 # You may also call them operators (of VTK), but "translator" is descriptive stype, "operator" is imperative style, I prefer the former, so everything here is passive and the control point is left in the main code (GUIControl).
 
+import datetime
 import numpy as np
 from numpy import array as _a
 import json
@@ -48,7 +49,9 @@ from utils import (
     _mat3d,
     dbg_print,
     UpdatePropertyOTFScale,
-    UpdatePropertyCTFScale
+    UpdatePropertyCTFScale,
+    GetColorScale,
+    SetColorScale,
 )
 
 from ui_interactions import (
@@ -91,15 +94,39 @@ class ObjTranslator:
         def __init__(self, gui_ctrl, renderer):
             self.gui_ctrl = gui_ctrl
             self.renderer = renderer
+            self.actor = None
+            self.position = None
 
         def parse(self, st):
             """
             translate json discription to obj on screen.
             """
             pass
+
+        def remove(self, rm_conf = {}):
+            """
+            Default remove function.
+            """
+            if not rm_conf:
+                # remove the whole object
+                if self.actor:
+                    self.renderer.RemoveActor(self.actor)
+                    self.actor = None
+
+        @property
+        def position(self):
+            return self._position
+        
+        @position.setter
+        def position(self, ext_pos):
+            if (self.actor is not None) and (ext_pos is not None):
+                self.actor.SetPosition(ext_pos)
+            self._position = ext_pos
+
         #@staticmethod
         #def add_argument_to(args_parser):
         #    pass
+
         #@staticmethod
         #def parse_cmd_args(cmd_obj_desc):
         #    pass
@@ -119,6 +146,8 @@ class ObjTranslator:
         return self.translate(gui_ctrl, None, 'prop_', prop_conf)
 
     def get_all_tl_unit(self, tl_prefix = []):
+        if isinstance(tl_prefix, str):
+            tl_prefix = [tl_prefix]
         return [getattr(self, a)
                   for a in dir(self)
                     if (not a.startswith('_')) and 
@@ -133,9 +162,10 @@ class ObjTranslator:
             if hasattr(tl_u, 'add_argument_to'):
                 getattr(tl_u, 'add_argument_to')(args_parser)
 
-    def parse_all_cmd_args_obj(self, cmd_obj_desc):
+    def parse_all_cmd_args_obj(self, cmd_obj_desc, 
+                                     tl_prefix = ['obj', 'prop']):
         li_obj_conf = []
-        for tl_u in self.get_all_tl_unit(['obj', 'prop']):
+        for tl_u in self.get_all_tl_unit(tl_prefix):
             if hasattr(tl_u, 'parse_cmd_args'):
                 c = getattr(tl_u, 'parse_cmd_args')(cmd_obj_desc)
                 if isinstance(c, list):
@@ -200,9 +230,9 @@ class ObjTranslator:
             # TODO: add an option for off screen rendering
             if win_conf.get('off_screen_rendering', False):
                 self.gui_ctrl.render_window.SetOffScreenRendering(1)
-                self.gui_ctrl.off_screen_enabled = True
+                self.gui_ctrl.do_not_start_interaction = True
             else:
-                self.gui_ctrl.off_screen_enabled = False
+                self.gui_ctrl.do_not_start_interaction = False
             # Hint: you may use xdotoll to control an off-screen program
             # e.g. xdotool search --name SimpleRayCast key 'q'
 
@@ -481,7 +511,32 @@ Possible types:
                 # auto view all actors
                 self.renderer.ResetCamera()
             
-            return volume
+            self.actor = volume
+            return self
+
+        def modify(self, mo_conf, obj_conf):
+            """
+            {
+                "clipping_planes": [(origin_vec3d, normal_vec3d), ...],
+                # or
+                "clipping_planes": "clipping_planes_group1",
+            }
+            """
+            obj_conf.update(mo_conf)
+
+        def set_color_scale_mul_by(self, k):
+            obj_prop = self.actor.GetProperty()
+            #obj_prop = self.gui_ctrl.object_properties[vol_name]
+            cs_o, cs_c = GetColorScale(obj_prop)
+            SetColorScale(obj_prop, [cs_o*k, cs_c*k])
+
+        def get_center(self):
+            if not self.actor:
+                return None
+
+            bd = self.actor.GetBounds()
+            center = [(bd[0]+bd[1])/2, (bd[2]+bd[3])/2, (bd[4]+bd[5])/2]
+            return center
 
         @staticmethod
         def add_argument_to(parser):
@@ -642,7 +697,8 @@ Possible types:
             self.renderer.AddActor(actor)
             #actor.raw_points = raw_points  # for convenience
 
-            return actor
+            self.actor = actor
+            return self
 
         @staticmethod
         def add_argument_to(parser):
@@ -712,7 +768,8 @@ Possible types:
             axes.SetAxisLabels(obj_conf.get('ShowAxisLabels', False))
 
             self.renderer.AddActor(axes)
-            return axes
+            self.actor = axes
+            return self
 
     class obj_Sphere(TranslatorUnit):
         """
@@ -740,7 +797,8 @@ Possible types:
             actor.SetMapper(mapper)
             
             self.renderer.AddActor(actor)
-            return actor
+            self.actor = actor
+            return self
 
     class obj_OrientationMarker(TranslatorUnit):
         """
@@ -770,7 +828,8 @@ Possible types:
             om.SetViewport(0, 0, 0.2, 0.2)
             # TODO: the vtkOrientationMarkerWidget and RepeatingTimerHandler can cause program lose respons or Segmentation fault, for unknown reason.
 
-            return om
+            self.actor = om
+            return self
 
     class obj_Background(TranslatorUnit):
         """
@@ -784,7 +843,10 @@ Possible types:
         def parse(self, obj_conf):
             colors = vtkNamedColors()
             self.renderer.SetBackground(colors.GetColor3d(obj_conf['color']))
-            return self.renderer
+            return self
+
+        def remove(self, rm_conf = {}):
+            dbg_print(1, "we don't remove background.")
 
     class obj_Camera(TranslatorUnit):
         """
@@ -828,7 +890,7 @@ Possible types:
 
             if 'follow_direction' in obj_conf:
                 cam_ref = self.gui_ctrl.scene_objects[
-                              obj_conf['follow_direction']]
+                              obj_conf['follow_direction']].actor
                 cam.DeepCopy(cam_ref)
                 cam.SetClippingRange(0.1, 1000)
                 AlignCameraDirection(cam, cam_ref)
@@ -839,12 +901,18 @@ Possible types:
                 cam_ref.AddObserver( \
                     'ModifiedEvent', CameraFollowCallbackFunction)
 
-            return cam
+            self.actor = cam
+
+            return self
+
+        def remove(self, rm_conf = {}):
+            dbg_print(1, "we don't usually remove camera.")
 
     class animation_rotation(TranslatorUnit):
         """
         prototype:
         {
+            'type'           : 'rotation',
             'time'           : 6.0,
             'fps'            : 60.0,
             'degree_per_sec' : 60.0,
@@ -884,10 +952,66 @@ Possible types:
                 return None
 
             cg_conf = {
+                'type'           : 'rotation',
                 'time'           : 6.0,
                 'fps'            : 60.0,
                 'degree_per_sec' : 60.0,
                 'save_pic_path'  : 'pic_tmp/haha_t=%06.4f.png',
             }
+            return cg_conf
+
+    class animation_take_shot(TranslatorUnit):
+        """
+        prototype:
+        {
+            'type'           : 'take_shot',
+            'delay'          : 1.0,
+            'save_pic_path'  : 'pic_tmp/haha_t=%06.4f.png',
+            'no_interaction' : False
+        }
+        """
+        def parse(self, cg_conf):
+            if not cg_conf: return
+            time.sleep(cg_conf['delay'])  # to prevent bug (let fully init)
+
+            save_pic_path = cg_conf['save_pic_path']
+
+            if save_pic_path:
+                self.gui_ctrl.ShotScreen(save_pic_path)
+ 
+            dbg_print(4, 'Screenshot saved to', save_pic_path)
+
+            self.gui_ctrl.do_not_start_interaction = cg_conf['no_interaction']
+
+        @staticmethod
+        def add_argument_to(parser):
+            # usually, you would use it like
+            # --off_screen_rendering 1 --save_screen a.png
+            #Or
+            # --save_screen a.png --no_interaction 1
+            parser.add_argument('--save_screen',
+                    help='Take a screen shot and save to the path.')
+            parser.add_argument('--no_interaction', type=int, choices=[0, 1],
+                    help='Exit after the screen shot.')
+
+        @staticmethod
+        def parse_cmd_args(cmd_obj_desc):
+            if 'save_screen' not in cmd_obj_desc:
+                return None
+            
+            pic_path = 'pic_tmp/a_' \
+                       + str(datetime.datetime.now()).replace(' ', '_') \
+                       + '.png'
+
+            if cmd_obj_desc['save_screen']:
+                pic_path = cmd_obj_desc['save_screen']
+
+            cg_conf = {
+                'type'           : 'take_shot',
+                'delay'          : 1.0,
+                'save_pic_path'  : pic_path,
+                'no_interaction' : cmd_obj_desc.get('no_interaction', False)>0
+            }
+            
             return cg_conf
 
