@@ -1,5 +1,8 @@
-import time
+# Keyboard and mouse interaction.
+# All "actions" in the UI are here.
 
+import time
+import pprint
 import numpy as np
 from numpy import sqrt, sin, cos, tan, pi
 from numpy import array as _a
@@ -418,7 +421,15 @@ class UIActions():
                     obj.SetVisibility(True)
         self.iren.GetRenderWindow().Render()
 
+    def show_selected_info(self):
+        """ show info about selected object(s). """
+        for name in self.gui_ctrl.selected_objects:
+            obj_conf = self.gui_ctrl.scene_saved['objects'][name]
+            print('Name:', name)
+            pprint.pprint(obj_conf)
+
     def reset_camera_view(self):
+        """ Reset camera to view all objects. """
         self.gui_ctrl.GetMainRenderer().ResetCamera()
         #self.gui_ctrl.GetMainRenderer().ResetCameraClippingRange()
         self.iren.GetRenderWindow().Render()
@@ -452,6 +463,7 @@ def DefaultKeyBindings():
         'Shift+\\'     : 'set-view-up',           # LEGION
         'x'            : 'remove_selected_object',
         '`'            : 'toggle_show_local_volume',
+        'i'            : 'show-selected-info',
         'Ctrl+g'       : 'exec-script',
         'Ctrl+Shift+A' : 'deselect',
         'Insert'       : 'toggle-hide-nonselected',

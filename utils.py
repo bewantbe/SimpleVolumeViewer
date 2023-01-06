@@ -1,4 +1,5 @@
-#
+# Small utility functions
+
 import numpy as np
 
 from vtkmodules.vtkCommonDataModel import (
