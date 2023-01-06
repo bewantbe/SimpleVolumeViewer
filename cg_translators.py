@@ -662,13 +662,19 @@ Possible types:
         }
         """
         def parse(self, obj_conf):
-            ntree = LoadSWCTree(obj_conf['file_path'])
-            processes = SplitSWCTree(ntree)
+            t0 = time.time()
             
-            self.gui_ctrl.point_graph = GetUndirectedGraph(ntree)
-            raw_points = ntree[1][:,0:3]
+            if not hasattr(self, 'cache1'):
+                processes, point_graph, raw_points = \
+                    self.LoadRawSwc(obj_conf['file_path'])
+                self.cache1 = (processes, point_graph, raw_points)
+            else:
+                processes, point_graph, raw_points = self.cache1
+            del self.cache1      # release the variables to speed up
+
+            self.gui_ctrl.point_graph = point_graph
             self.raw_points = raw_points
-            
+
             # ref: 
             # https://kitware.github.io/vtk-examples/site/Python/GeometricObjects/PolyLine/
             # https://kitware.github.io/vtk-examples/site/Cxx/GeometricObjects/LinearCellDemo/
@@ -679,6 +685,38 @@ Possible types:
             #    vtkPolyData() -> vtkPolyDataMapper() -> vtkActor() -> 
             #         vtkRenderer()
             
+            t1 = time.time()
+            polyData = self.ConstructPolyData(raw_points, processes)
+
+            t2 = time.time()
+            mapper = vtkPolyDataMapper()
+            mapper.SetInputData(polyData)
+            actor = vtkActor()
+            actor.SetMapper(mapper)
+            actor.GetProperty().SetColor(
+                vtkGetColorAny(obj_conf['color']))
+            actor.GetProperty().SetLineWidth(obj_conf.get('linewidth', 2.0))
+            
+            self.renderer.AddActor(actor)
+            self.actor = actor
+            
+            t3 = time.time()
+            dbg_print(5, f't1 = {t1-t0:1.5f}, t2 = {t2-t1:1.5f}, t3 = {t3-t2:1.5f}')
+            return self
+
+        @staticmethod
+        def LoadRawSwc(file_path):
+            ntree = LoadSWCTree(file_path)
+            processes = SplitSWCTree(ntree)
+            
+            point_graph = GetUndirectedGraph(ntree)  # TODO: this scales pooly
+            raw_points = ntree[1][:,0:3]
+
+            # the point_graph cost so much memory and slows everything down
+            return processes, point_graph, raw_points
+
+        @staticmethod
+        def ConstructPolyData(raw_points, processes):
             points = vtkPoints()
             points.SetData( numpy_to_vtk(raw_points, deep=True) )
             
@@ -693,17 +731,7 @@ Possible types:
             polyData = vtkPolyData()
             polyData.SetPoints(points)
             polyData.SetLines(cells)
-
-            mapper = vtkPolyDataMapper()
-            mapper.SetInputData(polyData)
-            actor = vtkActor()
-            actor.SetMapper(mapper)
-            actor.GetProperty().SetColor(
-                vtkGetColorAny(obj_conf['color']))
-            actor.GetProperty().SetLineWidth(obj_conf.get('linewidth', 2.0))
-            self.renderer.AddActor(actor)
-            self.actor = actor
-            return self
+            return polyData
 
         def PopRawPoints(self):
             a = self.raw_points.T

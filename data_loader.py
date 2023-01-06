@@ -381,6 +381,7 @@ def GetUndirectedGraph(tr):
     tr_idx[:, 0:2] = arr_full[tr_idx[:, 0:2]]
     tr_idx = np.array(tr_idx)
     # Generate undirected graph
+    # TODO: use sparse graph to represent this graph, to save memory and increase speed
     graph = [[-1]]
     for p in tr_idx[1:, 0:2]:
         graph.append([p[1]])

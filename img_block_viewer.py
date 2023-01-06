@@ -53,6 +53,7 @@ import os
 import os.path
 import time
 import json
+import joblib
 
 import numpy as np
 from numpy import array as _a
@@ -687,6 +688,53 @@ class GUIControl:
         
         self.scene_objects.update({name: scene_object})
 
+    def GetNonconflitNameBatch(self, name_prefix, n):
+        name_similar = [name for name in self.scene_objects.keys() \
+                        if name.startswith(name_prefix)]
+        name_similar.sort()
+        name_k = [int(k.split('.')[1]) for k in name_similar \
+                  if (len(k.split('.')) == 2) and 
+                     (k.split('.')[1].isdecimal())]
+        if len(name_k) == 0:
+            i0 = 1
+        else:
+            i0 = max(name_k) + 1
+        idx = np.arange(i0, i0 + n)
+        li_name = [name_prefix + '.%.d'%k for k in idx]
+        return li_name
+
+    def AddBatchSWC(self, name_prefix, li_swc_conf):
+        """ parallel add swc """
+        dbg_print(4, 'AddBatchSWC()')
+
+        # get object names
+        li_name = self.GetNonconflitNameBatch(name_prefix, len(li_swc_conf))
+
+        # get swc data pathes
+        li_file_path = [o['file_path'] for o in li_swc_conf]
+        job_func = self.translator.obj_swc.LoadRawSwc
+        
+        dbg_print(4, 'AddBatchSWC(): loading...')
+        # load swc data in parallel
+        cached_pointsets = joblib.Parallel(n_jobs=1) \
+                (joblib.delayed(job_func)(j) for j in li_file_path)
+
+        # translator units
+        ren = self.GetMainRenderer()
+        li_tl = [self.translator.obj_swc(self, ren) \
+                  for k in range(len(li_swc_conf))]
+
+        dbg_print(4, 'AddBatchSWC(): parsing...')
+        # parse the swc_conf
+        for k in range(len(li_tl)):
+            name         = li_name[k]
+            swc_conf     = li_swc_conf[k]
+            li_tl[k].cache1 = tuple(cached_pointsets[k])
+            scene_object = li_tl[k].parse(swc_conf)
+            self.point_set_holder.AddPoints(scene_object.PopRawPoints(), name)
+            self.scene_objects.update({name: scene_object})
+            self.scene_saved['objects'].update({name: swc_conf})
+
     def AppendToScene(self, scene_conf):
         """ add objects to the renderers """
         if 'object_properties' in scene_conf:
@@ -787,6 +835,13 @@ class GUIControl:
         self.AppendToScene(scene_ext)
 
         li_obj_conf = self.translator.parse_all_cmd_args_obj(cmd_obj_desc)
+        
+        # we load SWC in parallel
+        li_swc_conf = [o for o in li_obj_conf if o['type'] == 'swc']
+        li_obj_conf = [o for o in li_obj_conf if o['type'] != 'swc']
+
+        self.AddBatchSWC('swc', li_swc_conf)
+        
         for obj_conf in li_obj_conf:
             name = self.GetNonconflitName(obj_conf['type'])
             self.AddObject(name, obj_conf)
