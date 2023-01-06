@@ -831,6 +831,8 @@ class GUIControl:
                                       'animation_', cg_conf)
         
         if not self.do_not_start_interaction:
+            self.GetMainRenderer().ResetCamera()
+            #self.GetMainRenderer().ResetCameraClippingRange()
             self.interactor.Start()
 
 def get_program_parameters():

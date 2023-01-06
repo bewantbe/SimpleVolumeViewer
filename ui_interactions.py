@@ -395,6 +395,30 @@ class UIActions():
         self.guictrl.selected_objects = []
         dbg_print(4, 'selected obj:', self.guictrl.selected_objects)
 
+    def toggle_hide_nonselected(self):
+        if not hasattr(self, 'hide_nonselected'):
+            self.hide_nonselected = False
+        # toggle
+        self.hide_nonselected = not self.hide_nonselected
+        # TODO: O(n^2) algo, should we optimize it?
+        #  e.g. selected_objects use ordered set()
+        #  or use set diff  scene_objects - selected_objects
+        if self.hide_nonselected == True:
+            for name, obj in self.guictrl.scene_objects.items():
+                if hasattr(obj, 'SetVisibility'):
+                    if name in self.guictrl.selected_objects:
+                        dbg_print(3, 'showing', name)
+                        obj.SetVisibility(True)
+                    else:
+                        dbg_print(3, 'hiding', name)
+                        obj.SetVisibility(False)
+        else:
+            for name, obj in self.guictrl.scene_objects.items():
+                if hasattr(obj, 'SetVisibility'):
+                    dbg_print(3, 'showing', name)
+                    obj.SetVisibility(True)
+        self.iren.GetRenderWindow().Render()
+
 def DefaultKeyBindings():
     """
     Full table of default key bindings. (except q for exit)
@@ -426,6 +450,7 @@ def DefaultKeyBindings():
         '`'            : 'toggle_show_local_volume',
         'Ctrl+g'       : 'exec-script',
         'Ctrl+Shift+A' : 'deselect',
+        'Insert'       : 'toggle-hide-nonselected',
         'MouseLeftButton'               : 'camera-rotate-around',
         'MouseLeftButtonRelease'        : 'camera-rotate-around-release',
         'Shift+MouseLeftButton'         : 'camera-move-translational',

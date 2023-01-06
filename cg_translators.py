@@ -703,6 +703,24 @@ Possible types:
             self.raw_points = None    # detach
             return a
 
+        # TODO: convert it to property
+        def SetVisibility(self, visible):
+            # How to hide a specific actor in python-vtk
+            # https://stackoverflow.com/questions/69974435/how-to-hide-a-specific-actor-in-python-vtk
+            # actor.GetProperty().SetOpacity(0)
+            # Or
+            # actor.VisibilityOff()
+            # https://vtk.org/doc/nightly/html/classvtkProp.html#a03b15f78c7fce9041ddd91357c9c27ad
+            if visible:
+                self.actor.VisibilityOn()
+            else:
+                self.actor.VisibilityOff()
+
+            #if visible:
+            #    self.actor.GetProperty().SetOpacity(1)
+            #else:
+            #    self.actor.GetProperty().SetOpacity(0)
+
         @staticmethod
         def add_argument_to(parser):
             parser.add_argument('--swc', action='append',
