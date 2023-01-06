@@ -8,6 +8,8 @@ import numpy as np
 from numpy import sqrt, sin, cos, tan, pi
 from numpy import array as _a
 
+import scipy.sparse
+
 import tifffile
 import h5py
 
@@ -382,9 +384,35 @@ def GetUndirectedGraph(tr):
     tr_idx = np.array(tr_idx)
     # Generate undirected graph
     # TODO: use sparse graph to represent this graph, to save memory and increase speed
-    graph = [[-1]]
-    for p in tr_idx[1:, 0:2]:
-        graph.append([p[1]])
-        graph[p[1]].append(p[0])
+    
+    #print('tr_idx.shape =',  tr_idx[1:, 1::-1].shape)
+    
+#    print('head: ', tr_idx[:5, 0:2])
+#    
+#    u = tr_idx[:, 0:2]
+##    print('bad =', np.nonzero(u[:,0] < 0))
+#    nidx = np.nonzero(u[:,1] < 0)
+#    if len(nidx[0])>1:
+#        print('bad =', nidx[0][1])
+#        print('tr[', nidx[0][1], '] = ', tr_idx[nidx[0][1]])
+
+    # remove edge s.t. parent = -1
+    negtive_parent_idx, = np.nonzero(tr_idx[:, 1])
+    bidx = np.ones(tr_idx.shape[0], dtype=bool)
+    bidx[negtive_parent_idx] = False
+    tr_idx = tr_idx[bidx, :]
+
+    ij = np.concatenate([tr_idx[1:, 0:2], tr_idx[1:, 1::-1]], axis=0)
+    kk = np.ones(ij.shape[0], dtype = np.int8)
+    coo = scipy.sparse.coo_matrix((kk, (ij[:,0], ij[:,1])),
+                                  shape=(n_id,n_id))
+    graph = scipy.sparse.csr_matrix(coo)
+#    print(list(graph0[k].indices))
+
+#    graph = [[-1]]
+#    for p in tr_idx[1:, 0:2]:
+#        graph.append([p[1]])
+#        graph[p[1]].append(p[0])
+
     return graph
 

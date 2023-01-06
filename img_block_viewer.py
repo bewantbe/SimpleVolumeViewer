@@ -380,7 +380,7 @@ class PointSearcher:
             return
         if level > 0:
             self.visited_points.add(pid)
-            for each in self.point_graph[pid]:
+            for each in self.point_graph[pid].indices:
                 self.DFS(each, level - 1)
 
     def DFS_path(self, pid, level, path):
@@ -388,7 +388,7 @@ class PointSearcher:
             return
         if level > 0:
             self.visited_points.add(pid)
-            for each in self.point_graph[pid]:
+            for each in self.point_graph[pid].indices:
                 if each in self.visited_points:
                     continue
                 path.append([pid, each])
@@ -716,7 +716,7 @@ class GUIControl:
         
         dbg_print(4, 'AddBatchSWC(): loading...')
         # load swc data in parallel
-        cached_pointsets = joblib.Parallel(n_jobs=1) \
+        cached_pointsets = joblib.Parallel(n_jobs=8) \
                 (joblib.delayed(job_func)(j) for j in li_file_path)
 
         # translator units
