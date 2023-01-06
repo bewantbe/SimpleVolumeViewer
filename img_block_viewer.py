@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
-# A simple viewer based on PyVTK for volumetric data, 
-# specialized for neuron tracing.
+# A simple viewer based on PyVTK for volumetric data and neuronal SWC data,
+# specialized for viewing of neuron tracing results.
 
 # Dependencies:
 # pip install vtk opencv-python tifffile h5py
@@ -19,24 +19,25 @@
 # Program logic:
 #   In a very general sense, this code does the following:
 #     * Read the window configuration and scene object description.
-#     * Load the image or SWC data.
+#     * Load the image or SWC data according to the description.
 #     * Pass the data to VTK for rendering.
 #     * Let VTK to handle the GUI interaction.
 #   Essentally this code translate the object descriptinon to VTK commands
 #   and does the image data loading.
 
-# Code structure in text order:
-#   General utilizer functions.
-#   Image loaders.
-#   SWC loaders.
-#   VTK related utilizer functions.
-#   Keyboard and mouse interaction.
-#   GUI control class
-#     Loads window settings, object properties, objects.
-#   Commandline related data import function.
-#   Main.
+# Code structure:
+#   utils.py            : General utilizer functions,
+#                         and VTK related utilizer functions.
+#   data_loader.py      : Image and SWC loaders.
+#   ui_interactions.py  : Keyboard and mouse interaction.
+#   cg_translators.py   : translate json(dict) style object description to 
+#                         vtk commands; also represent high level objects.
+#   img_block_viewer.py : GUI control class
+#                         Loads window settings, object properties, objects.
+#                         Commandline related data import function.
 
-# Memory footprint
+# Performance tip:
+# For memory footprint:
 # n_neuron = 1660 (SWC), n_points = 39382068 (0.44 GiB)
 # float32 mode:
 # RAM = 2.4GiB (5.3GiB during pick), 3.2g(after pick),
@@ -45,15 +46,8 @@
 # RAM = 3.3GiB (8.3GiB during pick), 3.6g(after pick),
 # GPU = 1128MiB
 
-# Performance:
+# Performance for time:
 # load 6356 neurons: <19m34.236s
-
-# Ref.
-# Python Wrappers for VTK
-# https://vtk.org/doc/nightly/html/md__builds_gitlab_kitware_sciviz_ci_Documentation_Doxygen_PythonWrappers.html
-
-# Demonstrates physically based rendering using image based lighting and a skybox.
-# https://kitware.github.io/vtk-examples/site/Python/Rendering/PBR_Skybox/
 
 import os
 import os.path
@@ -419,7 +413,7 @@ class FocusModeController:
     This class manages the focus mode and is mainly responsible for cutting blocks and lines
     """
     def __init__(self):
-        self.gui_controller = None
+        self.gui_ctrl = None
         self.renderer = None
         self.iren = None
         self.point_searcher = None
@@ -434,21 +428,21 @@ class FocusModeController:
     def SetPointsInfo(self, point_graph, point_coor):
         self.point_searcher = PointSearcher(point_graph, points_coor=point_coor)
 
-    def SetGUIController(self, gui_controller):
-        self.gui_controller = gui_controller
-        self.renderer = self.gui_controller.GetMainRenderer()
-        self.iren = gui_controller.interactor
-        self.gui_controller.volume_observers.append(self)
-        if 'swc' in self.gui_controller.scene_objects:
-            self.swc_mapper = self.gui_controller \
+    def SetGUIController(self, gui_ctrl):
+        self.gui_ctrl = gui_ctrl
+        self.renderer = self.gui_ctrl.GetMainRenderer()
+        self.iren = gui_ctrl.interactor
+        self.gui_ctrl.volume_observers.append(self)
+        if 'swc' in self.gui_ctrl.scene_objects:
+            self.swc_mapper = self.gui_ctrl \
                               .scene_objects['swc'].actor.GetMapper()
             self.swc_polydata = self.swc_mapper.GetInput()
         else:
             self.swc_mapper = None
             self.swc_polydata = None
         self.point_searcher = PointSearcher(
-            self.gui_controller.point_graph,
-            points_coor = self.gui_controller.point_set_holder())
+            self.gui_ctrl.point_graph,
+            points_coor = self.gui_ctrl.point_set_holder())
 
     def SetCenterPoint(self, pid):
         """
@@ -462,13 +456,13 @@ class FocusModeController:
                 self.volume_clipper = VolumeClipper(points)
             else:
                 self.volume_clipper.SetPoints(points)
-            self.gui_controller.UpdateVolumesNear(
+            self.gui_ctrl.UpdateVolumesNear(
                 self.point_searcher.points_coordinate.T[self.center_point])
             self.volume_clipper.RestoreVolumes(self.renderer.GetVolumes())
             self.volume_clipper.CutVolumes(self.renderer.GetVolumes())
             if self.cut_swc_flag:
                 if self.focus_swc:
-                    self.gui_controller.GetMainRenderer().RemoveActor(self.focus_swc)
+                    self.gui_ctrl.GetMainRenderer().RemoveActor(self.focus_swc)
                 oldClipper = vtkClipPolyData()
                 oldClipper.SetInputData(self.swc_polydata)
                 oldClipper.SetClipFunction(self.volume_clipper.planes[0])
@@ -483,7 +477,7 @@ class FocusModeController:
             self.volume_clipper.RestoreVolumes(self.renderer.GetVolumes())
             if self.cut_swc_flag:
                 self.swc_mapper.SetInputData(self.swc_polydata)
-                self.gui_controller.GetMainRenderer().RemoveActor(self.focus_swc)
+                self.gui_ctrl.GetMainRenderer().RemoveActor(self.focus_swc)
             self.iren.GetRenderWindow().Render()
         else:
             self.isOn = True
@@ -493,7 +487,7 @@ class FocusModeController:
     def CreateLines(self, path):
         points = vtkPoints()
         points.SetData(numpy_to_vtk(
-            self.gui_controller.point_set_holder().T, deep=True))
+            self.gui_ctrl.point_set_holder().T, deep=True))
         cells = vtkCellArray()
         for proc in path:
             polyLine = vtkPolyLine()
@@ -511,7 +505,7 @@ class FocusModeController:
         actor.SetMapper(mapper)
         actor.GetProperty().SetColor(
             colors.GetColor3d('yellow'))
-        self.gui_controller.GetMainRenderer().AddActor(actor)
+        self.gui_ctrl.GetMainRenderer().AddActor(actor)
         self.focus_swc = actor
 
     def Notify(self, volume):

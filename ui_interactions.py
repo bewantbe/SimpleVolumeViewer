@@ -200,10 +200,10 @@ class UIActions():
         ren1 = rens.GetNextItem()
         cam = ren1.GetActiveCamera()
     """
-    def __init__(self, interactor, iren, guictrl):
+    def __init__(self, interactor, iren, gui_ctrl):
         self.interactor = interactor
         self.iren = iren
-        self.guictrl = guictrl
+        self.gui_ctrl = gui_ctrl
 
     def ExecByCmd(self, fn_name, get_attr_name = None):
         '''Call the action by name or list of name and arguments.'''
@@ -242,38 +242,38 @@ class UIActions():
 
     def inc_brightness(self, cmd):
         '''Make the selected image darker or lighter.'''
-        if not self.guictrl.selected_objects:
+        if not self.gui_ctrl.selected_objects:
             return
-        vol_name = self.guictrl.selected_objects[0]  # active object
+        vol_name = self.gui_ctrl.selected_objects[0]  # active object
         k = sqrt(sqrt(2))
         if cmd.startswith('C'):
             k = sqrt(sqrt(k))
         if cmd.endswith('+'):
             k = 1.0 / k
-        self.guictrl.scene_objects[vol_name].set_color_scale_mul_by(k)
+        self.gui_ctrl.scene_objects[vol_name].set_color_scale_mul_by(k)
         self.iren.GetRenderWindow().Render()         # TODO inform a refresh in a smart way
     
     def screen_shot(self):
         '''Save a screenshot to file.'''
-        self.guictrl.ShotScreen()
+        self.gui_ctrl.ShotScreen()
     
     def save_scene(self):
         '''Save current scene to a project file.'''
-        self.guictrl.ExportSceneFile()
+        self.gui_ctrl.ExportSceneFile()
 
     def fly_to_selected(self):
         '''Fly to selected object.'''
-        if not self.guictrl.selected_objects:
+        if not self.gui_ctrl.selected_objects:
             return
-        vol_name = self.guictrl.selected_objects[0]  # active object
+        vol_name = self.gui_ctrl.selected_objects[0]  # active object
         dbg_print(4, 'Fly to:', vol_name)
-        center = self.guictrl.scene_objects[vol_name].get_center()
+        center = self.gui_ctrl.scene_objects[vol_name].get_center()
         ren1 = self.GetRenderers(1)
         self.iren.FlyTo(ren1, center)
 
     def fly_to_cursor(self):
         '''Fly to cursor.'''
-        center = self.guictrl.Get3DCursor()
+        center = self.gui_ctrl.Get3DCursor()
         if (center is not None) and (len(center) == 3):
             ren1 = self.GetRenderers(1)
             self.iren.FlyTo(ren1, center)
@@ -282,8 +282,8 @@ class UIActions():
 
     def load_near_volume(self):
         '''load volume near cursor.'''
-        center = self.guictrl.Get3DCursor()
-        self.guictrl.LoadVolumeNear(center)
+        center = self.gui_ctrl.Get3DCursor()
+        self.gui_ctrl.LoadVolumeNear(center)
         self.iren.GetRenderWindow().Render()
 
     def set_view_up(self):
@@ -296,19 +296,19 @@ class UIActions():
 
     def remove_selected_object(self):
         '''Remove the selected object.'''
-        if len(self.guictrl.selected_objects) == 0:
+        if len(self.gui_ctrl.selected_objects) == 0:
             dbg_print(3, 'Nothing to remove.')
         else:
-            obj_name = self.guictrl.selected_objects[0]
-            self.guictrl.RemoveObject(obj_name)
+            obj_name = self.gui_ctrl.selected_objects[0]
+            self.gui_ctrl.RemoveObject(obj_name)
             self.iren.GetRenderWindow().Render()
 
     def toggle_show_local_volume(self):
         '''Toggle showing of local volume.'''
-        if self.guictrl.focusController.isOn:
-            self.guictrl.focusController.Toggle()
+        if self.gui_ctrl.focusController.isOn:
+            self.gui_ctrl.focusController.Toggle()
         else:
-            self.guictrl.focusController.Toggle()
+            self.gui_ctrl.focusController.Toggle()
 
     def exec_script(self):
         '''Run script.'''
@@ -318,7 +318,7 @@ class UIActions():
         print('Running script', 'test_call.py')
         try:
             exec(open(default_script_name).read())
-            exec('PluginMain(ren1, iren, self.guictrl)')
+            exec('PluginMain(ren1, iren, self.gui_ctrl)')
         except Exception as inst:
             print('Failed to run due to exception:')
             print(type(inst))
@@ -343,8 +343,8 @@ class UIActions():
 
     def scene_object_traverse(self, direction):
         """Select next/previous scene object, usually a point on swc."""
-        if self.guictrl.selected_pid:
-            self.guictrl.SetSelectedPID(self.guictrl.selected_pid + direction)
+        if self.gui_ctrl.selected_pid:
+            self.gui_ctrl.SetSelectedPID(self.gui_ctrl.selected_pid + direction)
 
     def camera_rotate_around(self):
         """Rotate the scene by mouse."""
@@ -362,7 +362,7 @@ class UIActions():
 
     def select_a_point(self, select_mode = ''):
         """Select a point near the pointer."""
-        ren = self.guictrl.GetMainRenderer()
+        ren = self.gui_ctrl.GetMainRenderer()
 
         # select object
         # Ref. HighlightWithSilhouette
@@ -370,30 +370,30 @@ class UIActions():
         clickPos = self.iren.GetEventPosition()
         dbg_print(4, 'clicked at', clickPos)
 
-        ppicker = PointPicker(self.guictrl.point_set_holder(), ren)
+        ppicker = PointPicker(self.gui_ctrl.point_set_holder(), ren)
         pid, pxyz = ppicker.PickAt(clickPos)
         
         if pxyz.size > 0:
-            obj_name = self.guictrl.point_set_holder.GetNameByPointId(pid)
+            obj_name = self.gui_ctrl.point_set_holder.GetNameByPointId(pid)
             dbg_print(4, 'picked point', pid, pxyz)
             dbg_print(4, 'selected swc:', obj_name)
-            self.guictrl.SetSelectedPID(pid)
+            self.gui_ctrl.SetSelectedPID(pid)
             if select_mode == 'append':
-                if obj_name in self.guictrl.selected_objects:
+                if obj_name in self.gui_ctrl.selected_objects:
                     # remove
-                    self.guictrl.selected_objects.remove(obj_name)
+                    self.gui_ctrl.selected_objects.remove(obj_name)
                 else:
                     # add
-                    self.guictrl.selected_objects.append(obj_name)
-            dbg_print(4, 'selected obj:', self.guictrl.selected_objects)
+                    self.gui_ctrl.selected_objects.append(obj_name)
+            dbg_print(4, 'selected obj:', self.gui_ctrl.selected_objects)
         else:
             dbg_print(4, 'picked no point', pid, pxyz)
         # purposely no call to self.OnRightButtonDown()
 
     def deselect(self, select_mode = ''):
         # select_mode = all, reverse
-        self.guictrl.selected_objects = []
-        dbg_print(4, 'selected obj:', self.guictrl.selected_objects)
+        self.gui_ctrl.selected_objects = []
+        dbg_print(4, 'selected obj:', self.gui_ctrl.selected_objects)
 
     def toggle_hide_nonselected(self):
         if not hasattr(self, 'hide_nonselected'):
@@ -404,16 +404,16 @@ class UIActions():
         #  e.g. selected_objects use ordered set()
         #  or use set diff  scene_objects - selected_objects
         if self.hide_nonselected == True:
-            for name, obj in self.guictrl.scene_objects.items():
+            for name, obj in self.gui_ctrl.scene_objects.items():
                 if hasattr(obj, 'SetVisibility'):
-                    if name in self.guictrl.selected_objects:
+                    if name in self.gui_ctrl.selected_objects:
                         dbg_print(3, 'showing', name)
                         obj.SetVisibility(True)
                     else:
                         dbg_print(3, 'hiding', name)
                         obj.SetVisibility(False)
         else:
-            for name, obj in self.guictrl.scene_objects.items():
+            for name, obj in self.gui_ctrl.scene_objects.items():
                 if hasattr(obj, 'SetVisibility'):
                     dbg_print(3, 'showing', name)
                     obj.SetVisibility(True)
@@ -515,9 +515,9 @@ class MyInteractorStyle(vtkInteractorStyleTerrain):
         vtkInteractorStyleUser
     """
 
-    def __init__(self, iren, guictrl):
+    def __init__(self, iren, gui_ctrl):
         self.iren = iren
-        self.guictrl = guictrl
+        self.gui_ctrl = gui_ctrl
 
         # var for picker
         self.picked_actor = None
@@ -547,7 +547,7 @@ class MyInteractorStyle(vtkInteractorStyleTerrain):
         # keyboard events
         self.AddObserver('CharEvent', self.OnChar)
 
-        self.ui_action = UIActions(self, iren, guictrl)
+        self.ui_action = UIActions(self, iren, gui_ctrl)
         self.key_bindings = DefaultKeyBindings()
 
     def execute_key_cmd(self, key_combo, attr_name = None):

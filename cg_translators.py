@@ -1,6 +1,13 @@
 # Computer graphics translators, the real workhorse.
 # You may also call them operators (of VTK), but "translator" is descriptive stype, "operator" is imperative style, I prefer the former, so everything here is passive and the control point is left in the main code (GUIControl).
 
+# Ref. for VTK
+# Python Wrappers for VTK
+# https://vtk.org/doc/nightly/html/md__builds_gitlab_kitware_sciviz_ci_Documentation_Doxygen_PythonWrappers.html
+
+# Demonstrates physically based rendering using image based lighting and a skybox.
+# https://kitware.github.io/vtk-examples/site/Python/Rendering/PBR_Skybox/
+
 import datetime
 import numpy as np
 from numpy import array as _a
