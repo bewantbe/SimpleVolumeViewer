@@ -404,19 +404,23 @@ class UIActions():
         #  e.g. selected_objects use ordered set()
         #  or use set diff  scene_objects - selected_objects
         if self.hide_nonselected == True:
+            dbg_print(5, 'Show only selected SWC.')
             for name, obj in self.gui_ctrl.scene_objects.items():
                 if hasattr(obj, 'SetVisibility'):
                     if name in self.gui_ctrl.selected_objects:
-                        dbg_print(3, 'showing', name)
                         obj.SetVisibility(True)
                     else:
-                        dbg_print(3, 'hiding', name)
                         obj.SetVisibility(False)
         else:
+            dbg_print(5, 'Show all SWC.')
             for name, obj in self.gui_ctrl.scene_objects.items():
                 if hasattr(obj, 'SetVisibility'):
-                    dbg_print(3, 'showing', name)
                     obj.SetVisibility(True)
+        self.iren.GetRenderWindow().Render()
+
+    def reset_camera_view(self):
+        self.gui_ctrl.GetMainRenderer().ResetCamera()
+        #self.gui_ctrl.GetMainRenderer().ResetCameraClippingRange()
         self.iren.GetRenderWindow().Render()
 
 def DefaultKeyBindings():
@@ -451,6 +455,7 @@ def DefaultKeyBindings():
         'Ctrl+g'       : 'exec-script',
         'Ctrl+Shift+A' : 'deselect',
         'Insert'       : 'toggle-hide-nonselected',
+        'Home'         : 'reset-camera-view',
         'MouseLeftButton'               : 'camera-rotate-around',
         'MouseLeftButtonRelease'        : 'camera-rotate-around-release',
         'Shift+MouseLeftButton'         : 'camera-move-translational',
@@ -462,7 +467,7 @@ def DefaultKeyBindings():
         'MouseMiddleButton'             : 'camera-move-translational',
         'MouseMiddleButtonRelease'      : 'camera-move-translational-release',
         'MouseRightButton'              : 'select-a-point',
-        'Ctrl+MouseRightButton'         : ['select-a-point', 'append'],
+        'Ctrl+MouseRightButton'         : 'select-a-point append',
     }
     # For user provided key bindings we need to:
     # 1. Remove redundant white space.
