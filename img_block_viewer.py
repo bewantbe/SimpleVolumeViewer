@@ -682,6 +682,9 @@ class GUIControl:
         if obj_conf['type'] == 'volume':
             self.selected_objects = [name]
 
+        if obj_conf['type'] == 'swc':
+            self.point_set_holder.AddPoints(scene_object.PopRawPoints(), name)
+
         if not self.loading_default_config:
             if name in self.scene_saved['objects']:
                 self.scene_saved['objects'][name].update(obj_conf)

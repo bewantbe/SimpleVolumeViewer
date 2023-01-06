@@ -660,7 +660,7 @@ Possible types:
             
             self.gui_ctrl.point_graph = GetUndirectedGraph(ntree)
             raw_points = ntree[1][:,0:3]
-            self.gui_ctrl.point_set_holder.AddPoints(raw_points.T, '')
+            self.raw_points = raw_points
             
             # ref: 
             # https://kitware.github.io/vtk-examples/site/Python/GeometricObjects/PolyLine/
@@ -695,10 +695,13 @@ Possible types:
                 vtkGetColorAny(obj_conf['color']))
             actor.GetProperty().SetLineWidth(obj_conf.get('linewidth', 2.0))
             self.renderer.AddActor(actor)
-            #actor.raw_points = raw_points  # for convenience
-
             self.actor = actor
             return self
+
+        def PopRawPoints(self):
+            a = self.raw_points.T
+            self.raw_points = None    # detach
+            return a
 
         @staticmethod
         def add_argument_to(parser):

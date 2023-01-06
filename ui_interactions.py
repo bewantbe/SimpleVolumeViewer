@@ -139,15 +139,10 @@ class PointPicker():
         v = self.cam_m[0:3,0:3].T @ _a([[posxy_cam[0], posxy_cam[1], -1]]).T
         v = v.astype(_point_set_dtype_)
         # compute distance from p to the line r
-        dbg_print(5, 'PickAt(): 2')
         u = p - o
-        dbg_print(5, 'PickAt(): 3')
         t = (v.T @ u) / (v.T @ v)
-        dbg_print(5, 'PickAt(): 4')
-        dist = np.linalg.norm(u - v * t, axis=0)
-        dbg_print(5, 'PickAt(): 6')
+        dist = np.linalg.norm(u - v * t, axis=0)   # slow for large data set
         angle_dist = dist / t
-        dbg_print(5, 'PickAt(): 8')
         
         # find nearest point
         in_view_tol = (t > cam_min_view_distance) & (angle_dist < selection_angle_tol)
@@ -161,12 +156,16 @@ class PointSetHolder():
     def __init__(self):
         self._points_list = []
         self._len = 0
+        self._point_set_boundaries = []
+        self.name_list = []
     
     def AddPoints(self, points, name):
         # TODO, maybe make it possible to find 'name' by point
         # points shape shoud be space_dim x index_dim
         self._points_list.append(points.astype(_point_set_dtype_))
         self._len += points.shape[1]
+        self._point_set_boundaries.append(self._len)
+        self.name_list.append(name)
     
     def ConstructMergedArray(self):
         if len(self._points_list) > 1:
@@ -177,6 +176,11 @@ class PointSetHolder():
             return self._points_list[0]
         else:
             return np.array([[],[],[]], dtype=_point_set_dtype_)
+    
+    def GetNameByPointId(self, point_id):
+    	set_id = np.searchsorted(self._point_set_boundaries,
+    	                         point_id, side='right')
+    	return self.name_list[set_id]
     
     def __len__(self):
         return self._len
@@ -356,7 +360,7 @@ class UIActions():
     def camera_move_translational_release(self):
         self.interactor.OnMiddleButtonUp()   # vtkInteractorStyleTerrain
 
-    def select_a_point(self):
+    def select_a_point(self, select_mode = ''):
         """Select a point near the pointer."""
         ren = self.guictrl.GetMainRenderer()
 
@@ -370,11 +374,26 @@ class UIActions():
         pid, pxyz = ppicker.PickAt(clickPos)
         
         if pxyz.size > 0:
+            obj_name = self.guictrl.point_set_holder.GetNameByPointId(pid)
             dbg_print(4, 'picked point', pid, pxyz)
+            dbg_print(4, 'selected swc:', obj_name)
             self.guictrl.SetSelectedPID(pid)
+            if select_mode == 'append':
+                if obj_name in self.guictrl.selected_objects:
+                    # remove
+                    self.guictrl.selected_objects.remove(obj_name)
+                else:
+                    # add
+                    self.guictrl.selected_objects.append(obj_name)
+            dbg_print(4, 'selected obj:', self.guictrl.selected_objects)
         else:
             dbg_print(4, 'picked no point', pid, pxyz)
         # purposely no call to self.OnRightButtonDown()
+
+    def deselect(self, select_mode = ''):
+        # select_mode = all, reverse
+        self.guictrl.selected_objects = []
+        dbg_print(4, 'selected obj:', self.guictrl.selected_objects)
 
 def DefaultKeyBindings():
     """
@@ -384,28 +403,29 @@ def DefaultKeyBindings():
     the order Ctrl, Alt, Shift. and it is case sensitive.
     """
     d = {
-        'r'        : 'auto-rotate',
-        '+'        : 'inc-brightness +',
-        'KP_Add'   : 'inc-brightness +',    # LEGION
-        '-'        : 'inc-brightness -',
-        'KP_Subtract': 'inc-brightness -',    # LEGION
-        'Ctrl++'   : 'inc-brightness C+',
-        'Ctrl+-'   : 'inc-brightness C-',
-        'p'        : 'screen-shot',
-        'Ctrl+s'   : 'save-scene',
-        ' '        : 'fly-to-selected',
-        '0'        : 'fly-to-cursor',
-        'KP_0'     : 'fly-to-cursor',
-        'KP_Insert': 'fly-to-cursor',         # LEGION
-        'Return'   : 'load-near-volume',
-        'KP_Enter' : 'load-near-volume',
-        'KP_8'     : 'set-view-up',
-        'KP_Up'    : 'set-view-up',           # LEGION
-        'Shift+|'  : 'set-view-up',
-        'Shift+\\' : 'set-view-up',           # LEGION
-        'x'        : 'remove_selected_object',
-        '`'        : 'toggle_show_local_volume',
-        'Ctrl+g'   : 'exec-script',
+        'r'            : 'auto-rotate',
+        '+'            : 'inc-brightness +',
+        'KP_Add'       : 'inc-brightness +',      # LEGION
+        '-'            : 'inc-brightness -',
+        'KP_Subtract'  : 'inc-brightness -',      # LEGION
+        'Ctrl++'       : 'inc-brightness C+',
+        'Ctrl+-'       : 'inc-brightness C-',
+        'p'            : 'screen-shot',
+        'Ctrl+s'       : 'save-scene',
+        ' '            : 'fly-to-selected',
+        '0'            : 'fly-to-cursor',
+        'KP_0'         : 'fly-to-cursor',
+        'KP_Insert'    : 'fly-to-cursor',         # LEGION
+        'Return'       : 'load-near-volume',
+        'KP_Enter'     : 'load-near-volume',
+        'KP_8'         : 'set-view-up',
+        'KP_Up'        : 'set-view-up',           # LEGION
+        'Shift+|'      : 'set-view-up',
+        'Shift+\\'     : 'set-view-up',           # LEGION
+        'x'            : 'remove_selected_object',
+        '`'            : 'toggle_show_local_volume',
+        'Ctrl+g'       : 'exec-script',
+        'Ctrl+Shift+A' : 'deselect',
         'MouseLeftButton'               : 'camera-rotate-around',
         'MouseLeftButtonRelease'        : 'camera-rotate-around-release',
         'Shift+MouseLeftButton'         : 'camera-move-translational',
@@ -417,6 +437,7 @@ def DefaultKeyBindings():
         'MouseMiddleButton'             : 'camera-move-translational',
         'MouseMiddleButtonRelease'      : 'camera-move-translational-release',
         'MouseRightButton'              : 'select-a-point',
+        'Ctrl+MouseRightButton'         : ['select-a-point', 'append'],
     }
     # For user provided key bindings we need to:
     # 1. Remove redundant white space.
