@@ -364,7 +364,7 @@ class UIActions():
         self.interactor.OnMiddleButtonUp()   # vtkInteractorStyleTerrain
 
     def select_a_point(self, select_mode = ''):
-        """Select a point near the pointer."""
+        """Select a point on SWC near the pointer."""
         ren = self.gui_ctrl.GetMainRenderer()
 
         # select object
@@ -394,11 +394,13 @@ class UIActions():
         # purposely no call to self.OnRightButtonDown()
 
     def deselect(self, select_mode = ''):
+        """ deselect all selected objects. """
         # select_mode = all, reverse
         self.gui_ctrl.selected_objects = []
         dbg_print(4, 'selected obj:', self.gui_ctrl.selected_objects)
 
     def toggle_hide_nonselected(self):
+        """ toggle hidding non-selected object and showing all objects."""
         if not hasattr(self, 'hide_nonselected'):
             self.hide_nonselected = False
         # toggle

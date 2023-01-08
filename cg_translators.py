@@ -701,7 +701,7 @@ Possible types:
             self.actor = actor
             
             t3 = time.time()
-            dbg_print(5, f't1 = {t1-t0:1.5f}, t2 = {t2-t1:1.5f}, t3 = {t3-t2:1.5f}')
+            #dbg_print(5, f't1 = {t1-t0:1.5f}, t2 = {t2-t1:1.5f}, t3 = {t3-t2:1.5f}')
             return self
 
         @staticmethod
@@ -709,7 +709,7 @@ Possible types:
             ntree = LoadSWCTree(file_path)
             processes = SplitSWCTree(ntree)
             
-            point_graph = GetUndirectedGraph(ntree)  # TODO: this scales pooly
+            point_graph = GetUndirectedGraph(ntree)
             raw_points = ntree[1][:,0:3]
 
             # the point_graph cost so much memory and slows everything down

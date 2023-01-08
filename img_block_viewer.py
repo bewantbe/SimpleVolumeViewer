@@ -116,7 +116,7 @@ from ui_interactions import (
 from data_loader import OnDemandVolumeLoader
 from cg_translators import ObjTranslator
 
-# Default and all possible configuration parameters are as follow
+# Default configuration parameters are as follow
 def DefaultGUIConfig():
     d = {
         "window": {
@@ -704,25 +704,55 @@ class GUIControl:
         return li_name
 
     def AddBatchSWC(self, name_prefix, li_swc_conf):
-        """ parallel add swc """
-        dbg_print(4, 'AddBatchSWC()')
+        """ add swc in parallel """
 
         # get object names
         li_name = self.GetNonconflitNameBatch(name_prefix, len(li_swc_conf))
 
         # get swc data pathes
         li_file_path = [o['file_path'] for o in li_swc_conf]
-        job_func = self.translator.obj_swc.LoadRawSwc
+
+        # split the workload into batches, each batch contains multiple jobs
+        n_batch_size = 2
+        li_file_path_batch = []
+        k = 0
+        while k < len(li_file_path):
+            li_file_path_batch.append(li_file_path[k : k + n_batch_size])
+            k += n_batch_size
+        dbg_print(5, f'AddBatchSWC(): n_jobs = {len(li_swc_conf)}, batch_size = {n_batch_size}, n_batch = {len(li_file_path_batch)}')
+        n_job_cores = min(4, joblib.cpu_count())
+        dbg_print(4, f'AddBatchSWC(): using {n_job_cores} cores')
+
+        def batch_load(file_path_batch):
+            results = []
+            for f in file_path_batch:
+                #results.append(self.translator.obj_swc.LoadRawSwc(f))
+                results.append(ObjTranslator.obj_swc.LoadRawSwc(f))
+            return results
         
         dbg_print(4, 'AddBatchSWC(): loading...')
         # load swc data in parallel
-        cached_pointsets = joblib.Parallel(n_jobs=8) \
-                (joblib.delayed(job_func)(j) for j in li_file_path)
+        #cached_pointsets = [batch_load(j)
+        #                    for j in li_file_path_batch]
+        t1 = time.time()
+        cached_pointsets = joblib.Parallel(n_jobs = n_job_cores) \
+                (joblib.delayed(batch_load)(j) for j in li_file_path_batch)
+        t2 = time.time()
+        dbg_print(4, f'                       done, t = {t2-t1:.3f} sec.')
 
-        # translator units
+        # unpack the batch results
+        cached_pointsets_expanded = []
+        for b in cached_pointsets:
+            cached_pointsets_expanded.extend(b)
+        cached_pointsets = cached_pointsets_expanded
+
+        # initialize translator units
         ren = self.GetMainRenderer()
         li_tl = [self.translator.obj_swc(self, ren) \
                   for k in range(len(li_swc_conf))]
+
+        t3 = time.time()
+        dbg_print(4, f'AddBatchSWC(): init obj_swc, t = {t3-t2:.3f} sec.')
 
         dbg_print(4, 'AddBatchSWC(): parsing...')
         # parse the swc_conf
@@ -734,6 +764,8 @@ class GUIControl:
             self.point_set_holder.AddPoints(scene_object.PopRawPoints(), name)
             self.scene_objects.update({name: scene_object})
             self.scene_saved['objects'].update({name: swc_conf})
+        t4 = time.time()
+        dbg_print(4, f'                       done, t = {t4-t3:.3f} sec.')
 
     def AppendToScene(self, scene_conf):
         """ add objects to the renderers """
