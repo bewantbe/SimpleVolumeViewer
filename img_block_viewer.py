@@ -434,9 +434,9 @@ class FocusModeController:
         self.renderer = self.gui_ctrl.GetMainRenderer()
         self.iren = gui_ctrl.interactor
         self.gui_ctrl.volume_observers.append(self)
-        if 'swc' in self.gui_ctrl.scene_objects:
-            self.swc_mapper = self.gui_ctrl \
-                              .scene_objects['swc'].actor.GetMapper()
+        swc_objs = self.gui_ctrl.GetObjectsByType('swc', 1)
+        if swc_objs:
+            self.swc_mapper = swc_objs[0].actor.GetMapper()
             self.swc_polydata = self.swc_mapper.GetInput()
         else:
             self.swc_mapper = None
@@ -600,6 +600,17 @@ class GUIControl:
             dbg_print(3, 'SetSelectedPID(): pid=%d out of range, len=%d' \
                       %(pid, len(self.point_set_holder)))
 
+    def GetObjectsByType(self, str_type, n_find = -1):
+        """ Find all (at most n_find) objects with the type str_type. """
+        li_obj = []
+        for k, conf in self.scene_saved['objects'].items():
+            if conf['type'] == str_type:
+                li_obj.append(self.scene_objects[k])
+                n_find -= 1
+                if n_find == 0:
+                    break
+        return li_obj
+
     def Get3DCursor(self):
         cursor = self.scene_objects.get('3d_cursor', None)
         if cursor:
@@ -726,7 +737,7 @@ class GUIControl:
         dbg_print(4, f'AddBatchSWC(): using {n_job_cores} cores')
 
         def batch_load(file_path_batch):
-            dbg_print(4, '...dealing', file_path_batch)
+            dbg_print(5, '...dealing', file_path_batch)
             results = []
             for f in file_path_batch:
                 #results.append(self.translator.obj_swc.LoadRawSwc(f))
