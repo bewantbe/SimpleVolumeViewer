@@ -720,7 +720,8 @@ class GUIControl:
             li_file_path_batch.append(li_file_path[k : k + n_batch_size])
             k += n_batch_size
         dbg_print(5, f'AddBatchSWC(): n_jobs = {len(li_swc_conf)}, batch_size = {n_batch_size}, n_batch = {len(li_file_path_batch)}')
-        n_job_cores = min(4, joblib.cpu_count())
+        n_max_cores_default = 8
+        n_job_cores = min(n_max_cores_default, joblib.cpu_count())
         dbg_print(4, f'AddBatchSWC(): using {n_job_cores} cores')
 
         def batch_load(file_path_batch):
