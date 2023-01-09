@@ -551,6 +551,7 @@ class GUIControl:
         self.GUISetup(DefaultGUIConfig())
         self.AppendToScene(DefaultSceneConfig())
         self.loading_default_config = False
+        self.n_max_cpu_cores_default = 8
 
     def GetNonconflitName(self, name_prefix, name_book = 'scene'):
         if name_book == 'scene':
@@ -720,8 +721,7 @@ class GUIControl:
             li_file_path_batch.append(li_file_path[k : k + n_batch_size])
             k += n_batch_size
         dbg_print(5, f'AddBatchSWC(): n_jobs = {len(li_file_path)}, batch_size = {n_batch_size}, n_batch = {len(li_file_path_batch)}')
-        n_max_cores_default = 8
-        n_job_cores = min(n_max_cores_default, joblib.cpu_count())
+        n_job_cores = min(self.n_max_cpu_cores_default, joblib.cpu_count())
         dbg_print(4, f'AddBatchSWC(): using {n_job_cores} cores')
 
         def batch_load(file_path_batch):

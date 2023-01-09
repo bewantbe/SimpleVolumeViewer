@@ -189,6 +189,7 @@ class ObjTranslator:
             "title": "SimpleRayCast",
             "number_of_layers": 2,
 #            "stereo_type": "SplitViewportHorizontal"
+            "no_interaction" : 0
         },
         """
         def parse(self, win_conf):
@@ -230,6 +231,8 @@ class ObjTranslator:
                 elif t == 'Emulate':
                     render_window.SetStereoTypeToEmulate()
                 render_window.StereoRenderOn()
+            if 'max_cpu' in win_conf:
+                self.gui_ctrl.n_max_cpu_cores_default = win_conf['max_cpu']
 
         def parse_post_renderers(self, win_conf):
             # Off screen rendering
@@ -242,6 +245,8 @@ class ObjTranslator:
                 self.gui_ctrl.do_not_start_interaction = False
             # Hint: you may use xdotoll to control an off-screen program
             # e.g. xdotool search --name SimpleRayCast key 'q'
+            if 'no_interaction' in win_conf:
+                self.gui_ctrl.do_not_start_interaction = win_conf['no_interaction']
 
         @staticmethod
         def add_argument_to(parser):
@@ -256,6 +261,10 @@ Possible types:
   CrystalEyes, RedBlue, Interlaced, Left, Right, Fake, Emulate,
   Dresden, Anaglyph, Checkerboard, SplitViewportHorizontal
 """)
+            parser.add_argument('--no_interaction', type=int, choices=[0, 1],
+                    help='Exit after the screen shot.')
+            parser.add_argument('--max_cpu', type=int,
+                    help='Max number of CPU.')
 
         @staticmethod
         def parse_cmd_args(cmd_obj_desc):
@@ -267,6 +276,14 @@ Possible types:
             if 'stereo_type' in cmd_obj_desc:
                 win_conf.update({
                     'stereo_type': cmd_obj_desc['stereo_type']
+                })
+            if 'no_interaction' in cmd_obj_desc:
+                win_conf.update({
+                    'no_interaction': cmd_obj_desc['no_interaction'] > 0
+                })
+            if 'max_cpu' in cmd_obj_desc:
+                win_conf.update({
+                    'max_cpu': cmd_obj_desc['max_cpu']
                 })
             return win_conf
 
@@ -1023,7 +1040,6 @@ Possible types:
             'type'           : 'take_shot',
             'delay'          : 1.0,
             'save_pic_path'  : 'pic_tmp/haha_t=%06.4f.png',
-            'no_interaction' : False
         }
         """
         def parse(self, cg_conf):
@@ -1037,8 +1053,6 @@ Possible types:
  
             dbg_print(4, 'Screenshot saved to', save_pic_path)
 
-            self.gui_ctrl.do_not_start_interaction = cg_conf['no_interaction']
-
         @staticmethod
         def add_argument_to(parser):
             # usually, you would use it like
@@ -1047,8 +1061,6 @@ Possible types:
             # --save_screen a.png --no_interaction 1
             parser.add_argument('--save_screen',
                     help='Take a screen shot and save to the path.')
-            parser.add_argument('--no_interaction', type=int, choices=[0, 1],
-                    help='Exit after the screen shot.')
 
         @staticmethod
         def parse_cmd_args(cmd_obj_desc):
@@ -1066,7 +1078,6 @@ Possible types:
                 'type'           : 'take_shot',
                 'delay'          : 1.0,
                 'save_pic_path'  : pic_path,
-                'no_interaction' : cmd_obj_desc.get('no_interaction', False)>0
             }
             
             return cg_conf
