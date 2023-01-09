@@ -719,22 +719,30 @@ class GUIControl:
         while k < len(li_file_path):
             li_file_path_batch.append(li_file_path[k : k + n_batch_size])
             k += n_batch_size
-        dbg_print(5, f'AddBatchSWC(): n_jobs = {len(li_swc_conf)}, batch_size = {n_batch_size}, n_batch = {len(li_file_path_batch)}')
+        dbg_print(5, f'AddBatchSWC(): n_jobs = {len(li_file_path)}, batch_size = {n_batch_size}, n_batch = {len(li_file_path_batch)}')
         n_max_cores_default = 8
         n_job_cores = min(n_max_cores_default, joblib.cpu_count())
         dbg_print(4, f'AddBatchSWC(): using {n_job_cores} cores')
 
         def batch_load(file_path_batch):
+            dbg_print(4, '...dealing', file_path_batch)
             results = []
             for f in file_path_batch:
                 #results.append(self.translator.obj_swc.LoadRawSwc(f))
                 results.append(ObjTranslator.obj_swc.LoadRawSwc(f))
             return results
-        
+
         dbg_print(4, 'AddBatchSWC(): loading...')
         # load swc data in parallel
         #cached_pointsets = [batch_load(j)
         #                    for j in li_file_path_batch]
+        # TODO: the parallel execution has a large fixed overhead,
+        #       this overhead is not sensitive to batch size,
+        #       which indicate the overhead is probably related to
+        #       large data transfer (RAM IO?).
+        #       The profiler (cProfile) sees
+        #       {method 'acquire' of '_thread.lock' objects} which consumes
+        #       most of the run time.
         t1 = time.time()
         cached_pointsets = joblib.Parallel(n_jobs = n_job_cores) \
                 (joblib.delayed(batch_load)(j) for j in li_file_path_batch)
