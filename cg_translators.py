@@ -233,6 +233,8 @@ class ObjTranslator:
                 render_window.StereoRenderOn()
             if 'max_cpu' in win_conf:
                 self.gui_ctrl.n_max_cpu_cores_default = win_conf['max_cpu']
+            if 'swc_loading_batch_size' in win_conf:
+                self.gui_ctrl.swc_loading_batch_size = win_conf['swc_loading_batch_size']
 
         def parse_post_renderers(self, win_conf):
             # Off screen rendering
@@ -265,6 +267,8 @@ Possible types:
                     help='Exit after the screen shot.')
             parser.add_argument('--max_cpu', type=int,
                     help='Max number of CPU.')
+            parser.add_argument('--swc_loading_batch_size', type=int,
+                    help='The batch size when loading swc files.')
 
         @staticmethod
         def parse_cmd_args(cmd_obj_desc):
@@ -284,6 +288,10 @@ Possible types:
             if 'max_cpu' in cmd_obj_desc:
                 win_conf.update({
                     'max_cpu': cmd_obj_desc['max_cpu']
+                })
+            if 'swc_loading_batch_size' in cmd_obj_desc:
+                win_conf.update({
+                    'swc_loading_batch_size': cmd_obj_desc['swc_loading_batch_size']
                 })
             return win_conf
 

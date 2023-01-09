@@ -552,6 +552,7 @@ class GUIControl:
         self.AppendToScene(DefaultSceneConfig())
         self.loading_default_config = False
         self.n_max_cpu_cores_default = 8
+        self.swc_loading_batch_size = 2
 
     def GetNonconflitName(self, name_prefix, name_book = 'scene'):
         if name_book == 'scene':
@@ -714,7 +715,7 @@ class GUIControl:
         li_file_path = [o['file_path'] for o in li_swc_conf]
 
         # split the workload into batches, each batch contains multiple jobs
-        n_batch_size = 2
+        n_batch_size = self.swc_loading_batch_size
         li_file_path_batch = []
         k = 0
         while k < len(li_file_path):
