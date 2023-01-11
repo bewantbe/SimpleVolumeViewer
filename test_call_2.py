@@ -55,7 +55,8 @@ def GetValueByAnchorPoints(color_anchor_points, swc_objs):
             color_direction)
     plane_origin = color_anchor_points[0]
     
-    s_v = np.zeros(len(swc_objs))
+    n_swc = len(swc_objs)
+    s_v = np.zeros(n_swc)
     for k, o in enumerate(swc_objs):
         v = int(o.swc_name.split('#')[1]) / n_swc
         

@@ -123,6 +123,7 @@ def DefaultGUIConfig():
             "size": [2400, 1800],
             "title": "SimpleRayCast",
             "number_of_layers": 2,
+            "stereo_type": "SplitViewportHorizontal",
         },
 
         "renderers":{

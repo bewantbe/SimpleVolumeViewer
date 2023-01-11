@@ -108,10 +108,10 @@ class PointPicker():
     def __init__(self, points, renderer):
         ren_win = renderer.GetRenderWindow()
         cam = renderer.GetActiveCamera()
-        self.GetViewParam(cam, ren_win.GetSize())
+        self.InitViewParam(cam, ren_win.GetSize())
         self.p = np.array(points, dtype=np.float64)
 
-    def GetViewParam(self, camera, screen_dims):
+    def InitViewParam(self, camera, screen_dims):
         # The matrix from cam to world
         # vec_cam = cam_m * vec_world
         # for cam_m =[[u v], inverse of it is:[[u.T  -u.T*v]
@@ -369,11 +369,20 @@ class UIActions():
         """Select a point on SWC near the pointer."""
         ren = self.gui_ctrl.GetMainRenderer()
 
+        wnd = self.gui_ctrl.render_window
+        in_vr_mode = wnd.GetStereoRender() and wnd.GetStereoTypeAsString() == 'SplitViewportHorizontal'
+        dbg_print(2, 'in_vr_mode SplitViewportHorizontal =', in_vr_mode)
+
         # select object
         # Ref. HighlightWithSilhouette
         # https://kitware.github.io/vtk-examples/site/Python/Picking/HighlightWithSilhouette/
         clickPos = self.iren.GetEventPosition()
         dbg_print(4, 'clicked at', clickPos)
+        if in_vr_mode:
+            win_size = wnd.GetSize()
+            wx2 = win_size[0]/2
+            dx = wx2 if clickPos[0] > wx2 else 0
+            clickPos = (2*(clickPos[0]-dx), clickPos[0])
 
         ppicker = PointPicker(self.gui_ctrl.point_set_holder(), ren)
         pid, pxyz = ppicker.PickAt(clickPos)
