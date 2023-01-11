@@ -213,3 +213,9 @@ def SetColorScale(obj_prop, scale):
     UpdatePropertyOTFScale(obj_prop, otf_s)
     UpdatePropertyCTFScale(obj_prop, ctf_s)
 
+def ConditionalAddItem(name, cmd_obj_desc, win_conf):
+    if name in cmd_obj_desc:
+        win_conf.update({
+            name: cmd_obj_desc[name]
+        })
+

@@ -60,6 +60,7 @@ from utils import (
     UpdatePropertyCTFScale,
     GetColorScale,
     SetColorScale,
+    ConditionalAddItem,
 )
 
 from ui_interactions import (
@@ -236,12 +237,14 @@ class ObjTranslator:
                 self.gui_ctrl.n_max_cpu_cores_default = win_conf['max_cpu']
             if 'swc_loading_batch_size' in win_conf:
                 self.gui_ctrl.swc_loading_batch_size = win_conf['swc_loading_batch_size']
+            if 'full_screen' in win_conf:
+                render_window.SetFullScreen(win_conf['full_screen']>0)
 
         def parse_post_renderers(self, win_conf):
             # Off screen rendering
             # https://discourse.vtk.org/t/status-of-vtk-9-0-with-respect-to-off-screen-rendering-under-ubuntu-with-pip-install/5631/2
             # TODO: add an option for off screen rendering
-            if win_conf.get('off_screen_rendering', False):
+            if win_conf.get('off_screen_rendering', False) > 0:
                 self.gui_ctrl.render_window.SetOffScreenRendering(1)
                 self.gui_ctrl.do_not_start_interaction = True
             else:
@@ -249,7 +252,7 @@ class ObjTranslator:
             # Hint: you may use xdotoll to control an off-screen program
             # e.g. xdotool search --name SimpleRayCast key 'q'
             if 'no_interaction' in win_conf:
-                self.gui_ctrl.do_not_start_interaction = win_conf['no_interaction']
+                self.gui_ctrl.do_not_start_interaction = win_conf['no_interaction'] > 0
 
         @staticmethod
         def add_argument_to(parser):
@@ -270,30 +273,16 @@ Possible types:
                     help='Max number of CPU.')
             parser.add_argument('--swc_loading_batch_size', type=int,
                     help='The batch size when loading swc files.')
+            parser.add_argument('--full_screen', type=int, choices=[0, 1],
+                    help='Full screen On/Off.')
 
         @staticmethod
         def parse_cmd_args(cmd_obj_desc):
             win_conf = {}
-            if 'off_screen_rendering' in cmd_obj_desc:
-                win_conf.update({
-                    'off_screen_rendering': cmd_obj_desc['off_screen_rendering'] > 0
-                })
-            if 'stereo_type' in cmd_obj_desc:
-                win_conf.update({
-                    'stereo_type': cmd_obj_desc['stereo_type']
-                })
-            if 'no_interaction' in cmd_obj_desc:
-                win_conf.update({
-                    'no_interaction': cmd_obj_desc['no_interaction'] > 0
-                })
-            if 'max_cpu' in cmd_obj_desc:
-                win_conf.update({
-                    'max_cpu': cmd_obj_desc['max_cpu']
-                })
-            if 'swc_loading_batch_size' in cmd_obj_desc:
-                win_conf.update({
-                    'swc_loading_batch_size': cmd_obj_desc['swc_loading_batch_size']
-                })
+            for name in ['full_screen', 'swc_loading_batch_size', \
+                         'max_cpu', 'stereo_type', 'no_interaction', \
+                         'off_screen_rendering']:
+                ConditionalAddItem(name, cmd_obj_desc, win_conf)
             return win_conf
 
     class init_renderers(TranslatorUnit):
