@@ -8,6 +8,7 @@
 # Demonstrates physically based rendering using image based lighting and a skybox.
 # https://kitware.github.io/vtk-examples/site/Python/Rendering/PBR_Skybox/
 
+import os            # for os.path
 import datetime
 import numpy as np
 from numpy import array as _a
@@ -688,8 +689,16 @@ Possible types:
         """
         def __init__(self, gui_ctrl, renderer):
             super().__init__(gui_ctrl, renderer)
-            self._visible = True
-            self._color = None
+            self._visible   = True
+            self._color     = None
+            # file path of the source SWC data
+            self.file_path  = None
+            # essentially file name
+            self.swc_name   = None
+            # for data structure see def LoadSWCTree(filepath)
+            self.tree_data  = None
+            # undirected graph of the tree, root (-1) is stripped
+            self.tree_graph = None
         
         def parse(self, obj_conf):
             t0 = time.time()
@@ -697,13 +706,18 @@ Possible types:
             if not hasattr(self, 'cache1'):
                 processes, point_graph, raw_points = \
                     self.LoadRawSwc(obj_conf['file_path'])
-                self.cache1 = (processes, point_graph, raw_points)
+                self.cache1 = (processes, point_graph, raw_points, ntree)
             else:
-                processes, point_graph, raw_points = self.cache1
+                processes, point_graph, raw_points, ntree = self.cache1
             del self.cache1      # release the variables to speed up
 
             self.gui_ctrl.point_graph = point_graph
             self.raw_points = raw_points
+
+            self.file_path  = obj_conf['file_path']
+            self.swc_name   = os.path.splitext(os.path.basename(self.file_path))[0]
+            self.tree_data  = ntree
+            self.tree_graph = point_graph
 
             # ref: 
             # https://kitware.github.io/vtk-examples/site/Python/GeometricObjects/PolyLine/
@@ -744,7 +758,7 @@ Possible types:
             raw_points = ntree[1][:,0:3]
 
             # the point_graph cost so much memory and slows everything down
-            return processes, point_graph, raw_points
+            return processes, point_graph, raw_points, ntree
 
         @staticmethod
         def ConstructPolyData(raw_points, processes):
@@ -798,6 +812,7 @@ Possible types:
         @property
         def color(self):
             """Get/Set color of the whole fiber."""
+            return self._color
 
         @color.setter
         def color(self, c):

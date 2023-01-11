@@ -1,7 +1,6 @@
 #
 
 import numpy as np
-import tifffile
 
 def PluginMain(ren, iren, guictrl):
     swc_objs = guictrl.GetObjectsByType('swc')

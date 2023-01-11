@@ -181,9 +181,9 @@ class PointSetHolder():
             return np.array([[],[],[]], dtype=_point_set_dtype_)
     
     def GetNameByPointId(self, point_id):
-    	set_id = np.searchsorted(self._point_set_boundaries,
-    	                         point_id, side='right')
-    	return self.name_list[set_id]
+        set_id = np.searchsorted(self._point_set_boundaries,
+                                 point_id, side='right')
+        return self.name_list[set_id]
     
     def __len__(self):
         return self._len
@@ -319,8 +319,11 @@ class UIActions():
         iren = self.iren
         dbg_print(3, 'Running script:', script_name)
         try:
-            exec(open(script_name).read())
-            exec('PluginMain(ren1, iren, self.gui_ctrl)')
+            # running in globals() is a bit danger, any better idea?
+            exec(open(script_name).read(), globals(), None)
+            #exec('PluginMain(ren1, iren, self.gui_ctrl)')
+            PluginMain(ren1, iren, self.gui_ctrl)
+            #locals()['PluginMain'](ren1, iren, self.gui_ctrl)
         except Exception as inst:
             print('Failed to run due to exception:')
             print(type(inst))

@@ -53,8 +53,9 @@ def vtkGetColorAny(c):
         return vtkColor3d(c[0]/255, c[1]/255, c[2]/255)
     elif isinstance(c, vtkColor3d):
         return c
-    elif hasattr(c, '__len__') and len(c) == 3:
+    elif hasattr(c, '__len__') and (len(c) == 3 or len(c) == 4):
         # tuple, list, numpy array of 3 floating numbers
+        # TODO: should we do something about the alpha channel?
         if (c[0]>1.0) or (c[1]>1.0) or (c[2]>1.0):
             dbg_print(3, 'vtkGetColorAny(): assuming uint8*3 color.')
             return vtkColor3d(c[0]/255, c[1]/255, c[2]/255)
