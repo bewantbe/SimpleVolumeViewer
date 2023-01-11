@@ -686,6 +686,11 @@ Possible types:
             "file_path": "RM006-004-lychnis/F5.json.swc"
         }
         """
+        def __init__(self, gui_ctrl, renderer):
+            super().__init__(gui_ctrl, renderer)
+            self._visible = True
+            self._color = None
+        
         def parse(self, obj_conf):
             t0 = time.time()
             
@@ -725,6 +730,7 @@ Possible types:
             self.renderer.AddActor(actor)
             self.actor = actor
             
+            self._color = obj_conf['color']
             t3 = time.time()
             #dbg_print(5, f't1 = {t1-t0:1.5f}, t2 = {t2-t1:1.5f}, t3 = {t3-t2:1.5f}')
             return self
@@ -763,23 +769,45 @@ Possible types:
             self.raw_points = None    # detach
             return a
 
-        # TODO: convert it to property
-        def SetVisibility(self, visible):
+        @property
+        def visible(self):
+            """Get/Set visibility of the whole fiber."""
+            return self._visible
+        
+        @visible.setter
+        def visible(self, v):
+            if self._visible == v:
+                return
             # How to hide a specific actor in python-vtk
             # https://stackoverflow.com/questions/69974435/how-to-hide-a-specific-actor-in-python-vtk
             # actor.GetProperty().SetOpacity(0)
             # Or
             # actor.VisibilityOff()
             # https://vtk.org/doc/nightly/html/classvtkProp.html#a03b15f78c7fce9041ddd91357c9c27ad
-            if visible:
+            if v:
                 self.actor.VisibilityOn()
             else:
                 self.actor.VisibilityOff()
-
+            #Note: SetVisibility seems not work
             #if visible:
             #    self.actor.GetProperty().SetOpacity(1)
             #else:
             #    self.actor.GetProperty().SetOpacity(0)
+            self._visible = v
+
+        @property
+        def color(self):
+            """Get/Set color of the whole fiber."""
+
+        @color.setter
+        def color(self, c):
+            if (type(c) == type(self._color)) and \
+               not np.any( np.array(vtkGetColorAny(c)) -
+                           np.array(vtkGetColorAny(self._color)) ):
+                return
+            vtk_color = vtkGetColorAny(c)
+            self.actor.GetProperty().SetColor(vtk_color)
+            self._color = c
 
         @staticmethod
         def add_argument_to(parser):

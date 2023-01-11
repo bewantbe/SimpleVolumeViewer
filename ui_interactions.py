@@ -313,14 +313,13 @@ class UIActions():
         else:
             self.gui_ctrl.focusController.Toggle()
 
-    def exec_script(self):
+    def exec_script(self, script_name = 'test_call.py'):
         '''Run script.'''
-        default_script_name = 'test_call.py'
         ren1 = self.GetRenderers(1)
         iren = self.iren
-        print('Running script', 'test_call.py')
+        dbg_print(3, 'Running script:', script_name)
         try:
-            exec(open(default_script_name).read())
+            exec(open(script_name).read())
             exec('PluginMain(ren1, iren, self.gui_ctrl)')
         except Exception as inst:
             print('Failed to run due to exception:')
@@ -411,16 +410,16 @@ class UIActions():
         if self.hide_nonselected == True:
             dbg_print(5, 'Show only selected SWC.')
             for name, obj in self.gui_ctrl.scene_objects.items():
-                if hasattr(obj, 'SetVisibility'):
+                if hasattr(obj, 'visible'):
                     if name in self.gui_ctrl.selected_objects:
-                        obj.SetVisibility(True)
+                        obj.visible = True
                     else:
-                        obj.SetVisibility(False)
+                        obj.visible = False
         else:
             dbg_print(5, 'Show all SWC.')
             for name, obj in self.gui_ctrl.scene_objects.items():
-                if hasattr(obj, 'SetVisibility'):
-                    obj.SetVisibility(True)
+                if hasattr(obj, 'visible'):
+                    obj.visible = True
         self.iren.GetRenderWindow().Render()
 
     def show_selected_info(self):
@@ -467,6 +466,8 @@ def DefaultKeyBindings():
         '`'            : 'toggle_show_local_volume',
         'i'            : 'show-selected-info',
         'Ctrl+g'       : 'exec-script',
+        'Ctrl+2'       : 'exec-script test_call_2.py',
+        'Ctrl+5'       : 'exec-script test_call_swc.py',
         'Ctrl+Shift+A' : 'deselect',
         'Insert'       : 'toggle-hide-nonselected',
         'Home'         : 'reset-camera-view',
