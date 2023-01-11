@@ -325,9 +325,9 @@ class UIActions():
             PluginMain(ren1, iren, self.gui_ctrl)
             #locals()['PluginMain'](ren1, iren, self.gui_ctrl)
         except Exception as inst:
-            print('Failed to run due to exception:')
-            print(type(inst))
-            print(inst)
+            dbg_print(1, 'Failed to run due to exception:')
+            dbg_print(1, type(inst))
+            dbg_print(1, inst)
 
     def scene_zooming(self, direction, zooming_factor = 1.2):
         """Zoom in or out."""
