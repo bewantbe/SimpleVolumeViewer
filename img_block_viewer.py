@@ -123,7 +123,6 @@ def DefaultGUIConfig():
             "size": [2400, 1800],
             "title": "SimpleRayCast",
             "number_of_layers": 2,
-            "stereo_type": "SplitViewportHorizontal",
         },
 
         "renderers":{
@@ -535,6 +534,7 @@ class GUIControl:
         self.utility_objects = {}
         self.volume_loader = OnDemandVolumeLoader()
         
+        self.win_conf = {}
         self.scene_saved = {
             'object_properties': {},
             'objects': {}
@@ -644,9 +644,15 @@ class GUIControl:
         self.interactor = self.translator \
                 .init_interactor(self, self.renderers) \
                 .parse(None)
-        
+
         # first time render, for 'Timer' event to work in Windows
         self.render_window.Render()
+
+    def WindowConfUpdate(self, new_win_conf):
+        dbg_print(4, 'WindowConfUpdate():', new_win_conf)
+        self.translator.init_window(self, None).parse(new_win_conf)
+        self.interactor.ReInitialize()   # otherwise, the key stroke won't work
+        self.win_conf.update(new_win_conf)
 
     # The property describes how the data will look.
     def AddObjectProperty(self, name, prop_conf):

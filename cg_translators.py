@@ -199,6 +199,7 @@ class ObjTranslator:
             # TODO: try vtkVRRenderWindow?
             if self.gui_ctrl.render_window is None:
                 self.gui_ctrl.render_window = vtkRenderWindow()
+                self.gui_ctrl.render_window.StereoCapableWindowOn()
             render_window = self.gui_ctrl.render_window
             if 'size' in win_conf:
                 render_window.SetSize(win_conf['size'])
@@ -207,8 +208,7 @@ class ObjTranslator:
             if 'number_of_layers' in win_conf:
                 render_window.SetNumberOfLayers(
                     win_conf['number_of_layers'])
-            if 'stereo_type' in win_conf:
-                render_window.StereoCapableWindowOn()
+            if ('stereo_type' in win_conf) and win_conf['stereo_type']:
                 t = win_conf['stereo_type']
                 if t == 'CrystalEyes':
                     render_window.SetStereoTypeToCrystalEyes()
@@ -233,12 +233,17 @@ class ObjTranslator:
                 elif t == 'Emulate':
                     render_window.SetStereoTypeToEmulate()
                 render_window.StereoRenderOn()
+            else:
+                render_window.StereoRenderOff()
+                #render_window.StereoCapableWindowOn()
             if 'max_cpu' in win_conf:
                 self.gui_ctrl.n_max_cpu_cores_default = win_conf['max_cpu']
             if 'swc_loading_batch_size' in win_conf:
                 self.gui_ctrl.swc_loading_batch_size = win_conf['swc_loading_batch_size']
             if 'full_screen' in win_conf:
                 render_window.SetFullScreen(win_conf['full_screen']>0)
+            # note down
+            self.gui_ctrl.win_conf.update(win_conf)
 
         def parse_post_renderers(self, win_conf):
             # Off screen rendering
@@ -253,12 +258,18 @@ class ObjTranslator:
             # e.g. xdotool search --name SimpleRayCast key 'q'
             if 'no_interaction' in win_conf:
                 self.gui_ctrl.do_not_start_interaction = win_conf['no_interaction'] > 0
+            # note down
+            self.gui_ctrl.win_conf.update(win_conf)
 
         @staticmethod
         def add_argument_to(parser):
             parser.add_argument('--off_screen_rendering',
                     type=int, choices=[0, 1],
                     help='Enable off-screen rendering. 1=Enable, 0=Disable.')
+            parser.add_argument('--no_interaction', type=int, choices=[0, 1],
+                    help='Exit after the screen shot.')
+            parser.add_argument('--full_screen', type=int, choices=[0, 1],
+                    help='Full screen On/Off.')
             parser.add_argument('--stereo_type',
                     help=
 """
@@ -267,21 +278,18 @@ Possible types:
   CrystalEyes, RedBlue, Interlaced, Left, Right, Fake, Emulate,
   Dresden, Anaglyph, Checkerboard, SplitViewportHorizontal
 """)
-            parser.add_argument('--no_interaction', type=int, choices=[0, 1],
-                    help='Exit after the screen shot.')
             parser.add_argument('--max_cpu', type=int,
                     help='Max number of CPU.')
             parser.add_argument('--swc_loading_batch_size', type=int,
                     help='The batch size when loading swc files.')
-            parser.add_argument('--full_screen', type=int, choices=[0, 1],
-                    help='Full screen On/Off.')
 
         @staticmethod
         def parse_cmd_args(cmd_obj_desc):
             win_conf = {}
-            for name in ['full_screen', 'swc_loading_batch_size', \
-                         'max_cpu', 'stereo_type', 'no_interaction', \
-                         'off_screen_rendering']:
+            for name in ['off_screen_rendering', 'no_interaction',
+                         'full_screen', 'stereo_type',
+                         'max_cpu', 'swc_loading_batch_size',
+                         ]:
                 ConditionalAddItem(name, cmd_obj_desc, win_conf)
             return win_conf
 

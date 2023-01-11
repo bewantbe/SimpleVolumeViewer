@@ -410,6 +410,50 @@ class UIActions():
         self.gui_ctrl.selected_objects = []
         dbg_print(4, 'selected obj:', self.gui_ctrl.selected_objects)
 
+    def toggle_fullscreen(self):
+        """ Toggle full screen mode. """
+        fs_state = self.gui_ctrl.win_conf.get('full_screen', False)
+        dbg_print(4, 'Going to Fullscreen mode', not fs_state)
+        self.gui_ctrl.WindowConfUpdate(
+            {'full_screen': not fs_state})
+
+    def toggle_VR(self, mode_inc = ''):
+        """ Toggle stereo(VR) mode. Optionally loopping different VR modes."""
+        # set "global" variables
+        if not hasattr(self, 'vr_mode_list'):
+            self.vr_mode_list = [
+                'SplitViewportHorizontal', 'CrystalEyes',
+                'RedBlue',                 'Interlaced',
+                'Left',                    'Right',
+                'Dresden',                 'Anaglyph',
+                'Checkerboard',            'Fake',
+                'Emulate']
+        if not hasattr(self, 'vr_mode_idx'):
+            self.vr_mode_idx = 0
+
+        # loop VR mode
+        if mode_inc == 'next':
+            self.vr_mode_idx = (self.vr_mode_idx + 1) % len(self.vr_mode_list)
+        vr_mode_to_be_set = self.vr_mode_list[self.vr_mode_idx]
+        vr_mode_now = self.gui_ctrl.win_conf.get('stereo_type', '')
+
+        if mode_inc == '':
+            # on/off VR
+            if vr_mode_now:
+                dbg_print(4, 'Stop VR mode')
+                self.gui_ctrl.WindowConfUpdate(
+                    {'stereo_type': ''})
+            else:
+                dbg_print(4, 'Going to VR mode', vr_mode_to_be_set)
+                self.gui_ctrl.WindowConfUpdate(
+                    {'stereo_type': vr_mode_to_be_set})
+        else:
+            # loop VR mode, also enter VR mode
+            dbg_print(4, 'Going to VR mode', vr_mode_to_be_set)
+            self.gui_ctrl.WindowConfUpdate(
+                {'stereo_type': vr_mode_to_be_set})
+        self.iren.GetRenderWindow().Render()
+
     def toggle_hide_nonselected(self):
         """ toggle hidding non-selected object and showing all objects."""
         if not hasattr(self, 'hide_nonselected'):
@@ -483,6 +527,9 @@ def DefaultKeyBindings():
         'Ctrl+Shift+A' : 'deselect',
         'Insert'       : 'toggle-hide-nonselected',
         'Home'         : 'reset-camera-view',
+        'Alt+Return'   : 'toggle-fullscreen',
+        'Ctrl+Return'  : 'toggle-VR',
+        'Shift+Return' : 'toggle-VR next',
         'MouseLeftButton'               : 'camera-rotate-around',
         'MouseLeftButtonRelease'        : 'camera-rotate-around-release',
         'Shift+MouseLeftButton'         : 'camera-move-translational',
