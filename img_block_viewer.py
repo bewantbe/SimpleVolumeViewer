@@ -882,13 +882,15 @@ class GUIControl:
             prop = text_actor.GetTextProperty()
             prop.SetFontFamilyToCourier()
             prop.SetColor(1.0, 1.0, 0.0)
+            prop.SetBackgroundColor(0.0, 0.2, 0.5)
+            prop.SetBackgroundOpacity(0.8)
+            prop.FrameOn()
             prop.SetFontSize(font_size)
             # put it to center
             prop.SetVerticalJustificationToCentered()
             v = _a([0]*4)
             text_actor.GetBoundingBox(self.GetMainRenderer(), v)
             text_actor.SetPosition(win_size[0]/2 - (v[1]-v[0])/2, win_size[1]/2)
-            #text_actor.SetTextScaleModeToProp()
 
             self.text_actor = text_actor
             self.GetMainRenderer().AddActor2D(text_actor)
