@@ -16,7 +16,7 @@ def dbg_print(level, *p, **keys):
     """
     Used for printing error and debugging information.
     Controlled by global (module) debug_level.
-    Higher debug_level will show more infomation.
+    Higher debug_level will show more information.
         debug_level == 0: show nothing.
         debug_level == 1: show only error.
         debug_level == 2: show warning.
@@ -122,7 +122,7 @@ def slice_from_str(slice_str):
     return dim_ranges
 
 def GetNonconflitName(prefix, name_set):
-    """ Return a name start with prefix but not occured in name_set. """
+    """ Return a name start with prefix but not occurred in name_set. """
     i = 1
     name = prefix
     while name in name_set:
@@ -143,7 +143,7 @@ def MergeFullDict(d_contain, d_update):
             else:  # key in d_contain
                 if isinstance(value, dict):
                     DeepUpdate(d_contain[key], value)
-                else:  # overwirte
+                else:  # overwrite
                     # simple sanity check: data type must agree
                     if type(d_contain[key]) == type(value):
                         d_contain[key] = value

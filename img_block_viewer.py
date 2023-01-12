@@ -3,7 +3,7 @@
 # specialized for viewing of neuron tracing results.
 
 # Dependencies:
-# pip install vtk opencv-python tifffile h5py
+# pip install vtk opencv-python tifffile h5py scipy joblib
 
 # Usage examples:
 # python img_block_viewer.py --filepath RM006_s128_c13_f8906-9056.tif
@@ -22,7 +22,7 @@
 #     * Load the image or SWC data according to the description.
 #     * Pass the data to VTK for rendering.
 #     * Let VTK to handle the GUI interaction.
-#   Essentally this code translate the object descriptinon to VTK commands
+#   Essentially this code translate the object description to VTK commands
 #   and does the image data loading.
 
 # Code structure:
@@ -34,7 +34,7 @@
 #                         vtk commands; also represent high level objects.
 #   img_block_viewer.py : GUI control class
 #                         Loads window settings, object properties, objects.
-#                         Commandline related data import function.
+#                         Command line related data import function.
 
 # Performance tip:
 # For memory footprint:
@@ -279,7 +279,7 @@ class VolumeClipper:
         Calculate the bounding box and express it in plane form
         Parameter description:
           points              : the points to calculate the bounding box
-          box_scaling         : the scale of the bouding box
+          box_scaling         : the scale of the bounding box
           min_boundary_length : the min length/width/height of the bounding box
         """
 
@@ -288,7 +288,7 @@ class VolumeClipper:
         subtracted = points - center_point
         # Calculate basis vectors
         uu, dd, V = np.linalg.svd(subtracted)
-        # The natual basis of the point set
+        # The natural basis of the point set
         basis_vectors = V
         # Calculate the projection length of the points on the basis vectors
         projection_length = subtracted @ basis_vectors.T
@@ -354,7 +354,7 @@ class VolumeClipper:
 
 class PointSearcher:
     """
-    For a given point coordiante and connectivity graph,
+    For a given point coordinate and connectivity graph,
     search connected nearby points.
     """
 
@@ -730,7 +730,7 @@ class GUIControl:
         # get object names
         li_name = self.GetNonconflitNameBatch(name_prefix, len(li_swc_conf))
 
-        # get swc data pathes
+        # get swc data paths
         li_file_path = [o['file_path'] for o in li_swc_conf]
 
         # split the workload into batches, each batch contains multiple jobs
@@ -886,7 +886,7 @@ class GUIControl:
             prop.SetBackgroundOpacity(0.8)
             prop.FrameOn()
             prop.SetFontSize(font_size)
-            # put it to center
+            # put the text box to center of window
             prop.SetVerticalJustificationToCentered()
             v = _a([0]*4)
             text_actor.GetBoundingBox(self.GetMainRenderer(), v)

@@ -41,7 +41,7 @@ def read_tiff(tif_path, as_np_array = True):
         for page in tif.pages:
             images.append(page.asarray())
 
-    # TODO: determing oblique_image more correctly
+    # TODO: determine oblique_image more correctly
     if ('oblique_image' not in metadata) and len(images) > 0:
         corner_vals = _a([[[images[ii][jj,kk]
                             for ii in [0,-1]]
@@ -73,13 +73,13 @@ def read_tiff_meta(tif_path):
 def read_ims(ims_path, extra_conf = {}, cache_reader_obj = False):
     """
     Read Imaris compatible (HDF5) image file.
-    Returm image array and metadata.
+    Return image array and metadata.
     """
     dbg_print(4, 'read_ims(): extra_conf =', extra_conf)
     dim_ranges = slice_from_str(str(extra_conf.get('range', '[:,:,:]')))
     dbg_print(4, '  Requested dim_range:', dim_ranges)
     
-    # TODO: how to impliment cache_reader_obj?
+    # TODO: how to implement cache_reader_obj?
     ims = h5py.File(ims_path, 'r')
     level      = int(extra_conf.get('level', 0))
     channel    = int(extra_conf.get('channel', 0))

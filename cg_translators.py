@@ -1,5 +1,5 @@
 # Computer graphics translators, the real workhorse.
-# You may also call them operators (of VTK), but "translator" is descriptive stype, "operator" is imperative style, I prefer the former, so everything here is passive and the control point is left in the main code (GUIControl).
+# You may also call them operators (of VTK), but "translator" is descriptive style, "operator" is imperative style, I prefer the former, so everything here is passive and the control point is left in the main code (GUIControl).
 
 # Ref. for VTK
 # Python Wrappers for VTK
@@ -90,12 +90,12 @@ def CameraFollowCallbackFunction(caller, ev):
 
 class ObjTranslator:
     """
-    The collection of translators to convert json discription to computer 
+    The collection of translators to convert json description to computer 
     graphic objects.
     The ideal is that eventually GUIControl do not contain any
-    implimentation details.
+    implementation details.
     All the translator units should not have state.
-    Also handle commandline parse.
+    Also handle command line parse.
     External code should be easy to modify this class to extend its function.
     """
 
@@ -108,7 +108,7 @@ class ObjTranslator:
 
         def parse(self, st):
             """
-            translate json discription to obj on screen.
+            translate json description to obj on screen.
             """
             pass
 
@@ -393,7 +393,7 @@ Possible types:
             volume_property = vtkVolumeProperty()
             
             if 'copy_from' in prop_conf:
-                dbg_print(4, 'Copy propperty from', prop_conf['copy_from'])
+                dbg_print(4, 'Copy property from', prop_conf['copy_from'])
                 # construct a volume property by copying from exist
                 ref_prop = self.gui_ctrl.object_properties[
                                prop_conf['copy_from']]
@@ -614,7 +614,7 @@ Possible types:
                     "range": obj_desc.get('range', '[:,:,:]')
                 }
             else:
-                dbg_print(1, 'Unreconized source format.')
+                dbg_print(1, 'Unrecognized source format.')
                 return None
             
             if 'origin' in obj_desc:
@@ -661,7 +661,7 @@ Possible types:
         @staticmethod
         def add_argument_to(parser):
             parser.add_argument('--lychnis_blocks',
-                    help='Path of lychnix blocks.json')
+                    help='Path of lychnis blocks.json')
 
         @staticmethod
         def parse_cmd_args(obj_desc):
@@ -947,7 +947,7 @@ Possible types:
             om.SetInteractive(False)
             #om.InteractiveOn()
             om.SetViewport(0, 0, 0.2, 0.2)
-            # TODO: the vtkOrientationMarkerWidget and RepeatingTimerHandler can cause program lose respons or Segmentation fault, for unknown reason.
+            # TODO: the vtkOrientationMarkerWidget and RepeatingTimerHandler can cause program lose responds or Segmentation fault, for unknown reason.
 
             self.actor = om
             return self

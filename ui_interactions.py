@@ -49,7 +49,7 @@ class execSmoothRotation():
 
 class RepeatingTimerHandler():
     """
-    Repeatly execute `exec_obj` in a duration with fixed FPS.
+    Repeatedly execute `exec_obj` in a duration with fixed FPS.
     Requirements:
         exec_obj(obj, event, t_now)   Observer obj and event, parameter t_now.
         exec_obj.startat(t)           parameter t.
@@ -164,7 +164,7 @@ class PointSetHolder():
     
     def AddPoints(self, points, name):
         # TODO, maybe make it possible to find 'name' by point
-        # points shape shoud be space_dim x index_dim
+        # points shape should be space_dim x index_dim
         self._points_list.append(points.astype(_point_set_dtype_))
         self._len += points.shape[1]
         self._point_set_boundaries.append(self._len)
@@ -215,7 +215,7 @@ class UIActions():
             args = fn_name[1:]
             fn_name = fn_name[0]
         else:
-            # fn_name should be a str, seperate arguments by spaces if any
+            # fn_name should be a str, separate arguments by spaces if any
             args = fn_name.split(' ')
             fn_name = args[0]
             args = args[1:]
@@ -353,17 +353,17 @@ class UIActions():
 
     def camera_rotate_around(self):
         """Rotate the scene by mouse."""
-        self.interactor.OnLeftButtonDown()   # vtkInteractorStyleTerrain
+        self.interactor.OnLeftButtonDown()    # vtkInteractorStyleTerrain
     
     def camera_rotate_around_release(self):
-        self.interactor.OnLeftButtonUp()   # vtkInteractorStyleTerrain
+        self.interactor.OnLeftButtonUp()      # vtkInteractorStyleTerrain
 
     def camera_move_translational(self):
         """Move camera translationally in the scene."""
-        self.interactor.OnMiddleButtonDown()   # vtkInteractorStyleTerrain
+        self.interactor.OnMiddleButtonDown()  # vtkInteractorStyleTerrain
 
     def camera_move_translational_release(self):
-        self.interactor.OnMiddleButtonUp()   # vtkInteractorStyleTerrain
+        self.interactor.OnMiddleButtonUp()    # vtkInteractorStyleTerrain
 
     def select_a_point(self, select_mode = ''):
         """Select a point on SWC near the pointer."""
@@ -417,12 +417,12 @@ class UIActions():
     def toggle_fullscreen(self):
         """Toggle full screen mode."""
         fs_state = self.gui_ctrl.win_conf.get('full_screen', False)
-        dbg_print(4, 'Going to Fullscreen mode', not fs_state)
+        dbg_print(4, 'Going to full screen mode', not fs_state)
         self.gui_ctrl.WindowConfUpdate(
             {'full_screen': not fs_state})
 
     def toggle_VR(self, mode_inc = ''):
-        """Toggle stereo(VR) mode. Optionally loopping different VR modes."""
+        """Toggle stereo(VR) mode. Optionally looping different VR modes."""
         # set "global" variables
         if not hasattr(self, 'vr_mode_list'):
             self.vr_mode_list = [
@@ -459,12 +459,12 @@ class UIActions():
         self.iren.GetRenderWindow().Render()
 
     def toggle_hide_nonselected(self):
-        """Toggle hidding non-selected object and showing all objects."""
+        """Toggle hiding non-selected object and showing all objects."""
         if not hasattr(self, 'hide_nonselected'):
             self.hide_nonselected = False
         # toggle
         self.hide_nonselected = not self.hide_nonselected
-        # TODO: O(n^2) algo, should we optimize it?
+        # TODO: O(n^2) algorithm, should we optimize it?
         #  e.g. selected_objects use ordered set()
         #  or use set diff  scene_objects - selected_objects
         if self.hide_nonselected == True:
@@ -565,7 +565,7 @@ def QuickKeyBindingsHelpDoc():
         '0'    : Fly to view the selected point in the fiber.
         'Enter': Load the image block (for Lychnis project).
         '|' or '8' in numpad: use Y as view up.
-        Ctrl+s : Save the scene and viewport.
+        Ctrl+s : Save the scene and view port.
         'q'    : Exit the program.
 
     Mouse function:
@@ -600,7 +600,7 @@ def GenerateKeyBindingDoc(key_binding = DefaultKeyBindings(),
     for cmd_name, keys in cmd_keys.items():
         description = action.ExecByCmd(cmd_name_fn_dict[cmd_name],
                                        get_attr_name = '__doc__')
-        # Fileter Space
+        # filter Space key
         for j, k in enumerate(keys):
             if ' ' in k: keys[j] = keys[j].replace(' ', 'Space')
         with_mouse = np.any(['Mouse' in k for k in keys])
