@@ -28,3 +28,6 @@
 
 * Support drag and drop to load data.
 
+* Command-Line Application Layouts
+
+* Bug: after loading volume with colorscale set, press +/- will get wired rendering results.
