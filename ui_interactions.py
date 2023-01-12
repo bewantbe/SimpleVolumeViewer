@@ -209,7 +209,7 @@ class UIActions():
         self.gui_ctrl = gui_ctrl
 
     def ExecByCmd(self, fn_name, get_attr_name = None):
-        '''Call the action by name or list of name and arguments.'''
+        """Call the action by name or list of name and arguments."""
         dbg_print(4, "fn =", fn_name)
         if isinstance(fn_name, list):
             args = fn_name[1:]
@@ -225,7 +225,7 @@ class UIActions():
         fn(*args)
 
     def GetRenderers(self, n):
-        '''currently it returns first two renderers'''
+        """currently it returns first two renderers"""
         rens = self.iren.GetRenderWindow().GetRenderers()
         rens.InitTraversal()
         ren1 = rens.GetNextItem()
@@ -236,7 +236,7 @@ class UIActions():
             return ren1
 
     def auto_rotate(self):
-        '''Animate rotate camera around the focal point.'''
+        """Animate rotate camera around the focal point."""
         ren1, ren2 = self.GetRenderers(2)
         cam1 = ren1.GetActiveCamera()
         cam2 = ren2.GetActiveCamera()
@@ -244,7 +244,7 @@ class UIActions():
         RepeatingTimerHandler(self.iren, 6.0, rotator, 100, True).start()
 
     def inc_brightness(self, cmd):
-        '''Make the selected image darker or lighter.'''
+        """Make the selected image darker or lighter."""
         if not self.gui_ctrl.selected_objects:
             return
         vol_name = self.gui_ctrl.selected_objects[0]  # active object
@@ -257,15 +257,15 @@ class UIActions():
         self.iren.GetRenderWindow().Render()         # TODO inform a refresh in a smart way
     
     def screen_shot(self):
-        '''Save a screenshot to file.'''
+        """Save a screenshot to file."""
         self.gui_ctrl.ShotScreen()
     
     def save_scene(self):
-        '''Save current scene to a project file.'''
+        """Save current scene to a project file."""
         self.gui_ctrl.ExportSceneFile()
 
     def fly_to_selected(self):
-        '''Fly to selected object.'''
+        """Fly to selected object."""
         if not self.gui_ctrl.selected_objects:
             return
         vol_name = self.gui_ctrl.selected_objects[0]  # active object
@@ -275,7 +275,7 @@ class UIActions():
         self.iren.FlyTo(ren1, center)
 
     def fly_to_cursor(self):
-        '''Fly to cursor.'''
+        """Fly to cursor."""
         center = self.gui_ctrl.Get3DCursor()
         if (center is not None) and (len(center) == 3):
             ren1 = self.GetRenderers(1)
@@ -284,13 +284,13 @@ class UIActions():
             dbg_print(3, 'No way to fly to.')
 
     def load_near_volume(self):
-        '''load volume near cursor.'''
+        """Load volume near cursor."""
         center = self.gui_ctrl.Get3DCursor()
         self.gui_ctrl.LoadVolumeNear(center)
         self.iren.GetRenderWindow().Render()
 
     def set_view_up(self):
-        '''Set camera view up right.'''
+        """Set camera view up right."""
         dbg_print(4, 'Setting view up')
         ren1 = self.GetRenderers(1)
         cam1 = ren1.GetActiveCamera()
@@ -298,7 +298,7 @@ class UIActions():
         self.iren.GetRenderWindow().Render()
 
     def remove_selected_object(self):
-        '''Remove the selected object.'''
+        """Remove the selected object."""
         if len(self.gui_ctrl.selected_objects) == 0:
             dbg_print(3, 'Nothing to remove.')
         else:
@@ -307,14 +307,14 @@ class UIActions():
             self.iren.GetRenderWindow().Render()
 
     def toggle_show_local_volume(self):
-        '''Toggle showing of local volume.'''
+        """Toggle showing of local volume."""
         if self.gui_ctrl.focusController.isOn:
             self.gui_ctrl.focusController.Toggle()
         else:
             self.gui_ctrl.focusController.Toggle()
 
     def exec_script(self, script_name = 'test_call.py'):
-        '''Run script.'''
+        """Run script."""
         ren1 = self.GetRenderers(1)
         iren = self.iren
         dbg_print(3, 'Running script:', script_name)
@@ -405,20 +405,23 @@ class UIActions():
         # purposely no call to self.OnRightButtonDown()
 
     def deselect(self, select_mode = ''):
-        """ deselect all selected objects. """
+        """Deselect all selected objects."""
         # select_mode = all, reverse
         self.gui_ctrl.selected_objects = []
         dbg_print(4, 'selected obj:', self.gui_ctrl.selected_objects)
 
+    def toggle_help_message(self):
+        self.gui_ctrl.ShowOnScreenHelp()
+
     def toggle_fullscreen(self):
-        """ Toggle full screen mode. """
+        """Toggle full screen mode."""
         fs_state = self.gui_ctrl.win_conf.get('full_screen', False)
         dbg_print(4, 'Going to Fullscreen mode', not fs_state)
         self.gui_ctrl.WindowConfUpdate(
             {'full_screen': not fs_state})
 
     def toggle_VR(self, mode_inc = ''):
-        """ Toggle stereo(VR) mode. Optionally loopping different VR modes."""
+        """Toggle stereo(VR) mode. Optionally loopping different VR modes."""
         # set "global" variables
         if not hasattr(self, 'vr_mode_list'):
             self.vr_mode_list = [
@@ -455,7 +458,7 @@ class UIActions():
         self.iren.GetRenderWindow().Render()
 
     def toggle_hide_nonselected(self):
-        """ toggle hidding non-selected object and showing all objects."""
+        """Toggle hidding non-selected object and showing all objects."""
         if not hasattr(self, 'hide_nonselected'):
             self.hide_nonselected = False
         # toggle
@@ -479,14 +482,14 @@ class UIActions():
         self.iren.GetRenderWindow().Render()
 
     def show_selected_info(self):
-        """ show info about selected object(s). """
+        """Show info about selected object(s)."""
         for name in self.gui_ctrl.selected_objects:
             obj_conf = self.gui_ctrl.scene_saved['objects'][name]
             print('Name:', name)
             pprint.pprint(obj_conf)
 
     def reset_camera_view(self):
-        """ Reset camera to view all objects. """
+        """Reset camera to view all objects."""
         self.gui_ctrl.GetMainRenderer().ResetCamera()
         #self.gui_ctrl.GetMainRenderer().ResetCameraClippingRange()
         self.iren.GetRenderWindow().Render()
@@ -527,6 +530,7 @@ def DefaultKeyBindings():
         'Ctrl+Shift+A' : 'deselect',
         'Insert'       : 'toggle-hide-nonselected',
         'Home'         : 'reset-camera-view',
+        'h'            : 'toggle-help-message',
         'Alt+Return'   : 'toggle-fullscreen',
         'Ctrl+Return'  : 'toggle-VR',
         'Shift+Return' : 'toggle-VR next',
@@ -549,38 +553,65 @@ def DefaultKeyBindings():
     # 3. Add release mappings to mouse button actions.
     return d
 
-def DefaultKeyBindingsHelpDoc():
-    d = '''
+def QuickKeyBindingsHelpDoc():
+    d = """
     Keyboard shortcuts:
         '+'/'-': Make the image darker or lighter;
                  Press also Ctrl to make it more tender;
-        'r': Auto rotate the image for a while;
-        'p': Take a screenshot and save it to TestScreenshot.png;
-        ' ': Fly to view the selected volume.
-        '0': Fly to view the selected point in the fiber.
+        'r'    : Auto rotate the image for a while;
+        'p'    : Take a screenshot and save it to TestScreenshot.png;
+        ' '    : Fly to view the selected volume.
+        '0'    : Fly to view the selected point in the fiber.
         'Enter': Load the image block (for Lychnis project).
         '|' or '8' in numpad: use Y as view up.
         Ctrl+s : Save the scene and viewport.
-        'q': Exit the program.
+        'q'    : Exit the program.
 
     Mouse function:
         left: drag to view in different angle;
         middle, left+shift: Move the view point.
         wheel: zoom;
         right click: select object, support swc points only currently.
-    '''
+    """
     return d
 
 def GenerateKeyBindingDoc(key_binding = DefaultKeyBindings(),
-                          action = UIActions('', '', '')):
+                          action = UIActions('', '', ''), help_mode = ''):
     """Generate the key binding description from code, for help message."""
-    s = DefaultKeyBindingsHelpDoc()  # TODO remove this?
-    s += "\n  Full key bindings:\n"
+    if help_mode == 'quick':
+        s = QuickKeyBindingsHelpDoc()  # TODO remove this?
+        return s
+    old_description = None
+    cat_keys = []
+    # Some function(command) binds to multiple keys, we better merge them.
+    # get unique function items
+    cmd_fn_list = map(lambda a:a[1], key_binding.items())
+    cmd_name_fn_dict = {str(c):c for c in cmd_fn_list}
+    # construct empty key list
+    cmd_keys = {c:[] for c in cmd_name_fn_dict.keys()}
+    # insert keys
     for k, v in key_binding.items():
-        h = action.ExecByCmd(v, get_attr_name = '__doc__')
-        if h:
-            l = 30 if 'Mouse' in k else 15
-            s += ("%" + str(l) + "s : %s\n") % (k, h)
+        cmd_keys[str(v)].append(k)
+
+    # generate help message
+    left_margin = 4
+    s = "\n  Full key bindings:\n"
+    for cmd_name, keys in cmd_keys.items():
+        description = action.ExecByCmd(cmd_name_fn_dict[cmd_name],
+                                       get_attr_name = '__doc__')
+        with_mouse = np.any(['Mouse' in k for k in keys])
+        is_release = np.any([k.endswith('Release') for k in keys])
+        if is_release:
+            continue
+        # output a help line(s)
+        indent = (25 if with_mouse else 15) + left_margin
+        line1 = ("%" + str(indent) + "s") % \
+                    (' ' * left_margin + ', '.join(keys),)
+        # newline if keystroke is long
+        sep    = '\n' + ' ' * (indent) \
+                 if (len(line1) > indent) else ''
+        line2 = ("%s : %s\n") % (sep, description)
+        s += line1 + line2
     return s
 
 class MyInteractorStyle(vtkInteractorStyleTerrain):

@@ -87,6 +87,7 @@ from vtkmodules.vtkRenderingCore import (
     vtkPointPicker,
     vtkActor,
     vtkPolyDataMapper,
+    vtkTextActor,
 )
 # 
 # noinspection PyUnresolvedReferences
@@ -870,6 +871,21 @@ class GUIControl:
                     'view_point': 'keep'
                 },
             )
+
+    def ShowOnScreenHelp(self):
+        if not hasattr(self, 'text_actor'):
+            win_size = self.render_window.GetSize()
+
+            text_actor = vtkTextActor()
+            text_actor.SetInput(GenerateKeyBindingDoc())
+            text_actor.SetPosition(150, 100)
+            prop = text_actor.GetTextProperty()
+            prop.SetFontFamilyToCourier()
+            prop.SetColor(1.0, 0.0, 0.0)
+            prop.SetFontSize(32)
+            self.text_actor = text_actor
+            self.GetMainRenderer().AddActor2D(text_actor)
+            self.render_window.Render()
 
     def EasyObjectImporter(self, cmd_obj_desc):
         """
