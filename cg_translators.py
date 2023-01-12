@@ -202,6 +202,7 @@ class ObjTranslator:
                 self.gui_ctrl.render_window.StereoCapableWindowOn()
             render_window = self.gui_ctrl.render_window
             if 'size' in win_conf:
+                win_conf['size'] = str2array(win_conf['size'], 'x', int)
                 render_window.SetSize(win_conf['size'])
             if 'title' in win_conf:
                 render_window.SetWindowName(win_conf['title'])
@@ -263,6 +264,8 @@ class ObjTranslator:
 
         @staticmethod
         def add_argument_to(parser):
+            parser.add_argument('--window_size',
+                    help='Set window size like 1024x768.')
             parser.add_argument('--off_screen_rendering',
                     type=int, choices=[0, 1],
                     help='Enable off-screen rendering. 1=Enable, 0=Disable.')
@@ -286,11 +289,14 @@ Possible types:
         @staticmethod
         def parse_cmd_args(cmd_obj_desc):
             win_conf = {}
-            for name in ['off_screen_rendering', 'no_interaction',
-                         'full_screen', 'stereo_type',
-                         'max_cpu', 'swc_loading_batch_size',
-                         ]:
-                ConditionalAddItem(name, cmd_obj_desc, win_conf)
+            li_name = {
+                'off_screen_rendering':'', 'no_interaction':'',
+                'full_screen':'', 'stereo_type':'',
+                'max_cpu':'', 'swc_loading_batch_size':'',
+                'window_size':'size',
+            }
+            for name, key_name in li_name.items():
+                ConditionalAddItem(name, cmd_obj_desc, key_name, win_conf)
             return win_conf
 
     class init_renderers(TranslatorUnit):

@@ -29,16 +29,16 @@ def dbg_print(level, *p, **keys):
     level_str = {1:'Error', 2:'Warning', 3:'Hint', 4:'Message', 5:'Verbose'}
     print(level_str[level] + ':', *p, **keys)
 
-def str2array(s):
+def str2array(s, sep = ' ', dtype=float):
     """ Convert list of numbers in string form to `list`. """
     if not isinstance(s, str):
         return s
     if s[0] == '[':
         # like '[1,2,3]'
-        v = [float(it) for it in s[1:-1].split(',')]
+        v = [dtype(it) for it in s[1:-1].split(',')]
     else:
-        # like '1 2 3'
-        v = [float(it) for it in s.split(' ')]
+        # like '1 2 3', '1024x768' (sep='x')
+        v = [dtype(it) for it in s.split(sep)]
     return v
 
 def _mat3d(d):
@@ -213,9 +213,11 @@ def SetColorScale(obj_prop, scale):
     UpdatePropertyOTFScale(obj_prop, otf_s)
     UpdatePropertyCTFScale(obj_prop, ctf_s)
 
-def ConditionalAddItem(name, cmd_obj_desc, win_conf):
+def ConditionalAddItem(name, cmd_obj_desc, key_name, win_conf):
+    if key_name == '':
+        key_name = name
     if name in cmd_obj_desc:
         win_conf.update({
-            name: cmd_obj_desc[name]
+            key_name: cmd_obj_desc[name]
         })
 
