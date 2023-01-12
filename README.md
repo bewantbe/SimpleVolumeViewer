@@ -5,13 +5,13 @@ Supported data format:
 * [TIFF](https://docs.openmicroscopy.org/ome-model/6.1.1/ome-tiff/) and [IMS (HDF5)](https://imaris.oxinst.com/support/imaris-file-format) for volumetric data.
 * [SWC](http://www.neuronland.org/NLMorphologyConverter/MorphologyFormats/SWC/Spec.html) for neuron morphology data.
 
-Typical use case:
+Typical use cases:
 
 * Viewing the data with you favorite angle or perspective.
 * Run custom scripts (plugin) to analyze or alter the data, then seeing the result right away.
 * Work with the source code for your own craft.
 
-Feature
+Features
 
 * Thanks to VTK, we can also view in stereo modes (binocular 3D), such as split the view port horizontal, red blue or interlaced.
 * Support scene file, which specifies the scene objects, make it easier for scripting.

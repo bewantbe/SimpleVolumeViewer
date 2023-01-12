@@ -17,9 +17,14 @@
 * Support touch screen (StartPinchEvent, PinchEvent, EndPinchEvent), (SwipeEvent, StartSwipeEvent, EndSwipeEvent)
 * Support VR.
 * Support stereo view.                  (done)
-* Custom vulume rendering.
+* Custom volume rendering.
   - See "Implementing a custom GPU raycasting function"
     https://discourse.slicer.org/t/implementing-a-custom-gpu-raycastingfunction/13055/4
     And PRISM: An open source framework for the interactive design of GPU volume rendering shaders
 
 * use off-screen rendering for auto unit test
+
+* Use direction keys to navigate (go forward, backward, left, right, with shift to rotate, or small keyboard)
+
+* Support drag and drop to load data.
+

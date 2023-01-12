@@ -925,7 +925,7 @@ class GUIControl:
 
         li_obj_conf = self.translator.parse_all_cmd_args_obj(cmd_obj_desc)
         
-        # we load SWC in parallel
+        # for load SWC in parallel
         li_swc_conf = [o for o in li_obj_conf if o['type'] == 'swc']
         li_obj_conf = [o for o in li_obj_conf if o['type'] != 'swc']
 
@@ -975,14 +975,16 @@ class GUIControl:
 
 def get_program_parameters():
     import argparse
-    description = 'Simple volume image viewer based on PyVTK.'
+    description = 'Simple volumetric image and SWC viewer based on PyVTK.'
     epilogue = GenerateKeyBindingDoc()
-    parser = argparse.ArgumentParser(description=description,
-                                     epilog=epilogue,
-                                     formatter_class=argparse.RawDescriptionHelpFormatter)
+    parser = argparse.ArgumentParser(
+                description=description,
+                epilog=epilogue,
+                formatter_class=argparse.RawDescriptionHelpFormatter)
     ObjTranslator().add_all_arguments_to(parser)
-    parser.add_argument('--verbosity', type=int, choices=[0, 1, 2, 3, 4, 5],
-                        help="output verbosity(0(nothing), 1(error) ~ 5(verbose))")
+    parser.add_argument(
+        '--verbosity', type=int, choices=[0, 1, 2, 3, 4, 5],
+        help="output verbosity(0(nothing), 1(error) ~ 5(verbose))")
     args = parser.parse_args()
     if args.verbosity is not None:
         utils.debug_level = args.verbosity
@@ -992,8 +994,8 @@ def get_program_parameters():
     return args
 
 if __name__ == '__main__':
-    gui = GUIControl()
     cmd_obj_desc = get_program_parameters()
+    gui = GUIControl()
     gui.EasyObjectImporter(cmd_obj_desc)
     gui.Start()
 

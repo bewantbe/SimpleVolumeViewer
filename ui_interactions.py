@@ -210,7 +210,8 @@ class UIActions():
 
     def ExecByCmd(self, fn_name, get_attr_name = None):
         """Call the action by name or list of name and arguments."""
-        dbg_print(4, "fn =", fn_name)
+        if get_attr_name is None:
+            dbg_print(4, "fn =", fn_name)
         if isinstance(fn_name, list):
             args = fn_name[1:]
             fn_name = fn_name[0]
@@ -596,7 +597,7 @@ def GenerateKeyBindingDoc(key_binding = DefaultKeyBindings(),
 
     # generate help message
     left_margin = 4
-    s = "\n  Full key bindings:\n"
+    s = "\n  Key bindings:\n"
     for cmd_name, keys in cmd_keys.items():
         description = action.ExecByCmd(cmd_name_fn_dict[cmd_name],
                                        get_attr_name = '__doc__')
