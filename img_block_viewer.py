@@ -876,16 +876,27 @@ class GUIControl:
         if not hasattr(self, 'text_actor'):
             win_size = self.render_window.GetSize()
 
+            font_size = int(31 * win_size[1] / 1600)
             text_actor = vtkTextActor()
             text_actor.SetInput(GenerateKeyBindingDoc())
-            text_actor.SetPosition(150, 100)
             prop = text_actor.GetTextProperty()
             prop.SetFontFamilyToCourier()
-            prop.SetColor(1.0, 0.0, 0.0)
-            prop.SetFontSize(32)
+            prop.SetColor(1.0, 1.0, 0.0)
+            prop.SetFontSize(font_size)
+            # put it to center
+            prop.SetVerticalJustificationToCentered()
+            v = _a([0]*4)
+            text_actor.GetBoundingBox(self.GetMainRenderer(), v)
+            text_actor.SetPosition(win_size[0]/2 - (v[1]-v[0])/2, win_size[1]/2)
+            #text_actor.SetTextScaleModeToProp()
+
             self.text_actor = text_actor
             self.GetMainRenderer().AddActor2D(text_actor)
-            self.render_window.Render()
+        else:
+            # remove the text actor
+            self.GetMainRenderer().RemoveActor(self.text_actor)
+            del self.text_actor
+        self.render_window.Render()
 
     def EasyObjectImporter(self, cmd_obj_desc):
         """

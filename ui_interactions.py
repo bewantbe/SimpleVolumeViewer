@@ -411,6 +411,7 @@ class UIActions():
         dbg_print(4, 'selected obj:', self.gui_ctrl.selected_objects)
 
     def toggle_help_message(self):
+        """Toggle on screen help message."""
         self.gui_ctrl.ShowOnScreenHelp()
 
     def toggle_fullscreen(self):
@@ -502,6 +503,15 @@ def DefaultKeyBindings():
     the order Ctrl, Alt, Shift. and it is case sensitive.
     """
     d = {
+        '0'            : 'fly-to-cursor',
+        'KP_0'         : 'fly-to-cursor',
+        'KP_Insert'    : 'fly-to-cursor',         # LEGION
+        ' '            : 'fly-to-selected',
+        'KP_8'         : 'set-view-up',
+        'KP_Up'        : 'set-view-up',           # LEGION
+        'Shift+|'      : 'set-view-up',
+        'Shift+\\'     : 'set-view-up',           # LEGION
+        'Home'         : 'reset-camera-view',
         'r'            : 'auto-rotate',
         '+'            : 'inc-brightness +',
         'KP_Add'       : 'inc-brightness +',      # LEGION
@@ -509,19 +519,9 @@ def DefaultKeyBindings():
         'KP_Subtract'  : 'inc-brightness -',      # LEGION
         'Ctrl++'       : 'inc-brightness C+',
         'Ctrl+-'       : 'inc-brightness C-',
-        'p'            : 'screen-shot',
-        'Ctrl+s'       : 'save-scene',
-        ' '            : 'fly-to-selected',
-        '0'            : 'fly-to-cursor',
-        'KP_0'         : 'fly-to-cursor',
-        'KP_Insert'    : 'fly-to-cursor',         # LEGION
         'Return'       : 'load-near-volume',
         'KP_Enter'     : 'load-near-volume',
-        'KP_8'         : 'set-view-up',
-        'KP_Up'        : 'set-view-up',           # LEGION
-        'Shift+|'      : 'set-view-up',
-        'Shift+\\'     : 'set-view-up',           # LEGION
-        'x'            : 'remove_selected_object',
+        'x'            : 'remove-selected-object',
         '`'            : 'toggle_show_local_volume',
         'i'            : 'show-selected-info',
         'Ctrl+g'       : 'exec-script',
@@ -529,21 +529,22 @@ def DefaultKeyBindings():
         'Ctrl+5'       : 'exec-script test_call_swc.py',
         'Ctrl+Shift+A' : 'deselect',
         'Insert'       : 'toggle-hide-nonselected',
-        'Home'         : 'reset-camera-view',
         'h'            : 'toggle-help-message',
         'Alt+Return'   : 'toggle-fullscreen',
         'Ctrl+Return'  : 'toggle-VR',
         'Shift+Return' : 'toggle-VR next',
+        'p'            : 'screen-shot',
+        'Ctrl+s'       : 'save-scene',
         'MouseLeftButton'               : 'camera-rotate-around',
         'MouseLeftButtonRelease'        : 'camera-rotate-around-release',
         'Shift+MouseLeftButton'         : 'camera-move-translational',
         'Shift+MouseLeftButtonRelease'  : 'camera-move-translational-release',
+        'MouseMiddleButton'             : 'camera-move-translational',
+        'MouseMiddleButtonRelease'      : 'camera-move-translational-release',
         'MouseWheelForward'             : ['scene-zooming',  1],
         'MouseWheelBackward'            : ['scene-zooming', -1],
         'Shift+MouseWheelForward'       : ['scene-object-traverse',  1],
         'Shift+MouseWheelBackward'      : ['scene-object-traverse', -1],
-        'MouseMiddleButton'             : 'camera-move-translational',
-        'MouseMiddleButtonRelease'      : 'camera-move-translational-release',
         'MouseRightButton'              : 'select-a-point',
         'Ctrl+MouseRightButton'         : 'select-a-point append',
     }
@@ -599,18 +600,20 @@ def GenerateKeyBindingDoc(key_binding = DefaultKeyBindings(),
     for cmd_name, keys in cmd_keys.items():
         description = action.ExecByCmd(cmd_name_fn_dict[cmd_name],
                                        get_attr_name = '__doc__')
+        # Fileter Space
+        for j, k in enumerate(keys):
+            if ' ' in k: keys[j] = keys[j].replace(' ', 'Space')
         with_mouse = np.any(['Mouse' in k for k in keys])
         is_release = np.any([k.endswith('Release') for k in keys])
         if is_release:
             continue
         # output a help line(s)
         indent = (25 if with_mouse else 15) + left_margin
-        line1 = ("%" + str(indent) + "s") % \
-                    (' ' * left_margin + ', '.join(keys),)
+        line1 = f"{' ' * left_margin + ', '.join(keys):>{indent}}"
         # newline if keystroke is long
         sep    = '\n' + ' ' * (indent) \
                  if (len(line1) > indent) else ''
-        line2 = ("%s : %s\n") % (sep, description)
+        line2 = f"{sep} : {description}\n"
         s += line1 + line2
     return s
 
