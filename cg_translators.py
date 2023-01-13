@@ -190,12 +190,15 @@ class ObjTranslator:
             "size": [2400, 1800],
             "title": "SimpleRayCast",
             "number_of_layers": 2,
-#            "stereo_type": "SplitViewportHorizontal"
-            "no_interaction" : 0
+            "stereo_type": "SplitViewportHorizontal",
+            "max_cpu": 8,
+            "swc_loading_batch_size": 2,
+            "full_screen": 1,
+            "off_screen_rendering": 0,
+            "no_interaction": 0
         },
         """
         def parse(self, win_conf):
-            # TODO: should we stop the old window?
             # TODO: try vtkVRRenderWindow?
             if self.gui_ctrl.render_window is None:
                 self.gui_ctrl.render_window = vtkRenderWindow()
@@ -478,6 +481,13 @@ Possible types:
             "file_path": file_path,
             "origin": [100, 200, 300],
             "rotation_matrix": [1,0,0, 0,1,0, 0,0,1],
+            "oblique_image": False,
+            "colorscale": 4.0,
+            # IMS specific
+            "level": "0",
+            "channel": "0",
+            "time_point": "0",
+            "range": "[10:100,10:100,10:100]"
         }
         """
         def parse(self, obj_conf):
@@ -981,6 +991,10 @@ Possible types:
         "camera1": {
             "type": "Camera",
             "renderer": "0",
+            "SetPosition": [x, y, z],
+            "SetFocalPoint": [x, y, z],
+            "SetViewUp": [x, y, z],
+            "SetViewAngle": [x, y, z],
             "Azimuth": 45,
             "Elevation": 30,
             "clipping_range": [0.0001, 100000]

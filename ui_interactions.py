@@ -548,6 +548,7 @@ def DefaultKeyBindings():
         'Shift+MouseWheelBackward'      : ['scene-object-traverse', -1],
         'MouseRightButton'              : 'select-a-point',
         'Ctrl+MouseRightButton'         : 'select-a-point append',
+        #'Shift+MouseRightButton'        : 'select-and-fly-to',  # TODO
     }
     # For user provided key bindings we need to:
     # 1. Remove redundant white space.
