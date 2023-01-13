@@ -52,6 +52,7 @@
 import os
 import os.path
 import time
+import argparse
 import json
 import joblib
 
@@ -974,7 +975,6 @@ class GUIControl:
             self.interactor.Start()
 
 def get_program_parameters():
-    import argparse
     description = 'Simple volumetric image and SWC viewer based on PyVTK.'
     epilogue = GenerateKeyBindingDoc()
     parser = argparse.ArgumentParser(

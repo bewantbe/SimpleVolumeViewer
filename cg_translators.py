@@ -91,20 +91,45 @@ def CameraFollowCallbackFunction(caller, ev):
 class ObjTranslator:
     """
     The collection of translators to convert json description to computer 
-    graphic objects.
+      graphic objects.
     The ideal is that eventually GUIControl do not contain any
-    implementation details.
+      implementation details.
     All the translator units should not have state.
     Also handle command line parse.
     External code should be easy to modify this class to extend its function.
     """
 
     class TranslatorUnit:
+        """
+        Represent a graphic object, at its core is VTK actor.
+        For common manipulations (add/remove/move position etc.), use
+          member functions in this class instead of the underlying VTK actor.
+
+        Call procedure:
+            (1) add_argument_to()
+                    Called by command line parser before the parsing.
+            (2) parse_cmd_args():
+                    Called by GUIControl.EasyObjectImporter to convert the 
+                    command line options to json-style scene/object 
+                    description.
+            (3) parse():
+                    Translate the json-style scene/object description to
+                    concrete VTK object(s) or scene(window, renderer etc.) 
+                    settings.
+        """
+        #@staticmethod
+        #def add_argument_to(args_parser):
+        #    pass
+
+        #@staticmethod
+        #def parse_cmd_args(cmd_obj_desc):
+        #    pass
+
         def __init__(self, gui_ctrl, renderer):
             self.gui_ctrl = gui_ctrl
             self.renderer = renderer
-            self.actor = None
-            self.position = None
+            self.actor = None          # the VTK actor object
+            self.position = None       # can be used to move the object
 
         def parse(self, st):
             """
@@ -132,14 +157,7 @@ class ObjTranslator:
                 self.actor.SetPosition(ext_pos)
             self._position = ext_pos
 
-        #@staticmethod
-        #def add_argument_to(args_parser):
-        #    pass
-
-        #@staticmethod
-        #def parse_cmd_args(cmd_obj_desc):
-        #    pass
-
+    # dispatch functions
     def translate(self, gui_ctrl, renderer, prefix_class, obj_conf):
         """
         prefix_class = 'obj_' or 'prop_'
@@ -166,6 +184,7 @@ class ObjTranslator:
                                   ObjTranslator.TranslatorUnit) and
                        (not tl_prefix or (a.split('_',1)[0] in tl_prefix))]
 
+    # batch add arguments to parser (argparse)
     def add_all_arguments_to(self, args_parser):
         for tl_u in self.get_all_tl_unit():
             if hasattr(tl_u, 'add_argument_to'):
@@ -183,6 +202,8 @@ class ObjTranslator:
                     li_obj_conf.append(c)
         return li_obj_conf
 
+    # Translation units for initialization of GUI
+
     class init_window(TranslatorUnit):
         """
         prototype:
@@ -198,6 +219,44 @@ class ObjTranslator:
             "no_interaction": 0
         },
         """
+
+        @staticmethod
+        def add_argument_to(parser):
+            parser.add_argument('--window_size',
+                    help='Set window size like 1024x768.')
+            parser.add_argument('--off_screen_rendering',
+                    type=int, choices=[0, 1],
+                    help='Enable off-screen rendering. 1=Enable, 0=Disable.')
+            parser.add_argument('--no_interaction', type=int, choices=[0, 1],
+                    help='Exit after the screen shot.')
+            parser.add_argument('--full_screen', type=int, choices=[0, 1],
+                    help='Full screen On/Off.')
+            parser.add_argument('--stereo_type',
+                    help=
+"""
+Enable stereo rendering, set the type here.
+Possible types:
+  CrystalEyes, RedBlue, Interlaced, Left, Right, Fake, Emulate,
+  Dresden, Anaglyph, Checkerboard, SplitViewportHorizontal
+""")
+            parser.add_argument('--max_cpu', type=int,
+                    help='Max number of CPU.')
+            parser.add_argument('--swc_loading_batch_size', type=int,
+                    help='The batch size when loading swc files.')
+
+        @staticmethod
+        def parse_cmd_args(cmd_obj_desc):
+            win_conf = {}
+            li_name = {
+                'off_screen_rendering':'', 'no_interaction':'',
+                'full_screen':'', 'stereo_type':'',
+                'max_cpu':'', 'swc_loading_batch_size':'',
+                'window_size':'size',
+            }
+            for name, key_name in li_name.items():
+                ConditionalAddItem(name, cmd_obj_desc, key_name, win_conf)
+            return win_conf
+
         def parse(self, win_conf):
             # TODO: try vtkVRRenderWindow?
             if self.gui_ctrl.render_window is None:
@@ -265,43 +324,6 @@ class ObjTranslator:
             # note down
             self.gui_ctrl.win_conf.update(win_conf)
 
-        @staticmethod
-        def add_argument_to(parser):
-            parser.add_argument('--window_size',
-                    help='Set window size like 1024x768.')
-            parser.add_argument('--off_screen_rendering',
-                    type=int, choices=[0, 1],
-                    help='Enable off-screen rendering. 1=Enable, 0=Disable.')
-            parser.add_argument('--no_interaction', type=int, choices=[0, 1],
-                    help='Exit after the screen shot.')
-            parser.add_argument('--full_screen', type=int, choices=[0, 1],
-                    help='Full screen On/Off.')
-            parser.add_argument('--stereo_type',
-                    help=
-"""
-Enable stereo rendering, set the type here.
-Possible types:
-  CrystalEyes, RedBlue, Interlaced, Left, Right, Fake, Emulate,
-  Dresden, Anaglyph, Checkerboard, SplitViewportHorizontal
-""")
-            parser.add_argument('--max_cpu', type=int,
-                    help='Max number of CPU.')
-            parser.add_argument('--swc_loading_batch_size', type=int,
-                    help='The batch size when loading swc files.')
-
-        @staticmethod
-        def parse_cmd_args(cmd_obj_desc):
-            win_conf = {}
-            li_name = {
-                'off_screen_rendering':'', 'no_interaction':'',
-                'full_screen':'', 'stereo_type':'',
-                'max_cpu':'', 'swc_loading_batch_size':'',
-                'window_size':'size',
-            }
-            for name, key_name in li_name.items():
-                ConditionalAddItem(name, cmd_obj_desc, key_name, win_conf)
-            return win_conf
-
     class init_renderers(TranslatorUnit):
         """
         prototype:
@@ -357,8 +379,6 @@ Possible types:
             "objects": {}
         }
         """
-        def parse(self, obj_conf):
-            pass
 
         @staticmethod
         def add_argument_to(parser):
@@ -373,6 +393,9 @@ Possible types:
             else:
                 scene_ext = {}
             return scene_ext
+
+        def parse(self, obj_conf):
+            pass
 
     class prop_volume(TranslatorUnit):
         """
@@ -490,6 +513,83 @@ Possible types:
             "range": "[10:100,10:100,10:100]"
         }
         """
+
+        @staticmethod
+        def add_argument_to(parser):
+            parser.add_argument('--filepath',
+                    help='image stack filepath')
+            parser.add_argument('--level',
+                    help='for multi-level image (.ims), load only that level')
+            parser.add_argument('--channel',
+                    help='Select channel for IMS image.')
+            parser.add_argument('--time_point',
+                    help='Select time point for IMS image.')
+            parser.add_argument('--range',
+                    help='Select range within image.')
+            parser.add_argument('--colorscale',
+                    help='Set scale of color transfer function.')
+            parser.add_argument('--origin',
+                    help='Set origin of the volume.')
+            parser.add_argument('--rotation_matrix',
+                    help='Set rotation matrix of the volume.')
+            parser.add_argument('--oblique_image',
+                    help='Overwrite the guess of if the image is imaged oblique.')
+
+        @staticmethod
+        def parse_cmd_args(obj_desc):
+            if 'filepath' not in obj_desc:
+                return None
+
+            file_path = obj_desc['filepath']
+            if file_path.endswith('.tif'):
+                # assume this a volume
+                obj_conf = {
+                    "type": "volume",
+                    "view_point": "auto",
+                    "file_path": file_path
+                }
+            elif file_path.endswith('.ims') or file_path.endswith('.h5'):
+                # assume this a IMS volume
+                obj_conf = {
+                    "type": "volume",
+                    "view_point": "auto",
+                    "file_path": file_path,
+                    "level": obj_desc.get('level', '0'),
+                    "channel": obj_desc.get('channel', '0'),
+                    "time_point": obj_desc.get('time_point', '0'),
+                    "range": obj_desc.get('range', '[:,:,:]')
+                }
+            else:
+                dbg_print(1, 'Unrecognized source format.')
+                return None
+            
+            if 'origin' in obj_desc:
+                obj_conf.update({
+                    'origin': str2array(obj_desc['origin'])
+                })
+            if 'rotation_matrix' in obj_desc:
+                obj_conf.update({
+                    'rotation_matrix': str2array(obj_desc['rotation_matrix'])
+                })
+            if 'oblique_image' in obj_desc:
+                obj_conf.update({
+                    'oblique_image': obj_desc['oblique_image'].lower() \
+                                     in ['true', '1']
+                })
+            
+            if 'colorscale' in obj_desc:
+                s = float(obj_desc['colorscale'])
+                obj_conf.update({'property': {
+                    'copy_from': 'volume',
+                    'type'     : 'volume',
+                    'opacity_transfer_function': {'opacity_scale': s},
+                    'color_transfer_function'  : {'trans_scale': s}
+                }})
+            else:
+                obj_conf.update({'property': 'volume'})
+
+            return obj_conf
+
         def parse(self, obj_conf):
             file_path = obj_conf['file_path']
             img_importer = ImportImageFile(file_path, obj_conf)
@@ -584,82 +684,6 @@ Possible types:
             center = [(bd[0]+bd[1])/2, (bd[2]+bd[3])/2, (bd[4]+bd[5])/2]
             return center
 
-        @staticmethod
-        def add_argument_to(parser):
-            parser.add_argument('--filepath',
-                    help='image stack filepath')
-            parser.add_argument('--level',
-                    help='for multi-level image (.ims), load only that level')
-            parser.add_argument('--channel',
-                    help='Select channel for IMS image.')
-            parser.add_argument('--time_point',
-                    help='Select time point for IMS image.')
-            parser.add_argument('--range',
-                    help='Select range within image.')
-            parser.add_argument('--colorscale',
-                    help='Set scale of color transfer function.')
-            parser.add_argument('--origin',
-                    help='Set origin of the volume.')
-            parser.add_argument('--rotation_matrix',
-                    help='Set rotation matrix of the volume.')
-            parser.add_argument('--oblique_image',
-                    help='Overwrite the guess of if the image is imaged oblique.')
-
-        @staticmethod
-        def parse_cmd_args(obj_desc):
-            if 'filepath' not in obj_desc:
-                return None
-
-            file_path = obj_desc['filepath']
-            if file_path.endswith('.tif'):
-                # assume this a volume
-                obj_conf = {
-                    "type": "volume",
-                    "view_point": "auto",
-                    "file_path": file_path
-                }
-            elif file_path.endswith('.ims') or file_path.endswith('.h5'):
-                # assume this a IMS volume
-                obj_conf = {
-                    "type": "volume",
-                    "view_point": "auto",
-                    "file_path": file_path,
-                    "level": obj_desc.get('level', '0'),
-                    "channel": obj_desc.get('channel', '0'),
-                    "time_point": obj_desc.get('time_point', '0'),
-                    "range": obj_desc.get('range', '[:,:,:]')
-                }
-            else:
-                dbg_print(1, 'Unrecognized source format.')
-                return None
-            
-            if 'origin' in obj_desc:
-                obj_conf.update({
-                    'origin': str2array(obj_desc['origin'])
-                })
-            if 'rotation_matrix' in obj_desc:
-                obj_conf.update({
-                    'rotation_matrix': str2array(obj_desc['rotation_matrix'])
-                })
-            if 'oblique_image' in obj_desc:
-                obj_conf.update({
-                    'oblique_image': obj_desc['oblique_image'].lower() \
-                                     in ['true', '1']
-                })
-            
-            if 'colorscale' in obj_desc:
-                s = float(obj_desc['colorscale'])
-                obj_conf.update({'property': {
-                    'copy_from': 'volume',
-                    'type'     : 'volume',
-                    'opacity_transfer_function': {'opacity_scale': s},
-                    'color_transfer_function'  : {'trans_scale': s}
-                }})
-            else:
-                obj_conf.update({'property': 'volume'})
-
-            return obj_conf
-
     class obj_lychnis_blocks(TranslatorUnit):
         """
         prototype:
@@ -668,12 +692,7 @@ Possible types:
             "file_path": obj_desc['lychnis_blocks'],
         }
         """
-        #TODO: we might return ourself instead of volume_loader
-        def parse(self, obj_conf):
-            self.gui_ctrl.volume_loader.ImportLychnixVolume( \
-                obj_conf['file_path'])
-            return self.gui_ctrl.volume_loader
-        
+
         @staticmethod
         def add_argument_to(parser):
             parser.add_argument('--lychnis_blocks',
@@ -690,6 +709,12 @@ Possible types:
                 obj_conf = None
             return obj_conf
 
+        def parse(self, obj_conf):
+            self.gui_ctrl.volume_loader.ImportLychnixVolume( \
+                obj_conf['file_path'])
+            #TODO: we might return ourself instead of volume_loader
+            return self.gui_ctrl.volume_loader
+
     class obj_swc(TranslatorUnit):
         """
         prototype:
@@ -700,6 +725,52 @@ Possible types:
             "file_path": "RM006-004-lychnis/F5.json.swc"
         }
         """
+
+        @staticmethod
+        def add_argument_to(parser):
+            parser.add_argument('--swc', action='append',
+                    help='Read and draw swc file.')
+            parser.add_argument('--swc_dir',
+                    help='Read and draw swc files in the directory.')
+            parser.add_argument('--fibercolor',
+                    help='Set fiber color.')
+
+        @staticmethod
+        def parse_cmd_args(obj_desc):
+            if ('swc' not in obj_desc) and ('swc_dir' not in obj_desc):
+                return None
+
+            if 'swc_dir' in obj_desc:
+                # note down *.swc files it to obj_desc['swc']
+                import glob
+                fns = glob.glob(obj_desc['swc_dir'] + '/*.swc')
+                if 'swc' not in obj_desc:
+                    obj_desc['swc'] = []
+                obj_desc['swc'].extend(fns)
+        
+            if not isinstance(obj_desc['swc'], (list, tuple)):
+                obj_desc['swc'] = [obj_desc['swc'],]
+            # See also https://vtk.org/doc/nightly/html/classvtkColorSeries.html#details
+            # https://www.kitware.com/off-screen-rendering-through-the-native-platform-interface-egl/
+            # possible series:
+            #   SPECTRUM (7)
+            #   BREWER_DIVERGING_PURPLE_ORANGE_11
+            color_scheme = vtkColorSeries()
+            color_scheme.SetColorScheme(color_scheme.BREWER_DIVERGING_SPECTRAL_11)
+            # color was 'Tomato'
+            li_obj_conf = []
+            for id_s in range(len(obj_desc['swc'])):
+                c = color_scheme.GetColorRepeating(1+id_s)
+                c = list(_a([c[0], c[1], c[2]]) / 255.0)
+                obj_conf = {
+                    "type": "swc",
+                    "color": obj_desc.get('fibercolor', c),
+                    "file_path": obj_desc['swc'][id_s]
+                }
+                li_obj_conf.append(obj_conf)
+
+            return li_obj_conf
+
         def __init__(self, gui_ctrl, renderer):
             super().__init__(gui_ctrl, renderer)
             self._visible   = True
@@ -836,51 +907,6 @@ Possible types:
             vtk_color = vtkGetColorAny(c)
             self.actor.GetProperty().SetColor(vtk_color)
             self._color = c
-
-        @staticmethod
-        def add_argument_to(parser):
-            parser.add_argument('--swc', action='append',
-                    help='Read and draw swc file.')
-            parser.add_argument('--swc_dir',
-                    help='Read and draw swc files in the directory.')
-            parser.add_argument('--fibercolor',
-                    help='Set fiber color.')
-
-        @staticmethod
-        def parse_cmd_args(obj_desc):
-            if ('swc' not in obj_desc) and ('swc_dir' not in obj_desc):
-                return None
-
-            if 'swc_dir' in obj_desc:
-                # note down *.swc files it to obj_desc['swc']
-                import glob
-                fns = glob.glob(obj_desc['swc_dir'] + '/*.swc')
-                if 'swc' not in obj_desc:
-                    obj_desc['swc'] = []
-                obj_desc['swc'].extend(fns)
-        
-            if not isinstance(obj_desc['swc'], (list, tuple)):
-                obj_desc['swc'] = [obj_desc['swc'],]
-            # See also https://vtk.org/doc/nightly/html/classvtkColorSeries.html#details
-            # https://www.kitware.com/off-screen-rendering-through-the-native-platform-interface-egl/
-            # possible series:
-            #   SPECTRUM (7)
-            #   BREWER_DIVERGING_PURPLE_ORANGE_11
-            color_scheme = vtkColorSeries()
-            color_scheme.SetColorScheme(color_scheme.BREWER_DIVERGING_SPECTRAL_11)
-            # color was 'Tomato'
-            li_obj_conf = []
-            for id_s in range(len(obj_desc['swc'])):
-                c = color_scheme.GetColorRepeating(1+id_s)
-                c = list(_a([c[0], c[1], c[2]]) / 255.0)
-                obj_conf = {
-                    "type": "swc",
-                    "color": obj_desc.get('fibercolor', c),
-                    "file_path": obj_desc['swc'][id_s]
-                }
-                li_obj_conf.append(obj_conf)
-
-            return li_obj_conf
 
     class obj_AxesActor(TranslatorUnit):
         """
@@ -1060,24 +1086,6 @@ Possible types:
             'save_pic_path'  : 'pic_tmp/haha_t=%06.4f.png',
         }
         """
-        def parse(self, cg_conf):
-            if not cg_conf: return
-            time.sleep(1.0)         # to prevent bug (let fully init)
-
-            save_pic_path = cg_conf['save_pic_path']
-
-            obj = self.gui_ctrl.interactor   # iren
-            event = ''
-            cam1 = self.gui_ctrl.GetMainRenderer().GetActiveCamera()
-
-            rotator = execSmoothRotation(cam1, cg_conf['degree_per_sec'])
-            rotator.startat(0)
-            for k in range(int(cg_conf['fps'] * cg_conf['time'])):
-                t_now = 1.0/cg_conf['fps'] * k;
-                rotator(obj, event, t_now)
-                if save_pic_path:
-                    self.gui_ctrl.ShotScreen( \
-                        save_pic_path % (t_now))
 
         @staticmethod
         def add_argument_to(parser):
@@ -1101,6 +1109,25 @@ Possible types:
             }
             return cg_conf
 
+        def parse(self, cg_conf):
+            if not cg_conf: return
+            time.sleep(1.0)         # to prevent bug (let fully init)
+
+            save_pic_path = cg_conf['save_pic_path']
+
+            obj = self.gui_ctrl.interactor   # iren
+            event = ''
+            cam1 = self.gui_ctrl.GetMainRenderer().GetActiveCamera()
+
+            rotator = execSmoothRotation(cam1, cg_conf['degree_per_sec'])
+            rotator.startat(0)
+            for k in range(int(cg_conf['fps'] * cg_conf['time'])):
+                t_now = 1.0/cg_conf['fps'] * k;
+                rotator(obj, event, t_now)
+                if save_pic_path:
+                    self.gui_ctrl.ShotScreen( \
+                        save_pic_path % (t_now))
+
     class animation_take_shot(TranslatorUnit):
         """
         prototype:
@@ -1110,16 +1137,6 @@ Possible types:
             'save_pic_path'  : 'pic_tmp/haha_t=%06.4f.png',
         }
         """
-        def parse(self, cg_conf):
-            if not cg_conf: return
-            time.sleep(cg_conf['delay'])  # to prevent bug (let fully init)
-
-            save_pic_path = cg_conf['save_pic_path']
-
-            if save_pic_path:
-                self.gui_ctrl.ShotScreen(save_pic_path)
- 
-            dbg_print(4, 'Screenshot saved to', save_pic_path)
 
         @staticmethod
         def add_argument_to(parser):
@@ -1149,4 +1166,15 @@ Possible types:
             }
             
             return cg_conf
+
+        def parse(self, cg_conf):
+            if not cg_conf: return
+            time.sleep(cg_conf['delay'])  # to prevent bug (let fully init)
+
+            save_pic_path = cg_conf['save_pic_path']
+
+            if save_pic_path:
+                self.gui_ctrl.ShotScreen(save_pic_path)
+ 
+            dbg_print(4, 'Screenshot saved to', save_pic_path)
 
