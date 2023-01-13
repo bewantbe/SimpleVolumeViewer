@@ -264,8 +264,21 @@ Possible types:
                 self.gui_ctrl.render_window.StereoCapableWindowOn()
             render_window = self.gui_ctrl.render_window
             if 'size' in win_conf:
-                win_conf['size'] = str2array(win_conf['size'], 'x', int)
-                render_window.SetSize(win_conf['size'])
+                if win_conf['size'] == 'auto':
+                    screen_size = render_window.GetScreenSize()
+                    # Use 60% of the vertical space, with 4:3 aspect ratio.
+                    # But if the resolution is too low (win_size[y] < 800),
+                    #   use 800 pixels high or up to the screen size[y]
+                    y = 0.8 * screen_size[1]
+                    wnd_y_min = 800
+                    aspect_ratio = 4/3
+                    if y < wnd_y_min:
+                        y = min(wnd_y_min, screen_size[1])
+                    win_size = [aspect_ratio * y, y]
+                else:
+                    win_size = str2array(win_conf['size'], 'x', int)
+                win_size = list(map(int, win_size))
+                render_window.SetSize(win_size)
             if 'title' in win_conf:
                 render_window.SetWindowName(win_conf['title'])
             if 'number_of_layers' in win_conf:

@@ -122,7 +122,7 @@ from cg_translators import ObjTranslator
 def DefaultGUIConfig():
     d = {
         "window": {
-            "size": [2400, 1800],
+            "size": "auto",
             "title": "SimpleRayCast",
             "number_of_layers": 2,
         },
