@@ -265,6 +265,11 @@ Possible types:
             render_window = self.gui_ctrl.render_window
             if 'size' in win_conf:
                 if win_conf['size'] == 'auto':
+                    # note: on VTK 9.0 & 9.1 calling .GetScreenSize() can
+                    # cause segmentation fault
+                    # https://discourse.vtk.org/t/vtk9-1-0-problems/7094/5
+                    # Crash on window close with vtkXRenderWindowInteractor
+                    # https://gitlab.kitware.com/vtk/vtk/-/issues/18372
                     screen_size = render_window.GetScreenSize()
                     # Use 60% of the vertical space, with 4:3 aspect ratio.
                     # But if the resolution is too low (win_size[y] < 800),

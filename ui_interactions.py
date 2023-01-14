@@ -316,12 +316,13 @@ class UIActions():
 
     def exec_script(self, script_name = 'test_call.py'):
         """Run script."""
+        plugin_dir = './plugins/'
         ren1 = self.GetRenderers(1)
         iren = self.iren
         dbg_print(3, 'Running script:', script_name)
         try:
             # running in globals() is a bit danger, any better idea?
-            exec(open(script_name).read(), globals(), None)
+            exec(open(plugin_dir+script_name).read(), globals(), None)
             #exec('PluginMain(ren1, iren, self.gui_ctrl)')
             PluginMain(ren1, iren, self.gui_ctrl)
             #locals()['PluginMain'](ren1, iren, self.gui_ctrl)
