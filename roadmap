@@ -40,9 +40,12 @@
 * Thinking of use message(event)/callbacks mechanism, to replace the now input/configure/parser mechanism, especially to deal with event priority. e.g. after parse the commandline, sort the events according to the priority, then the GUIControl comsumes the event by the order, also there maybe a special class to deal with the sorting and batch pop-out.
 * Try touch screen interaction, such as PinchEvent. See https://vtk.org/doc/nightly/html/classvtkRenderWindowInteractor.html#details
 * try GetPickingManager (), GetPicker()
+  - Use a box to select?: https://vtk.org/doc/nightly/html/classvtkBoxWidget.html#details
+  - https://stackoverflow.com/questions/60115814/what-kind-of-vtk-vtkcommand-event-i-can-put-as-observer-when-i-select-a-box-in-a
 * try the VR
 * Use GetInitialized () to set sleep time?
 * SetInteractorStyle() switching
+* large render: vtkUnstructuredGrid  https://discourse.vtk.org/t/how-to-draw-10000-object/8438/15
 
 * why GetTimerEventId (), GetVTKTimerId () not work??  See here https://vtk.org/doc/nightly/html/classvtkRenderWindowInteractor.html#a7ef06e3e7c8cff5767c3b0d328934f55
 
@@ -68,3 +71,16 @@
 * set window size automatically, and allow command line
 
 * allow loading obj file.
+
+## 2023-01-15
+
+* Add "interpreter" for operating objects, in complement to plugin script.
+  - we have two ways (at least)
+    + write a widget in the window for command line operation.
+      + writing a command line widget is like reinventing the wheel.
+    + open another window, better ipython like, to interact with main vtk window.
+      + multi-threading with vtk is seems hard, the problem is how to pass a signal to vtk's command/observer system? Probably fire a custom command?
+
+* Check official interactor for OnChar(), do we need to change it after switch from "CharEvent' to "KeyPressEvent"?
+* Check how to add custom observer event, so that we can add interpretor in another thread.
+  - or we go back to Enter -> iren.Render() -> Promoter loop.

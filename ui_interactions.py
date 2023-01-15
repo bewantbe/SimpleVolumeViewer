@@ -661,7 +661,9 @@ class MyInteractorStyle(vtkInteractorStyleTerrain):
             setattr(self, self.get_mb_var_name(m), '')
 
         # keyboard events
+        # 'CharEvent' is not working on Windows for many of the keys and most of key combinations
         self.AddObserver('CharEvent', self.OnChar)
+        self.AddObserver('KeyPressEvent', self.OnKeyPress)
 
         self.ui_action = UIActions(self, iren, gui_ctrl)
         self.key_bindings = DefaultKeyBindings()
@@ -730,18 +732,8 @@ class MyInteractorStyle(vtkInteractorStyleTerrain):
                        ('Shift+' if b_S else '')
         return key_modifier
 
-    def get_normalized_key_combo(self, iren):
-        key_sym  = iren.GetKeySym()   # useful for PageUp etc.
-        key_code = iren.GetKeyCode()
-        key_modifier = self.get_key_modifier(iren)
-
-        # normalize the key strike name
-        if key_code < ' ':
-            key_code = key_sym.replace('plus','+').replace('minus','-')
-        key_combo = key_modifier + key_code
-        #print('key_code:', bytearray(key_code.encode('utf-8')))
-        dbg_print(4, 'Pressed:', key_combo, '  key_sym:', key_sym)
-
+    @staticmethod
+    def check_is_default_binding(key_code, key_modifier):
         # default key bindings in vtkInteractorStyleTerrain
         is_default_binding = (key_code.lower() in 'jtca3efprsuw') and \
                              ('Ctrl' not in key_modifier)
@@ -751,22 +743,43 @@ class MyInteractorStyle(vtkInteractorStyleTerrain):
         #    3    F    F    T
         #    e    T    F    T
         #    r    T    F    T
+        return is_default_binding
 
-        return key_combo, is_default_binding
+    def get_normalized_key_combo(self, iren):
+        key_code = iren.GetKeyCode()
+        key_sym  = iren.GetKeySym()   # useful for PageUp etc.
+        key_modifier = self.get_key_modifier(iren)
+        #print(f'key sym: {key_sym}, key_code: {key_code}, ord={ord(key_code)}')
+
+        # normalize the key strike name
+        if key_code < ' ':
+            key_code = key_sym.replace('plus','+').replace('minus','-')
+        if key_code in ['Control_L', 'Control_R', 'Alt_L', 'Alt_R', 'Shift_L', 'Shift_R']:
+            key_code = ''  # they will exist in key_modifier (fix for windows)
+            key_modifier = key_modifier[:-1]
+        key_combo = key_modifier + key_code
+        #print('key_code:', bytearray(key_code.encode('utf-8')))
+        dbg_print(4, 'Pressed:', key_combo, '  key_sym:', key_sym)
+
+        return key_combo
 
     def OnChar(self, obj, event):
+        iren = obj.iren
+        key_code = iren.GetKeyCode()
+        #key_sym  = iren.GetKeySym()
+        #dbg_print(5, f'OnChar(): key_code: "{key_code}", key_sym: "{key_sym}"')
+        if key_code == 'q':
+            obj.iren.TerminateApp()
+            # Do not want 'default' key bindings.
+            #super().OnChar()
+            #super(MyInteractorStyle, obj).OnChar()
+
+    def OnKeyPress(self, obj, event):
         """
         on keyboard stroke
         """
-        iren = self.iren  # or obj.iren?
-        
-        key_combo, is_default_binding = self.get_normalized_key_combo(iren)
-
+        iren = obj.iren
+        key_combo = self.get_normalized_key_combo(iren)
         self.execute_key_cmd(key_combo)
 
-        # Leave all other key binding to the base vtk interactor.
-        # Let's say, disable all default key bindings, except q.
-        if not is_default_binding:
-            super(MyInteractorStyle, obj).OnChar()
-            # to quit, call TerminateApp()
-
+        super().OnKeyPress()
