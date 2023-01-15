@@ -34,7 +34,7 @@ Features
 
 * Use pip
 
-    `pip install vtk opencv-python tifffile h5py scipy joblib`
+    `pip install vtk opencv-python tifffile h5py scipy joblib IPython`
 
 # Running
 

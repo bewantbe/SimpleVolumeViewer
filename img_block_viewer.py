@@ -3,7 +3,7 @@
 # specialized for viewing of neuron tracing results.
 
 # Dependencies:
-# pip install vtk opencv-python tifffile h5py scipy joblib
+# pip install vtk opencv-python tifffile h5py scipy joblib IPython
 
 # Usage examples:
 # python img_block_viewer.py --filepath RM006_s128_c13_f8906-9056.tif

@@ -7,6 +7,8 @@ import numpy as np
 from numpy import sqrt, sin, cos, tan, pi
 from numpy import array as _a
 
+from IPython.terminal.embed import InteractiveShellEmbed
+
 from vtkmodules.vtkCommonCore import (
     vtkCommand,
 )
@@ -319,6 +321,21 @@ class UIActions():
         else:
             self.gui_ctrl.focusController.Toggle()
 
+    def embed_interactive_shell(self):
+        """Start a ipython session, with gui_ctrl, iren, interactor prepared."""
+        # https://ipython.readthedocs.io/en/stable/api/generated/IPython.terminal.embed.html
+        # In the future, we may put this shell to another thread, so that the main UI is not 
+        # get stucked. This may involve the customized event(command/observer) to notify
+        # main UI to execute commands and refresh.
+        if not hasattr(self, 'embed_shell'):
+            self.embed_shell = InteractiveShellEmbed(banner1 = "IPython Interactive Shell")
+        gui_ctrl   = self.gui_ctrl
+        iren       = self.iren
+        interactor = self.interactor
+        ren        = self.GetRenderers(1)
+        self.embed_shell()
+        iren.GetRenderWindow().Render()
+
     def exec_script(self, script_name = 'test_call.py'):
         """Run script."""
         plugin_dir = './plugins/'
@@ -531,6 +548,7 @@ def DefaultKeyBindings():
         'x'            : 'remove-selected-object',
         '`'            : 'toggle_show_local_volume',
         'i'            : 'show-selected-info',
+        'F2'           : 'embed-interactive-shell',
         'Ctrl+g'       : 'exec-script',
         'Ctrl+2'       : 'exec-script test_call_2.py',
         'Ctrl+5'       : 'exec-script test_call_swc.py',
