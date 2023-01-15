@@ -80,6 +80,14 @@
       + writing a command line widget is like reinventing the wheel.
     + open another window, better ipython like, to interact with main vtk window.
       + multi-threading with vtk is seems hard, the problem is how to pass a signal to vtk's command/observer system? Probably fire a custom command?
+      https://stackoverflow.com/questions/33179646/how-do-i-make-a-custom-event-with-vtk
+      vtkcommand::UserEvent
+      vtkCommand::UserEvent + intShift  (integer)
+      https://kitware.github.io/vtk-examples/site/Cxx/Interaction/UserEvent/
+      IPython: Embedding IPython
+          https://ipython.org/ipython-doc/stable/interactive/reference.html#embedding-ipython
+          IPython.terminal.embed.InteractiveShellEmbed
+          # https://ipython.readthedocs.io/en/stable/api/generated/IPython.terminal.embed.html
 
 * Check official interactor for OnChar(), do we need to change it after switch from "CharEvent' to "KeyPressEvent"?
 * Check how to add custom observer event, so that we can add interpretor in another thread.

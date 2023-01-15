@@ -7,8 +7,9 @@ import numpy as np
 from numpy import sqrt, sin, cos, tan, pi
 from numpy import array as _a
 
-import vtkmodules.vtkInteractionStyle
-
+from vtkmodules.vtkCommonCore import (
+    vtkCommand,
+)
 from vtkmodules.vtkInteractionStyle import (
     vtkInteractorStyleTrackballCamera,
     vtkInteractorStyleFlight,
@@ -235,6 +236,10 @@ class UIActions():
             return ren1, ren2
         elif n == 1:
             return ren1
+
+    def exit_program(self):
+        """Exit the program."""
+        self.iren.TerminateApp()
 
     def auto_rotate(self):
         """Animate rotate camera around the focal point."""
@@ -537,6 +542,7 @@ def DefaultKeyBindings():
         'Shift+Return' : 'toggle-VR next',
         'p'            : 'screen-shot',
         'Ctrl+s'       : 'save-scene',
+        'q'            : 'exit-program',
         'MouseLeftButton'               : 'camera-rotate-around',
         'MouseLeftButtonRelease'        : 'camera-rotate-around-release',
         'Shift+MouseLeftButton'         : 'camera-move-translational',
@@ -631,12 +637,17 @@ class MyInteractorStyle(vtkInteractorStyleTerrain):
         vtkInteractorStyleUser
     """
 
+    user_event_cmd_id = vtkCommand.UserEvent + 1
+
     def __init__(self, iren, gui_ctrl):
         self.iren = iren
         self.gui_ctrl = gui_ctrl
 
         # var for picker
         self.picked_actor = None
+
+        # A list of supported events:
+        # https://vtk.org/doc/nightly/html/classvtkCommand.html
 
         # mouse events
         self.fn_modifier = []
@@ -664,6 +675,8 @@ class MyInteractorStyle(vtkInteractorStyleTerrain):
         # 'CharEvent' is not working on Windows for many of the keys and most of key combinations
         self.AddObserver('CharEvent', self.OnChar)
         self.AddObserver('KeyPressEvent', self.OnKeyPress)
+
+        self.AddObserver(self.user_event_cmd_id, self.OnUserEventCmd)
 
         self.ui_action = UIActions(self, iren, gui_ctrl)
         self.key_bindings = DefaultKeyBindings()
@@ -735,6 +748,7 @@ class MyInteractorStyle(vtkInteractorStyleTerrain):
     @staticmethod
     def check_is_default_binding(key_code, key_modifier):
         # default key bindings in vtkInteractorStyleTerrain
+        # https://vtk.org/doc/nightly/html/classvtkInteractorStyle.html#details
         is_default_binding = (key_code.lower() in 'jtca3efprsuw') and \
                              ('Ctrl' not in key_modifier)
         # default key bindings interaction with control keys
@@ -768,11 +782,12 @@ class MyInteractorStyle(vtkInteractorStyleTerrain):
         key_code = iren.GetKeyCode()
         #key_sym  = iren.GetKeySym()
         #dbg_print(5, f'OnChar(): key_code: "{key_code}", key_sym: "{key_sym}"')
-        if key_code == 'q':
-            obj.iren.TerminateApp()
-            # Do not want 'default' key bindings.
-            #super().OnChar()
-            #super(MyInteractorStyle, obj).OnChar()
+        # Do not want 'default' key bindings.
+        #super().OnChar()
+        #super(MyInteractorStyle, obj).OnChar()
+        if key_code == 'u':
+            # Could InvokeEvent() be call by different thread?
+            self.InvokeEvent(self.user_event_cmd_id)   
 
     def OnKeyPress(self, obj, event):
         """
@@ -783,3 +798,8 @@ class MyInteractorStyle(vtkInteractorStyleTerrain):
         self.execute_key_cmd(key_combo)
 
         super().OnKeyPress()
+
+    def OnUserEventCmd(self, obj, event):
+        # Ref.
+        # https://kitware.github.io/vtk-examples/site/Cxx/Interaction/UserEvent/
+        dbg_print(3, 'OnUserEventCmd() called.')
