@@ -653,7 +653,10 @@ class GUIControl:
     def WindowConfUpdate(self, new_win_conf):
         dbg_print(4, 'WindowConfUpdate():', new_win_conf)
         self.translator.init_window(self, None).parse(new_win_conf)
-        self.interactor.ReInitialize()   # otherwise, the key stroke won't work
+        if 'full_screen' in new_win_conf:
+            # after switch between full screen/window mode,
+            # we need this to let the keyboard/mouse interaction to work
+            self.interactor.ReInitialize()   
         self.win_conf.update(new_win_conf)
 
     # The property describes how the data will look.

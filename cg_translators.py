@@ -1,5 +1,7 @@
 # Computer graphics translators, the real workhorse.
-# You may also call them operators (of VTK), but "translator" is descriptive style, "operator" is imperative style, I prefer the former, so everything here is passive and the control point is left in the main code (GUIControl).
+# You may also call them operators (of VTK), but "translator" is descriptive
+# style, "operator" is imperative style, I prefer the former, so everything
+# here is passive and the control point is left in the main code (GUIControl).
 
 # Ref. for VTK
 # Python Wrappers for VTK

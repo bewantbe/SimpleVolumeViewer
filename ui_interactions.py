@@ -323,10 +323,14 @@ class UIActions():
 
     def embed_interactive_shell(self):
         """Start a ipython session, with gui_ctrl, iren, interactor prepared."""
+        # Ref. IPython.terminal.embed.InteractiveShellEmbed
         # https://ipython.readthedocs.io/en/stable/api/generated/IPython.terminal.embed.html
-        # In the future, we may put this shell to another thread, so that the main UI is not 
-        # get stucked. This may involve the customized event(command/observer) to notify
-        # main UI to execute commands and refresh.
+        # old tutorial
+        # https://ipython.org/ipython-doc/stable/interactive/reference.html#embedding-ipython
+        # In the future, we may put this shell to an another thread, so that
+        # the main UI is not freezed. For this to work we may need a customized
+        # event(command/observer) to signal(notify) the main UI to read the
+        # commands from the shell through a queue.
         if not hasattr(self, 'embed_shell'):
             self.embed_shell = InteractiveShellEmbed(banner1 = "IPython Interactive Shell")
         gui_ctrl   = self.gui_ctrl
@@ -445,42 +449,60 @@ class UIActions():
         self.gui_ctrl.WindowConfUpdate(
             {'full_screen': not fs_state})
 
-    def toggle_VR(self, mode_inc = ''):
-        """Toggle stereo(VR) mode. Optionally looping different VR modes."""
-        # set "global" variables
-        if not hasattr(self, 'vr_mode_list'):
-            self.vr_mode_list = [
-                'SplitViewportHorizontal', 'CrystalEyes',
-                'RedBlue',                 'Interlaced',
-                'Left',                    'Right',
-                'Dresden',                 'Anaglyph',
-                'Checkerboard',            'Fake',
-                'Emulate']
-        if not hasattr(self, 'vr_mode_idx'):
-            self.vr_mode_idx = 0
+    def toggle_stereo_mode(self, toggle_mode = 'on-off'):
+        """Toggle stereo(VR) mode. Optionally looping different stereo types."""
+        win = self.iren.GetRenderWindow()
+        # list of STEREO types:
+        # https://vtk.org/doc/nightly/html/vtkRenderWindow_8h.html
+        stereo_type_list = {
+            1:'CrystalEyes',              2:'RedBlue',
+            3:'Interlaced',               4:'Left',
+            5:'Right',                    6:'Dresden',
+            7:'Anaglyph',                 8:'Checkerboard',
+            9:'SplitViewportHorizontal', 10:'Fake',
+            11:'Emulate'}
 
-        # loop VR mode
-        if mode_inc == 'next':
-            self.vr_mode_idx = (self.vr_mode_idx + 1) % len(self.vr_mode_list)
-        vr_mode_to_be_set = self.vr_mode_list[self.vr_mode_idx]
-        vr_mode_now = self.gui_ctrl.win_conf.get('stereo_type', '')
+        if 'stereo_type' not in self.gui_ctrl.win_conf:
+            # Stereo mode is never been set
+            # let's say, we want SplitViewportHorizontal to be the default
+            stereo_type = 'SplitViewportHorizontal'
+        else:
+            # get current type from `win` so that we never loss sync
+            # no matter win.GetStereoRender() is True or False, we can get type
+            # There is a bug in GetStereoTypeAsString()
+            #  https://github.com/collects/VTK/blob/master/Rendering/Core/vtkRenderWindow.cxx
+            #  It do not have interlaced type and the Dresden type is called
+            #  DresdenDisplay And more.
+            stereo_type = stereo_type_list.get(win.GetStereoType(), '')
+            if stereo_type == '':  # in wrong state.
+                stereo_type = self.gui_ctrl.win_conf['stereo_type']
+            if stereo_type == '':
+                dbg_print(2, "toggle_stereo_mode(): What's wrong?")
+                stereo_type = 'SplitViewportHorizontal'
+        dbg_print(3, 'Current st: ', stereo_type)
 
-        if mode_inc == '':
-            # on/off VR
-            if vr_mode_now:
-                dbg_print(4, 'Stop VR mode')
+        if toggle_mode == 'on-off':
+            # on/off stereo
+            if win.GetStereoRender():
+                dbg_print(4, 'Stopping stereo mode')
                 self.gui_ctrl.WindowConfUpdate(
                     {'stereo_type': ''})
             else:
-                dbg_print(4, 'Going to VR mode', vr_mode_to_be_set)
+                dbg_print(4, 'Going to stereo mode with type', stereo_type)
                 self.gui_ctrl.WindowConfUpdate(
-                    {'stereo_type': vr_mode_to_be_set})
-        else:
-            # loop VR mode, also enter VR mode
-            dbg_print(4, 'Going to VR mode', vr_mode_to_be_set)
+                    {'stereo_type': stereo_type})
+        elif toggle_mode == 'next':
+            # loop stereo types, let's say we don't want 'Fake' and 'Emulate'
+            stereo_type_idx = list(stereo_type_list.values()).index(stereo_type)
+            stereo_type_idx = (stereo_type_idx + 1) % (len(stereo_type_list) - 2)
+            stereo_type = stereo_type_list[stereo_type_idx + 1]
+            # enter stereo mode
+            dbg_print(4, 'Going to stereo mode with type', stereo_type)
             self.gui_ctrl.WindowConfUpdate(
-                {'stereo_type': vr_mode_to_be_set})
-        self.iren.GetRenderWindow().Render()
+                {'stereo_type': stereo_type})
+        else:
+            dbg_print(4, 'toggle_stereo_mode() ???')
+        win.Render()
 
     def toggle_hide_nonselected(self):
         """Toggle hiding non-selected object and showing all objects."""
@@ -556,8 +578,8 @@ def DefaultKeyBindings():
         'Insert'       : 'toggle-hide-nonselected',
         'h'            : 'toggle-help-message',
         'Alt+Return'   : 'toggle-fullscreen',
-        'Ctrl+Return'  : 'toggle-VR',
-        'Shift+Return' : 'toggle-VR next',
+        'Ctrl+Return'  : 'toggle-stereo-mode',
+        'Shift+Return' : 'toggle-stereo-mode next',
         'p'            : 'screen-shot',
         'Ctrl+s'       : 'save-scene',
         'q'            : 'exit-program',
