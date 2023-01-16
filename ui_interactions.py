@@ -553,8 +553,6 @@ def DefaultKeyBindings():
         'KP_0'         : 'fly-to-cursor',
         'KP_Insert'    : 'fly-to-cursor',         # LEGION
         ' '            : 'fly-to-selected',
-        'KP_8'         : 'set-view-up',
-        'KP_Up'        : 'set-view-up',           # LEGION
         'Shift+|'      : 'set-view-up',
         'Shift+\\'     : 'set-view-up',           # LEGION
         'Home'         : 'reset-camera-view',

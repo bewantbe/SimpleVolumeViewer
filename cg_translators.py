@@ -273,6 +273,7 @@ Possible types:
                     # Crash on window close with vtkXRenderWindowInteractor
                     # https://gitlab.kitware.com/vtk/vtk/-/issues/18372
                     screen_size = render_window.GetScreenSize()
+                    self.screen_size = screen_size
                     # Use 60% of the vertical space, with 4:3 aspect ratio.
                     # But if the resolution is too low (win_size[y] < 800),
                     #   use 800 pixels high or up to the screen size[y]
@@ -741,7 +742,7 @@ Possible types:
         "swc": {
             "type": "swc",
             "color": "Tomato",
-            "linewidth": 2.0,
+            "line_width": 2.0,
             "file_path": "RM006-004-lychnis/F5.json.swc"
         }
         """
@@ -754,6 +755,8 @@ Possible types:
                     help='Read and draw swc files in the directory.')
             parser.add_argument('--fibercolor',
                     help='Set fiber color.')
+            parser.add_argument('--line_width',
+                    help='Set fiber line width.')
 
         @staticmethod
         def parse_cmd_args(obj_desc):
@@ -785,6 +788,7 @@ Possible types:
                 obj_conf = {
                     "type": "swc",
                     "color": obj_desc.get('fibercolor', c),
+                    "line_width": obj_desc.get('line_width', "auto"),
                     "file_path": obj_desc['swc'][id_s]
                 }
                 li_obj_conf.append(obj_conf)
@@ -832,6 +836,16 @@ Possible types:
             #   then
             #    vtkPolyData() -> vtkPolyDataMapper() -> vtkActor() -> 
             #         vtkRenderer()
+
+            line_width = obj_conf['line_width']
+            if line_width == 'auto':
+                if hasattr(self, 'screen_size'):
+                    line_width = np.clip(self.screen_size[0]/1660 * 1.0,
+                                         1.0, 2.0)
+                else:
+                    line_width = 1.0
+            else:
+                line_width = float(line_width)
             
             t1 = time.time()
             polyData = self.ConstructPolyData(raw_points, processes)
@@ -843,7 +857,7 @@ Possible types:
             actor.SetMapper(mapper)
             actor.GetProperty().SetColor(
                 vtkGetColorAny(obj_conf['color']))
-            actor.GetProperty().SetLineWidth(obj_conf.get('linewidth', 2.0))
+            actor.GetProperty().SetLineWidth(line_width)
             
             self.renderer.AddActor(actor)
             self.actor = actor
