@@ -265,7 +265,7 @@ class UIActions():
         self.iren.GetRenderWindow().Render()         # TODO inform a refresh in a smart way
     
     def screen_shot(self):
-        """Save a screenshot to file."""
+        """Save a screenshot in current directory."""
         self.gui_ctrl.ShotScreen()
     
     def save_scene(self):
@@ -298,7 +298,7 @@ class UIActions():
         self.iren.GetRenderWindow().Render()
 
     def set_view_up(self):
-        """Set camera view up right."""
+        """Reset camera up direction to default."""
         dbg_print(4, 'Setting view up')
         ren1 = self.GetRenderers(1)
         cam1 = ren1.GetActiveCamera()
@@ -322,7 +322,7 @@ class UIActions():
             self.gui_ctrl.focusController.Toggle()
 
     def embed_interactive_shell(self):
-        """Start a ipython session, with gui_ctrl, iren, interactor prepared."""
+        """Start an ipython session in command line with context, see %whos."""
         # Ref. IPython.terminal.embed.InteractiveShellEmbed
         # https://ipython.readthedocs.io/en/stable/api/generated/IPython.terminal.embed.html
         # old tutorial
@@ -341,7 +341,7 @@ class UIActions():
         iren.GetRenderWindow().Render()
 
     def exec_script(self, script_name = 'test_call.py'):
-        """Run script."""
+        """Run a specific script."""
         plugin_dir = './plugins/'
         ren1 = self.GetRenderers(1)
         iren = self.iren
@@ -380,7 +380,7 @@ class UIActions():
             self.gui_ctrl.SetSelectedPID(self.gui_ctrl.selected_pid + direction)
 
     def camera_rotate_around(self):
-        """Rotate the scene by mouse."""
+        """Rotate view angle around the focus point."""
         self.interactor.OnLeftButtonDown()    # vtkInteractorStyleTerrain
     
     def camera_rotate_around_release(self):
@@ -394,7 +394,7 @@ class UIActions():
         self.interactor.OnMiddleButtonUp()    # vtkInteractorStyleTerrain
 
     def select_a_point(self, select_mode = ''):
-        """Select a point on SWC near the pointer."""
+        """Select a point on fiber(SWC) near the click point."""
         ren = self.gui_ctrl.GetMainRenderer()
 
         wnd = self.gui_ctrl.render_window
@@ -439,7 +439,7 @@ class UIActions():
         dbg_print(4, 'selected obj:', self.gui_ctrl.selected_objects)
 
     def toggle_help_message(self):
-        """Toggle on screen help message."""
+        """Toggle on screen key/mouse help."""
         self.gui_ctrl.ShowOnScreenHelp()
 
     def toggle_fullscreen(self):
@@ -549,51 +549,51 @@ def DefaultKeyBindings():
     the order Ctrl, Alt, Shift. and it is case sensitive.
     """
     d = {
-        '0'            : 'fly-to-cursor',
-        'KP_0'         : 'fly-to-cursor',
-        'KP_Insert'    : 'fly-to-cursor',         # LEGION
-        ' '            : 'fly-to-selected',
-        'Shift+|'      : 'set-view-up',
-        'Shift+\\'     : 'set-view-up',           # LEGION
-        'Home'         : 'reset-camera-view',
-        'r'            : 'auto-rotate',
-        '+'            : 'inc-brightness +',
-        'KP_Add'       : 'inc-brightness +',      # LEGION
-        '-'            : 'inc-brightness -',
-        'KP_Subtract'  : 'inc-brightness -',      # LEGION
-        'Ctrl++'       : 'inc-brightness C+',
-        'Ctrl+-'       : 'inc-brightness C-',
-        'Return'       : 'load-near-volume',
-        'KP_Enter'     : 'load-near-volume',
-        'x'            : 'remove-selected-object',
+        'q'            : 'exit_program',
+        'h'            : 'toggle_help_message',
+        'p'            : 'screen_shot',
+        'MouseLeftButton'               : 'camera_rotate_around',
+        'MouseLeftButtonRelease'        : 'camera_rotate_around_release',
+        'Shift+MouseLeftButton'         : 'camera_move_translational',
+        'Shift+MouseLeftButtonRelease'  : 'camera_move_translational_release',
+        'MouseMiddleButton'             : 'camera_move_translational',
+        'MouseMiddleButtonRelease'      : 'camera_move_translational_release',
+        'MouseWheelForward'             : ['scene_zooming',  1],
+        'MouseWheelBackward'            : ['scene_zooming', -1],
+        'MouseRightButton'              : 'select_a_point',
+        'Ctrl+MouseRightButton'         : 'select_a_point append',
+        '0'            : 'fly_to_cursor',
+        'KP_0'         : 'fly_to_cursor',
+        'KP_Insert'    : 'fly_to_cursor',         # LEGION
+        ' '            : 'fly_to_selected',
+        'Shift+|'      : 'set_view_up',
+        'Shift+\\'     : 'set_view_up',           # LEGION
+        'Home'         : 'reset_camera_view',
+        'r'            : 'auto_rotate',
+        '+'            : 'inc_brightness +',
+        'KP_Add'       : 'inc_brightness +',      # LEGION
+        '-'            : 'inc_brightness -',
+        'KP_Subtract'  : 'inc_brightness -',      # LEGION
+        'Ctrl++'       : 'inc_brightness C+',
+        'Ctrl+-'       : 'inc_brightness C-',
+        'Return'       : 'load_near_volume',
+        'KP_Enter'     : 'load_near_volume',
+        'x'            : 'remove_selected_object',
         '`'            : 'toggle_show_local_volume',
-        'i'            : 'show-selected-info',
-        'F2'           : 'embed-interactive-shell',
-        'Ctrl+g'       : 'exec-script',
-        'Ctrl+2'       : 'exec-script test_call_2.py',
-        'Ctrl+5'       : 'exec-script test_call_swc.py',
+        'i'            : 'show_selected_info',
+        'F2'           : 'embed_interactive_shell',
+        'Ctrl+g'       : 'exec_script',
+        'Ctrl+2'       : 'exec_script test_call_2.py',
+        'Ctrl+5'       : 'exec_script test_call_swc.py',
         'Ctrl+Shift+A' : 'deselect',
-        'Insert'       : 'toggle-hide-nonselected',
-        'h'            : 'toggle-help-message',
-        'Alt+Return'   : 'toggle-fullscreen',
-        'Ctrl+Return'  : 'toggle-stereo-mode',
-        'Shift+Return' : 'toggle-stereo-mode next',
-        'p'            : 'screen-shot',
-        'Ctrl+s'       : 'save-scene',
-        'q'            : 'exit-program',
-        'MouseLeftButton'               : 'camera-rotate-around',
-        'MouseLeftButtonRelease'        : 'camera-rotate-around-release',
-        'Shift+MouseLeftButton'         : 'camera-move-translational',
-        'Shift+MouseLeftButtonRelease'  : 'camera-move-translational-release',
-        'MouseMiddleButton'             : 'camera-move-translational',
-        'MouseMiddleButtonRelease'      : 'camera-move-translational-release',
-        'MouseWheelForward'             : ['scene-zooming',  1],
-        'MouseWheelBackward'            : ['scene-zooming', -1],
-        'Shift+MouseWheelForward'       : ['scene-object-traverse',  1],
-        'Shift+MouseWheelBackward'      : ['scene-object-traverse', -1],
-        'MouseRightButton'              : 'select-a-point',
-        'Ctrl+MouseRightButton'         : 'select-a-point append',
-        #'Shift+MouseRightButton'        : 'select-and-fly-to',  # TODO
+        'Insert'       : 'toggle_hide_nonselected',
+        'Alt+Return'   : 'toggle_fullscreen',
+        'Ctrl+Return'  : 'toggle_stereo_mode',
+        'Shift+Return' : 'toggle_stereo_mode next',
+        'Ctrl+s'       : 'save_scene',
+        'Shift+MouseWheelForward'       : ['scene_object_traverse',  1],
+        'Shift+MouseWheelBackward'      : ['scene_object_traverse', -1],
+        #'Shift+MouseRightButton'        : 'select_and_fly_to',  # TODO
     }
     # For user provided key bindings we need to:
     # 1. Remove redundant white space.
@@ -629,8 +629,6 @@ def GenerateKeyBindingDoc(key_binding = DefaultKeyBindings(),
     if help_mode == 'quick':
         s = QuickKeyBindingsHelpDoc()  # TODO remove this?
         return s
-    old_description = None
-    cat_keys = []
     # Some function(command) binds to multiple keys, we better merge them.
     # get unique function items
     cmd_fn_list = map(lambda a:a[1], key_binding.items())
@@ -641,22 +639,30 @@ def GenerateKeyBindingDoc(key_binding = DefaultKeyBindings(),
     for k, v in key_binding.items():
         cmd_keys[str(v)].append(k)
 
+    # key name refinement
+    key_name_to_convention_map = {
+        ' ': 'Space',     'Add': '+',       'Subtract': '-',
+        'KP_': 'NumPad ', 'Return': 'Enter',
+    }
+
     # generate help message
     left_margin = 4
     s = "\n  Key bindings:\n"
     for cmd_name, keys in cmd_keys.items():
-        description = action.ExecByCmd(cmd_name_fn_dict[cmd_name],
-                                       get_attr_name = '__doc__')
-        # filter Space key
-        for j, k in enumerate(keys):
-            if ' ' in k: keys[j] = keys[j].replace(' ', 'Space')
-        with_mouse = np.any(['Mouse' in k for k in keys])
         is_release = np.any([k.endswith('Release') for k in keys])
         if is_release:
             continue
+        description = action.ExecByCmd(cmd_name_fn_dict[cmd_name],
+                                       get_attr_name = '__doc__')
+        # refine key names
+        for j, k in enumerate(keys):
+            for old_key, new_key in key_name_to_convention_map.items():
+                k = k.replace(old_key, new_key)
+            keys[j] = k
+        with_mouse = np.any(['Mouse' in k for k in keys])
         # output a help line(s)
         indent = (25 if with_mouse else 15) + left_margin
-        line1 = f"{' ' * left_margin + ', '.join(keys):>{indent}}"
+        line1 = f"{' ' * left_margin + ' or '.join(keys):>{indent}}"
         # newline if keystroke is long
         sep    = '\n' + ' ' * (indent) \
                  if (len(line1) > indent) else ''
