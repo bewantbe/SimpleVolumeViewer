@@ -107,7 +107,8 @@ from vtkmodules.util.numpy_support import numpy_to_vtk
 import utils
 from utils import (
     GetNonconflitName,
-    dbg_print
+    dbg_print,
+    WindowsFriendlyDateTime,
 )
 utils.debug_level = 5
 
@@ -231,7 +232,7 @@ def ReadScene(scene_file_path):
 def ShotScreen(render_window, filename):
     """
     Take a screenshot.
-    Save to 'TestScreenshot.png'
+    Save to filename
     """
     # From: https://kitware.github.io/vtk-examples/site/Python/Utilities/Screenshot/
     win2if = vtkWindowToImageFilter()
@@ -939,7 +940,9 @@ class GUIControl:
             name = self.GetNonconflitName(obj_conf['type'])
             self.AddObject(name, obj_conf)
 
-    def ShotScreen(self, filename = 'TestScreenshot.png'):
+    def ShotScreen(self, filename = ''):
+        if filename == '':
+            filename = 'screenshot_' + WindowsFriendlyDateTime() + '.png'
         ShotScreen(self.render_window, filename)
 
     def ExportSceneFile(self):

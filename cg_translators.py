@@ -11,7 +11,6 @@
 # https://kitware.github.io/vtk-examples/site/Python/Rendering/PBR_Skybox/
 
 import os            # for os.path
-import datetime
 import numpy as np
 from numpy import array as _a
 import json
@@ -54,7 +53,6 @@ from vtkmodules.vtkFiltersSources import vtkSphereSource
 from vtkmodules.util.numpy_support import numpy_to_vtk
 
 from utils import (
-    GetNonconflitName,
     vtkGetColorAny,
     _mat3d,
     dbg_print,
@@ -63,6 +61,7 @@ from utils import (
     GetColorScale,
     SetColorScale,
     ConditionalAddItem,
+    WindowsFriendlyDateTime,
 )
 
 from ui_interactions import (
@@ -1175,23 +1174,25 @@ Possible types:
         @staticmethod
         def add_argument_to(parser):
             # usually, you would use it like
-            # --off_screen_rendering 1 --save_screen a.png
+            # --off_screen_rendering 1 --screenshot a.png
             #Or
-            # --save_screen a.png --no_interaction 1
-            parser.add_argument('--save_screen',
+            # --screenshot a.png --no_interaction 1
+            parser.add_argument('--screenshot', nargs='?', const = '',
                     help='Take a screen shot and save to the path.')
 
         @staticmethod
         def parse_cmd_args(cmd_obj_desc):
-            if 'save_screen' not in cmd_obj_desc:
+            if 'screenshot' not in cmd_obj_desc:
                 return None
             
-            pic_path = 'pic_tmp/a_' \
-                       + str(datetime.datetime.now()).replace(' ', '_') \
+            pic_path = 'screenshot_' \
+                       + WindowsFriendlyDateTime() \
                        + '.png'
 
-            if cmd_obj_desc['save_screen']:
-                pic_path = cmd_obj_desc['save_screen']
+            if cmd_obj_desc['screenshot']:
+                pic_path = cmd_obj_desc['screenshot']
+                if not pic_path.endswith('.png'):
+                    pic_path += '.png'
 
             cg_conf = {
                 'type'           : 'take_shot',

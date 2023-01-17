@@ -1,5 +1,6 @@
 # Small utility functions
 
+import datetime
 import numpy as np
 
 from vtkmodules.vtkCommonDataModel import (
@@ -221,3 +222,8 @@ def ConditionalAddItem(name, cmd_obj_desc, key_name, win_conf):
             key_name: cmd_obj_desc[name]
         })
 
+def WindowsFriendlyDateTime():
+    # return something like '2023-01-18 01:10:59.65'
+    st_time = str(datetime.datetime.now()).replace(' ', '_') \
+                    .replace(':', 'h', 1).replace(':', 'm', 1)[:22]
+    return st_time

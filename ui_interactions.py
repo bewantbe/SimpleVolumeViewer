@@ -817,7 +817,8 @@ class MyInteractorStyle(vtkInteractorStyleTerrain):
             key_modifier = key_modifier[:-1]
         key_combo = key_modifier + key_code
         #print('key_code:', bytearray(key_code.encode('utf-8')))
-        dbg_print(4, 'Pressed:', key_combo, '  key_sym:', key_sym)
+        if key_combo not in ['Ctrl', 'Alt', 'Shift']:
+            dbg_print(4, 'Pressed:', key_combo, '  key_sym:', key_sym)
 
         return key_combo
 
