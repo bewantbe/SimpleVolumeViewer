@@ -12,6 +12,7 @@ from IPython.terminal.embed import InteractiveShellEmbed
 from vtkmodules.vtkCommonCore import (
     vtkCommand,
 )
+# vtk.vtkCommand.KeyPressEvent
 from vtkmodules.vtkInteractionStyle import (
     vtkInteractorStyleTrackballCamera,
     vtkInteractorStyleFlight,
@@ -242,6 +243,7 @@ class UIActions():
     def exit_program(self):
         """Exit the program."""
         self.iren.TerminateApp()
+        #self.ExitCallback()
 
     def auto_rotate(self):
         """Animate rotate camera around the focal point."""
@@ -431,6 +433,11 @@ class UIActions():
         else:
             dbg_print(4, 'picked no point', pid, pxyz)
         # purposely no call to self.OnRightButtonDown()
+    
+    def select_and_fly_to(self):
+        """Pick the point at cursor and fly to it."""
+        self.select_a_point()
+        self.fly_to_cursor()
 
     def deselect(self, select_mode = ''):
         """Deselect all selected objects."""
@@ -562,6 +569,7 @@ def DefaultKeyBindings():
         'MouseWheelBackward'            : ['scene_zooming', -1],
         'MouseRightButton'              : 'select_a_point',
         'Ctrl+MouseRightButton'         : 'select_a_point append',
+        'MouseLeftButtonDoubleClick'    : 'select_and_fly_to',
         '0'            : 'fly_to_cursor',
         'KP_0'         : 'fly_to_cursor',
         'KP_Insert'    : 'fly_to_cursor',         # LEGION
@@ -593,7 +601,6 @@ def DefaultKeyBindings():
         'Ctrl+s'       : 'save_scene',
         'Shift+MouseWheelForward'       : ['scene_object_traverse',  1],
         'Shift+MouseWheelBackward'      : ['scene_object_traverse', -1],
-        #'Shift+MouseRightButton'        : 'select_and_fly_to',  # TODO
     }
     # For user provided key bindings we need to:
     # 1. Remove redundant white space.
@@ -711,6 +718,10 @@ class MyInteractorStyle(vtkInteractorStyleTerrain):
                          self.right_button_press_event)
         self.AddObserver('RightButtonReleaseEvent',
                          self.right_button_release_event)
+        # somehow VTK do not trigger LeftButtonDoubleClickEvent(at least v9.2)
+        # we have to implement it ourself.
+        #self.AddObserver('LeftButtonDoubleClickEvent',
+                         #self.left_button_double_click_event)
 
         for m in ['MouseLeftButton', 'MouseMiddleButton', 'MouseRightButton']:
             setattr(self, self.get_mb_var_name(m), '')
@@ -751,10 +762,16 @@ class MyInteractorStyle(vtkInteractorStyleTerrain):
             self.OnLeftButtonUp()
 
     def left_button_press_event(self, obj, event):
-        self.mouse_press_event_common(obj, 'MouseLeftButton')
+        if self.iren.GetRepeatCount() == 1:  # double click
+            self.mouse_press_event_common(obj, 'MouseLeftButtonDoubleClick')
+        else:   # single click
+            self.mouse_press_event_common(obj, 'MouseLeftButton')
 
     def left_button_release_event(self, obj, event):
-        self.mouse_release_event_common(obj, 'MouseLeftButton')
+        if getattr(self, '_last_MouseLeftButtonDoubleClick_combo', None):
+            setattr(self, '_last_MouseLeftButtonDoubleClick_combo', '')
+        else:
+            self.mouse_release_event_common(obj, 'MouseLeftButton')
 
     def mouse_wheel_forward_event(self, obj, event):
         modifier = self.get_key_modifier(obj.iren)
@@ -778,6 +795,9 @@ class MyInteractorStyle(vtkInteractorStyleTerrain):
     def right_button_release_event(self, obj, event):
         self.mouse_release_event_common(obj, 'MouseRightButton')
         return
+
+    def left_button_double_click_event(self, obj, event):
+        self.mouse_press_event_common(obj, 'MouseLeftButtonDoubleClick')
 
     def get_key_modifier(self, iren):
         """Return key modifier, in fixed order (Ctrl, Alt, Shift)."""
