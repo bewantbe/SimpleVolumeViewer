@@ -3,12 +3,12 @@
 import numpy as np
 import tifffile
 
-def PluginMain(ren, iren, guictrl):
+def PluginMain(ren, iren, gui_ctrl):
     file_name = 'b.tif'
     img_arr, img_meta = Read3DImageDataFromFile(file_name)
     Save3DImageToFile('c.tif', img_arr, img_meta)
-    guictrl.RemoveObject('volume2')
-    guictrl.AddObjectProperty('volume2',
+    gui_ctrl.RemoveObject('volume2')
+    gui_ctrl.AddObjectProperty('volume2',
         {
             "opacity_transfer_function": {
                 "AddPoint": [
@@ -28,7 +28,7 @@ def PluginMain(ren, iren, guictrl):
             },
             "interpolation": "cubic"
         } )
-    guictrl.AddObject('volume2', {
+    gui_ctrl.AddObject('volume2', {
         "type"           : "volume",
         "property"       : "volume2",
         "origin"         : [100, 100, 0],

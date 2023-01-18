@@ -350,7 +350,8 @@ def SplitSWCTree(tr):
     arr_full[tr_idx[:,0]] = np.arange(n_id, dtype=np.int32)
     tr_idx[:,0:2] = arr_full[tr_idx[:,0:2]]
     # find branch points
-    n_child,_ = np.histogram(tr_idx[1:,1], bins=np.arange(n_id, dtype=np.int32))
+    n_child,_ = np.histogram(tr_idx[1:,1],
+                    bins = np.arange(n_id + 1, dtype = np.int32))
     n_child = np.array(n_child, dtype=np.int32)
     # n_child == 0: leaf
     # n_child == 1: middle of a path or root
@@ -367,7 +368,9 @@ def SplitSWCTree(tr):
             i = tr_idx[i, 1]  # parent
         if i != -1:
             filament.append(i)
-        processes.append(filament[::-1])
+        elif len(filament) == 1:  # soma
+            continue
+        processes.append(np.array(filament[::-1], dtype=np.int32))
 
     return processes
 

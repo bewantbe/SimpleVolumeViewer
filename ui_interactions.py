@@ -335,6 +335,7 @@ class UIActions():
         # commands from the shell through a queue.
         if not hasattr(self, 'embed_shell'):
             self.embed_shell = InteractiveShellEmbed(banner1 = "IPython Interactive Shell")
+            # or simpler: from IPython import embed then call embed()
         gui_ctrl   = self.gui_ctrl
         iren       = self.iren
         interactor = self.interactor
@@ -594,6 +595,7 @@ def DefaultKeyBindings():
         'Ctrl+2'       : 'exec_script test_call_2.py',
         'Ctrl+5'       : 'exec_script test_call_swc.py',
         'Ctrl+Shift+A' : 'deselect',
+        'Ctrl+Shift+a' : 'deselect',
         'Insert'       : 'toggle_hide_nonselected',
         'Alt+Return'   : 'toggle_fullscreen',
         'Ctrl+Return'  : 'toggle_stereo_mode',

@@ -71,8 +71,8 @@ def GetValueByAnchorPoints(color_anchor_points, swc_objs):
         s_v[k] = v
     return s_v
 
-def PluginMain(ren, iren, guictrl):
-    swc_objs = guictrl.GetObjectsByType('swc')
+def PluginMain(ren, iren, gui_ctrl):
+    swc_objs = gui_ctrl.GetObjectsByType('swc')
     print('Number of SWC:', len(swc_objs))
 
     n_swc = len(swc_objs)

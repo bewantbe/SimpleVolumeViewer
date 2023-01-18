@@ -223,6 +223,7 @@ class ObjTranslator:
 
         @staticmethod
         def add_argument_to(parser):
+            # TODO: add group
             parser.add_argument('--window_size',
                     help='Set window size like 1024x768.')
             parser.add_argument('--off_screen_rendering',
@@ -803,7 +804,7 @@ Possible types:
             # essentially file name
             self.swc_name   = None
             # for data structure see def LoadSWCTree(filepath)
-            self.tree_data  = None
+            self.tree_swc   = None
             # undirected graph of the tree, root (-1) is stripped
             self.tree_graph = None
         
@@ -823,7 +824,7 @@ Possible types:
 
             self.file_path  = obj_conf['file_path']
             self.swc_name   = os.path.splitext(os.path.basename(self.file_path))[0]
-            self.tree_data  = ntree
+            self.tree_swc   = ntree
             self.tree_graph = point_graph
 
             # ref: 
