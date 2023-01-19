@@ -989,8 +989,16 @@ def get_program_parameters():
                 formatter_class=argparse.RawDescriptionHelpFormatter)
     ObjTranslator().add_all_arguments_to(parser)
     parser.add_argument(
-        '--verbosity', type=int, choices=[0, 1, 2, 3, 4, 5],
-        help="output verbosity(0(nothing), 1(error) ~ 5(verbose))")
+        '--verbosity', type=int, metavar='INT',
+        help="""
+        Debug message verbosity:
+          0 = show nothing unless crash, 
+          1 = error, 
+          2 = warning, 
+          3 = hint, 
+          4 = message, 
+          5 >= verbose.
+          """)
     args = parser.parse_args()
     if args.verbosity is not None:
         utils.debug_level = args.verbosity

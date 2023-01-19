@@ -224,26 +224,27 @@ class ObjTranslator:
         @staticmethod
         def add_argument_to(parser):
             # TODO: add group
-            parser.add_argument('--window_size',
-                    help='Set window size like 1024x768.')
-            parser.add_argument('--off_screen_rendering',
+            group = parser.add_argument_group('Window settings')
+            group.add_argument('--window_size', metavar='SIZE',
+                    help='Set window size like "1024x768".')
+            group.add_argument('--off_screen_rendering',
                     type=int, choices=[0, 1],
-                    help='Enable off-screen rendering. 1=Enable, 0=Disable.')
-            parser.add_argument('--no_interaction', type=int, choices=[0, 1],
-                    help='Exit after the screen shot.')
-            parser.add_argument('--full_screen', type=int, choices=[0, 1],
-                    help='Full screen On/Off.')
-            parser.add_argument('--stereo_type',
+                    help='Enable off-screen rendering. 1 = Enable, 0 = Disable.')
+            group.add_argument('--no_interaction', type=int, choices=[0, 1],
+                    help='Used with --screenshot, for exit after the screenshot(1).')
+            group.add_argument('--full_screen', type=int, choices=[0, 1],
+                    help='Full screen On(1)/Off(0).')
+            group.add_argument('--stereo_type',
                     help=
-"""
-Enable stereo rendering, set the type here.
-Possible types:
-  CrystalEyes, RedBlue, Interlaced, Left, Right, Fake, Emulate,
-  Dresden, Anaglyph, Checkerboard, SplitViewportHorizontal
-""")
-            parser.add_argument('--max_cpu', type=int,
+                    """
+                    Enable stereo rendering, set the type here.
+                    Possible types:
+                    CrystalEyes, RedBlue, Interlaced, Left, Right, Fake, Emulate,
+                    Dresden, Anaglyph, Checkerboard, SplitViewportHorizontal
+                    """)
+            group.add_argument('--max_cpu', type=int, metavar='N_CPU',
                     help='Max number of CPU.')
-            parser.add_argument('--swc_loading_batch_size', type=int,
+            group.add_argument('--swc_loading_batch_size', type=int, metavar='SIZE',
                     help='The batch size when loading swc files.')
 
         @staticmethod
@@ -403,7 +404,7 @@ Possible types:
 
         @staticmethod
         def add_argument_to(parser):
-            parser.add_argument('--scene',
+            parser.add_argument('--scene', metavar='FILE_PATH',
                     help='Project scene file path. e.g. for batch object loading.')
 
         @staticmethod
@@ -537,24 +538,25 @@ Possible types:
 
         @staticmethod
         def add_argument_to(parser):
-            parser.add_argument('--filepath',
-                    help='image stack filepath')
-            parser.add_argument('--level',
-                    help='for multi-level image (.ims), load only that level')
-            parser.add_argument('--channel',
+            group = parser.add_argument_group('Volume(3D) image related options')
+            group.add_argument('--filepath', metavar='IMG_PATH',
+                    help='Image stack filepath, can be TIFF or IMS(HDF5).')
+            group.add_argument('--level',
+                    help='For multi-level image (.ims), load only that level.')
+            group.add_argument('--channel',
                     help='Select channel for IMS image.')
-            parser.add_argument('--time_point',
+            group.add_argument('--time_point',
                     help='Select time point for IMS image.')
-            parser.add_argument('--range',
-                    help='Select range within image.')
-            parser.add_argument('--colorscale',
-                    help='Set scale of color transfer function.')
-            parser.add_argument('--origin',
-                    help='Set origin of the volume.')
-            parser.add_argument('--rotation_matrix',
-                    help='Set rotation matrix of the volume.')
-            parser.add_argument('--oblique_image',
-                    help='Overwrite the guess of if the image is imaged oblique.')
+            group.add_argument('--range',
+                    help='Select range within image, e.g. "[0:100,:,:]".')
+            group.add_argument('--colorscale',
+                    help='Set scale of color transfer function, a positive number.')
+            group.add_argument('--origin', metavar='ORIGIN_COOR',
+                    help='Set coordinate of the origin of the volume.')
+            group.add_argument('--rotation_matrix',
+                    help='Set rotation matrix of the volume, a 9 number list.')
+            group.add_argument('--oblique_image', metavar='BOOL',
+                    help='Specify the image is imaged oblique, instead of guessing.')
 
         @staticmethod
         def parse_cmd_args(obj_desc):
@@ -716,8 +718,8 @@ Possible types:
 
         @staticmethod
         def add_argument_to(parser):
-            parser.add_argument('--lychnis_blocks',
-                    help='Path of lychnis blocks.json')
+            parser.add_argument('--lychnis_blocks', metavar='PATH',
+                    help='Path of lychnis "blocks.json".')
 
         @staticmethod
         def parse_cmd_args(obj_desc):
@@ -749,13 +751,14 @@ Possible types:
 
         @staticmethod
         def add_argument_to(parser):
-            parser.add_argument('--swc', action='append',
-                    help='Read and draw swc file.')
-            parser.add_argument('--swc_dir',
+            group = parser.add_argument_group('SWC (neuron fiber) file options')
+            group.add_argument('--swc', action='append', metavar='FILE_PATH',
+                    help='Read and draw swc file. Note: SWC nodes must sorted.')
+            group.add_argument('--swc_dir',
                     help='Read and draw swc files in the directory.')
-            parser.add_argument('--fibercolor',
-                    help='Set fiber color.')
-            parser.add_argument('--line_width',
+            group.add_argument('--fibercolor', metavar='COLOR',
+                    help='Set fiber color, like "Red".')
+            group.add_argument('--line_width',
                     help='Set fiber line width.')
 
         @staticmethod
@@ -1123,11 +1126,15 @@ Possible types:
 
         @staticmethod
         def add_argument_to(parser):
-            # usually, you would use it like
-            # --off_screen_rendering 1 --animation 1
-            parser.add_argument('--animation', type=int,
-                    help='Run an off-screen animation and exit.')
-
+            parser.add_argument('--animation', type=int, metavar='TYPE_INT',
+                    help= \
+            """Run an animation and exit.
+            Currently, only rotation (TYPE 1) is supported.
+            Usually, you would use it like:
+              --off_screen_rendering 1 --animation 1
+            """
+            )
+            
         @staticmethod
         def parse_cmd_args(cmd_obj_desc):
             if ('animation' not in cmd_obj_desc) or \
@@ -1178,7 +1185,8 @@ Possible types:
             # --off_screen_rendering 1 --screenshot a.png
             #Or
             # --screenshot a.png --no_interaction 1
-            parser.add_argument('--screenshot', nargs='?', const = '',
+            parser.add_argument('--screenshot', metavar='PNG_PATH',
+                                nargs='?', const = '',
                     help='Take a screen shot and save to the path.')
 
         @staticmethod
