@@ -981,11 +981,13 @@ class GUIControl:
             self.interactor.Start()
 
 def get_program_parameters():
-    description = 'Simple volumetric image and SWC viewer based on PyVTK.'
+    description = 'Portable volumetric image and neuronal tracing result viewer based on PyVTK.'
+    author = 'Author: https://github.com/bewantbe/SimpleVolumeViewer'
     epilogue = GenerateKeyBindingDoc()
-    parser = argparse.ArgumentParser(
+    parser = argparse.ArgumentParser( 
+                argument_default=argparse.SUPPRESS,  # ignore non-specified options
                 description=description,
-                epilog=epilogue,
+                epilog=epilogue + author + '\n \n',
                 formatter_class=argparse.RawDescriptionHelpFormatter)
     ObjTranslator().add_all_arguments_to(parser)
     parser.add_argument(
@@ -1000,10 +1002,11 @@ def get_program_parameters():
           5 >= verbose.
           """)
     args = parser.parse_args()
-    if args.verbosity is not None:
+    if getattr(args, 'verbosity', None):
         utils.debug_level = args.verbosity
     # convert args from Namespace to dict, and filter out None values.
-    args = {k:v for k,v in vars(args).items() if v is not None}
+    #args = {k:v for k,v in vars(args).items() if v is not None}
+    args = vars(args)
     dbg_print(3, 'get_program_parameters(): d=', args)
     return args
 

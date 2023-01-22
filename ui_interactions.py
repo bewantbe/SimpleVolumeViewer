@@ -550,12 +550,10 @@ class UIActions():
         self.iren.GetRenderWindow().Render()
 
 def DefaultKeyBindings():
-    """
-    Full table of default key bindings. (except q for exit)
-    See class UIAction for all available actions.
-    Not that if there are multiple modifiers, i.e. Ctrl, Alt, Shift, they have to appear in
-    the order Ctrl, Alt, Shift. and it is case sensitive.
-    """
+    """GUI keyboard and mouse actions."""
+    # See class UIAction for all available actions.
+    # Not that if there are multiple modifiers, i.e. Ctrl, Alt, Shift, they have to appear in
+    # the order Ctrl, Alt and Shift, and it is case sensitive.
     d = {
         'q'            : 'exit_program',
         'h'            : 'toggle_help_message',
@@ -656,7 +654,7 @@ def GenerateKeyBindingDoc(key_binding = DefaultKeyBindings(),
 
     # generate help message
     left_margin = 4
-    s = "\n  Key bindings:\n"
+    s = "\n  " + DefaultKeyBindings.__doc__ + "\n\n"
     for cmd_name, keys in cmd_keys.items():
         is_release = np.any([k.endswith('Release') for k in keys])
         if is_release:
@@ -677,6 +675,7 @@ def GenerateKeyBindingDoc(key_binding = DefaultKeyBindings(),
                  if (len(line1) > indent) else ''
         line2 = f"{sep} : {description}\n"
         s += line1 + line2
+    s += " \n"
     return s
 
 class MyInteractorStyle(vtkInteractorStyleTerrain):
