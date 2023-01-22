@@ -543,8 +543,8 @@ class ObjTranslator:
         @staticmethod
         def add_argument_to(parser):
             group = parser.add_argument_group('Volume(3D) image related options')
-            group.add_argument('--filepath', metavar='IMG_PATH',
-                    help='Image stack filepath, can be TIFF or IMS(HDF5).')
+            group.add_argument('--img_path', metavar='IMG_PATH',
+                    help='Image stack file path, can be TIFF or IMS(HDF5).')
             group.add_argument('--level',
                     help='For multi-level image (.ims), load only that level.')
             group.add_argument('--channel',
@@ -564,10 +564,10 @@ class ObjTranslator:
 
         @staticmethod
         def parse_cmd_args(obj_desc):
-            if 'filepath' not in obj_desc:
+            if 'img_path' not in obj_desc:
                 return None
 
-            file_path = obj_desc['filepath']
+            file_path = obj_desc['img_path']
             if file_path.endswith('.tif'):
                 # assume this a volume
                 obj_conf = {

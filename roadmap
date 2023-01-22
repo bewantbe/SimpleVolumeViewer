@@ -63,9 +63,13 @@ Done:
 
 Under consideration:
 * Bug: after loading volume with colorscale set, press +/- will get weird rendering results.
+  - python .\img_block_viewer.py --img_path tests\ref_data\RM06_s56_c10_f3597_p0.tif
+  - python .\img_block_viewer.py --img_path tests\ref_data\RM06_s56_c10_f3597_p0.tif --colorscale 10
 * Add tips to clicked point, by click "i" key. plus linewraping for long message.
 * Testing class ArrayfyList for easier scripting about SWC in plugin.
 * Solve the window init flash problem, i.e. properly set window size only once.
+* Add more smart command line option: non-optional, auto dectact type.
+  - hash + rnd seed file name to determine swc color?
 * Support drag and drop to load data.
 * Avoid selection to non-visible object.
 * Use direction keys to navigate (go forward, backward, left, right, with shift to rotate, or small keyboard)
