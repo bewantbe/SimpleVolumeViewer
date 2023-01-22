@@ -245,9 +245,11 @@ class ObjTranslator:
                     Dresden, Anaglyph, Checkerboard, SplitViewportHorizontal
                     """)
             group.add_argument('--max_cpu', type=int, metavar='N_CPU',
-                    help='Max number of CPU.')
+                    help="""Max number of CPUs for parallel computing,
+                            default: 8 or max number of CPUs in your system.
+                            Currently only for loading SWC.""")
             group.add_argument('--swc_loading_batch_size', type=int, metavar='SIZE',
-                    help='The batch size when loading swc files.')
+                    help='The batch size for each CPU when loading SWC files, default: 2.')
 
         @staticmethod
         def parse_cmd_args(cmd_obj_desc):
@@ -755,9 +757,9 @@ class ObjTranslator:
         def add_argument_to(parser):
             group = parser.add_argument_group('SWC (neuron fiber) file options')
             group.add_argument('--swc', action='append', metavar='FILE_PATH',
-                    help='Read and draw swc file. Note: SWC nodes must sorted.')
+                    help='Read and draw SWC file. Note: SWC nodes must sorted.')
             group.add_argument('--swc_dir',
-                    help='Read and draw swc files in the directory.')
+                    help='Read and draw SWC files in the directory.')
             group.add_argument('--fibercolor', metavar='COLOR',
                     help='Set fiber color, like "Red".')
             group.add_argument('--line_width',

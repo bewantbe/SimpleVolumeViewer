@@ -660,21 +660,29 @@ def GenerateKeyBindingDoc(key_binding = DefaultKeyBindings(),
         is_release = np.any([k.endswith('Release') for k in keys])
         if is_release:
             continue
-        description = action.ExecByCmd(cmd_name_fn_dict[cmd_name],
-                                       get_attr_name = '__doc__')
-        # refine key names
+        cmd = cmd_name_fn_dict[cmd_name]
+        description = action.ExecByCmd(cmd, get_attr_name = '__doc__')
+        # additional description on extra parameter(s)
+        if isinstance(cmd, str) and cmd.count(' ') > 0:
+            cmd_param = cmd.split(' ')[1:]
+        elif isinstance(cmd, (list, tuple)) and len(cmd) > 1:
+            cmd_param = str(cmd[1:])
+        else:
+            cmd_param = ''
+        # convert key sym to conventional name
         for j, k in enumerate(keys):
             for old_key, new_key in key_name_to_convention_map.items():
                 k = k.replace(old_key, new_key)
             keys[j] = k
+        # different indent for mouse keys
         with_mouse = np.any(['Mouse' in k for k in keys])
-        # output a help line(s)
         indent = (25 if with_mouse else 15) + left_margin
+        # help lines
         line1 = f"{' ' * left_margin + ' or '.join(keys):>{indent}}"
         # newline if keystroke is long
         sep    = '\n' + ' ' * (indent) \
                  if (len(line1) > indent) else ''
-        line2 = f"{sep} : {description}\n"
+        line2 = f"{sep} : {description} {cmd_param}\n"
         s += line1 + line2
     s += " \n"
     return s

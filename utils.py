@@ -225,7 +225,7 @@ def ConditionalAddItem(name, cmd_obj_desc, key_name, win_conf):
         })
 
 def WindowsFriendlyDateTime():
-    # return something like '2023-01-18 01:10:59.65'
+    # return something like '2023-01-18_01h10m59.65'
     st_time = str(datetime.datetime.now()).replace(' ', '_') \
                     .replace(':', 'h', 1).replace(':', 'm', 1)[:22]
     return st_time
