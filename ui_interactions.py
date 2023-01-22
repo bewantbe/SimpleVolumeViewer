@@ -404,7 +404,6 @@ class UIActions():
 
         wnd = self.gui_ctrl.render_window
         in_vr_mode = wnd.GetStereoRender() and wnd.GetStereoTypeAsString() == 'SplitViewportHorizontal'
-        dbg_print(2, 'in_vr_mode SplitViewportHorizontal =', in_vr_mode)
 
         # select object
         # Ref. HighlightWithSilhouette
@@ -422,8 +421,8 @@ class UIActions():
         
         if pxyz.size > 0:
             obj_name = self.gui_ctrl.point_set_holder.GetNameByPointId(pid)
-            dbg_print(4, 'picked point', pid, pxyz)
-            dbg_print(4, 'selected swc:', obj_name)
+            dbg_print(4, 'picked point id =', pid, ' xyz =', pxyz)
+            dbg_print(4, 'selected object:', obj_name)
             self.gui_ctrl.SetSelectedPID(pid)
             if select_mode == 'append':
                 if obj_name in self.gui_ctrl.selected_objects:

@@ -108,9 +108,10 @@ from vtkmodules.util.numpy_support import numpy_to_vtk
 
 import utils
 from utils import (
-    GetNonconflitName,
     dbg_print,
+    GetNonconflitName,
     WindowsFriendlyDateTime,
+    MergeFullDict,
 )
 utils.debug_level = 5
 
@@ -192,9 +193,6 @@ def DefaultSceneConfig():
             "background": {
                 "type": "Background",
                 "color": "Black"
-            },
-            "3d_cursor": {
-                "type": "Sphere",
             },
             "camera1": {
                 "type": "Camera",
@@ -591,11 +589,17 @@ class GUIControl:
 
     def Set3DCursor(self, xyz):
         # operate on object: 3d_cursor
-        if '3d_cursor' in self.scene_objects:
-            dbg_print(4, 'Set 3D cursor to', xyz)
-            cursor = self.scene_objects['3d_cursor']
-            cursor.position = xyz
-            self.render_window.Render()
+        if '3d_cursor' not in self.scene_objects:
+            # create one
+            obj_conf = \
+            {
+                "type": "Sphere",
+            }
+            self.AddObject('3d_cursor', obj_conf)
+        dbg_print(4, 'Set 3D cursor to', xyz)
+        cursor = self.scene_objects['3d_cursor']
+        cursor.position = xyz
+        self.render_window.Render()
 
     def SetSelectedPID(self, pid):
         if pid < len(self.point_set_holder):
