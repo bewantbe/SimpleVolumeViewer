@@ -1,79 +1,35 @@
+Done:
 * Select an object by mouse i.e. set it to "active".
   - by single click.                    (done for swc point)
-  - by box selection, multiple object.
+  - by box selection, multiple object.  (re-phrased)
 * "Fly to" an active object.            (done for volume, picked point)
 * Dynamical loading/off-loading.        (done loading, but not off-loading)
     - On demand loading of ims file and flsm file.
 * Visually focus local area
   - by mask volume partially.           (done)
-  - by rebuild a volume.
-  - also mask outside fiber.
+  - by rebuild a volume.                (ignored)
+  - also mask outside fiber.            (ignored)
 * Show 3D cursor.                       (done using sphere)
-* Add transition animation framework for moving viewport
-  - Make Y direction the up direction.
-  - rotation.
 * ability to output scene file corresponding to current view. (done)
 * View up                               (done)
-* Support touch screen (StartPinchEvent, PinchEvent, EndPinchEvent), (SwipeEvent, StartSwipeEvent, EndSwipeEvent)
-* Support VR.
 * Support stereo view.                  (done)
-* Custom volume rendering.
-  - See "Implementing a custom GPU raycasting function"
-    https://discourse.slicer.org/t/implementing-a-custom-gpu-raycastingfunction/13055/4
-    And PRISM: An open source framework for the interactive design of GPU volume rendering shaders
-
-* use off-screen rendering for auto unit test
-
-## 2023-01-08
-
 * improve the parallel parsing of SWC file by batching.
   - almost done, debug where slow, probably the data transfer part.
   - done for now
-
 * Design an interface for user script?
   - Use object property to serves the use (analysing) script.
-    - almost done
-
-* try to test the sparse matrix loop finding by using the matrix multiple.
+    - done for now, no multi-thread
 * Solve windows Fn key and Home/Del key capture problem? such as receive the KeyPressEvent () (instead of now CharEvent())
+  - Check official interactor for OnChar(), do we need to change it after switch from "CharEvent' to "KeyPressEvent"?
+  - done.
 * Use Namespace instead of dict for data exchange?
+  - considered not suitable for core target.
 * Thinking of use message(event)/callbacks mechanism, to replace the now input/configure/parser mechanism, especially to deal with event priority. e.g. after parse the commandline, sort the events according to the priority, then the GUIControl comsumes the event by the order, also there maybe a special class to deal with the sorting and batch pop-out.
-* Try touch screen interaction, such as PinchEvent. See https://vtk.org/doc/nightly/html/classvtkRenderWindowInteractor.html#details
-* try GetPickingManager (), GetPicker()
-  - Use a box to select?: https://vtk.org/doc/nightly/html/classvtkBoxWidget.html#details
-  - https://stackoverflow.com/questions/60115814/what-kind-of-vtk-vtkcommand-event-i-can-put-as-observer-when-i-select-a-box-in-a
-* try the VR
+  - not necessary.
 * Use GetInitialized () to set sleep time?
-* SetInteractorStyle() switching
-* large render: vtkUnstructuredGrid  https://discourse.vtk.org/t/how-to-draw-10000-object/8438/15
-
-* why GetTimerEventId (), GetVTKTimerId () not work??  See here https://vtk.org/doc/nightly/html/classvtkRenderWindowInteractor.html#a7ef06e3e7c8cff5767c3b0d328934f55
-
-* seems usefull: AddRepresentation()  see https://vtk.org/wp-content/uploads/2021/08/VTKUsersGuide.pdf
-
-* better raycast?: vtkVolumeRayCastCompositeFunction 
-
-* vtkOBJReader  read .obj
-
-
-## 2023-01-13
-
-* Solve the window init flash problem
-
-* Use direction keys to navigate (go forward, backward, left, right, with shift to rotate, or small keyboard)
-
-* Support drag and drop to load data.
-
-* Command-Line Application Layouts
-
-* Bug: after loading volume with colorscale set, press +/- will get wired rendering results.
-
+  - not necessary.
 * set window size automatically, and allow command line
-
-* allow loading obj file.
-
-## 2023-01-15
-
+  - done.
 * Add "interpreter" for operating objects, in complement to plugin script.
   - we have two ways (at least)
     + write a widget in the window for command line operation.
@@ -88,7 +44,52 @@
           https://ipython.org/ipython-doc/stable/interactive/reference.html#embedding-ipython
           IPython.terminal.embed.InteractiveShellEmbed
           # https://ipython.readthedocs.io/en/stable/api/generated/IPython.terminal.embed.html
+  - Check how to add custom observer event, so that we can add interpretor in another thread.
+    + done.
+    + or we go back to Enter -> iren.Render() -> Promoter loop.
+  - done single thread version.
+* Fix bug about not showing linear (line-like) SWC.
+  - done.
+* Add option group
+  - done.
+* Auto update focu point to center
+  - done.
+* VTK 弹窗，用于输入文本。
+  - vtkOutputWindow Class Reference
+  - https://vtk.org/doc/nightly/html/classvtkOutputWindow.html#details
+  - not possible, but possible to output error when in full GUI mode.
 
-* Check official interactor for OnChar(), do we need to change it after switch from "CharEvent' to "KeyPressEvent"?
-* Check how to add custom observer event, so that we can add interpretor in another thread.
-  - or we go back to Enter -> iren.Render() -> Promoter loop.
+
+
+Under consideration:
+* Bug: after loading volume with colorscale set, press +/- will get weird rendering results.
+* Add tips to clicked point, by click "i" key. plus linewraping for long message.
+* Testing class ArrayfyList for easier scripting about SWC in plugin.
+* Solve the window init flash problem, i.e. properly set window size only once.
+* Support drag and drop to load data.
+* Avoid selection to non-visible object.
+* Use direction keys to navigate (go forward, backward, left, right, with shift to rotate, or small keyboard)
+* Add transition animation framework for moving viewport
+  - Make Y direction the up direction.
+  - rotation.
+* more selection methods, multiple object.
+* Custom volume rendering.
+  - See "Implementing a custom GPU raycasting function"
+    https://discourse.slicer.org/t/implementing-a-custom-gpu-raycastingfunction/13055/4
+    And PRISM: An open source framework for the interactive design of GPU volume rendering shaders
+  - better raycast?: vtkVolumeRayCastCompositeFunction 
+* Support VR.
+* Support touch screen (StartPinchEvent, PinchEvent, EndPinchEvent), (SwipeEvent, StartSwipeEvent, EndSwipeEvent)
+  - Try touch screen interaction, such as PinchEvent. See https://vtk.org/doc/nightly/html/classvtkRenderWindowInteractor.html#details
+* use off-screen rendering for auto unit test
+* try to test the sparse matrix loop finding by using the matrix multiple.
+* try GetPickingManager (), GetPicker()
+  - Use a box to select?: https://vtk.org/doc/nightly/html/classvtkBoxWidget.html#details
+  - https://stackoverflow.com/questions/60115814/what-kind-of-vtk-vtkcommand-event-i-can-put-as-observer-when-i-select-a-box-in-a
+* SetInteractorStyle() switching
+* large render: vtkUnstructuredGrid  https://discourse.vtk.org/t/how-to-draw-10000-object/8438/15
+* why GetTimerEventId (), GetVTKTimerId () not work??  See here https://vtk.org/doc/nightly/html/classvtkRenderWindowInteractor.html#a7ef06e3e7c8cff5767c3b0d328934f55
+* seems usefull: AddRepresentation()  see https://vtk.org/wp-content/uploads/2021/08/VTKUsersGuide.pdf
+* allow loading obj file.
+  - vtkOBJReader  read .obj
+* Command-Line Application Layouts
