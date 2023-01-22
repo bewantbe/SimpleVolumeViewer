@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+
 # data loader that do not involve too much of VTK
 
 import pprint

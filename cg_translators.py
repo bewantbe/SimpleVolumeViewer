@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+
 # Computer graphics translators, the real workhorse.
 # You may also call them operators (of VTK), but "translator" is descriptive
 # style, "operator" is imperative style, I prefer the former, so everything

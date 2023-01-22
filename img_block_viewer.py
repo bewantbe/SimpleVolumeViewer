@@ -1,4 +1,6 @@
 #!/usr/bin/env python3
+# SPDX-License-Identifier: GPL-3.0-or-later
+
 # A simple viewer based on PyVTK for volumetric data and neuronal SWC data,
 # specialized for viewing of neuron tracing results.
 
