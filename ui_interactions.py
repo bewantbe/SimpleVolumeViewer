@@ -257,7 +257,8 @@ class UIActions():
 
     def inc_brightness(self, cmd):
         """Make the selected image darker or lighter."""
-        if not self.gui_ctrl.selected_objects:
+        if not self.gui_ctrl.selected_objects or \
+           len(self.gui_ctrl.selected_objects) == 0:
             return
         vol_name = self.gui_ctrl.selected_objects[0]  # active object
         k = sqrt(sqrt(2))

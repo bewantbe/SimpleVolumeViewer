@@ -450,17 +450,6 @@ class ObjTranslator:
         def parse(self, prop_conf):
             volume_property = vtkVolumeProperty()
             
-            if 'copy_from' in prop_conf:
-                dbg_print(4, 'Copy property from', prop_conf['copy_from'])
-                # construct a volume property by copying from exist
-                ref_prop = self.gui_ctrl.object_properties[
-                               prop_conf['copy_from']]
-                volume_property.DeepCopy(ref_prop)
-                volume_property.prop_conf = prop_conf
-                volume_property.ref_prop = ref_prop
-                self.modify(volume_property, prop_conf)
-                return volume_property
-
             if 'opacity_transfer_function' in prop_conf:
                 otf_conf = prop_conf['opacity_transfer_function']
                 otf_v = otf_conf['AddPoint']
@@ -587,7 +576,7 @@ class ObjTranslator:
                     "range": obj_desc.get('range', '[:,:,:]')
                 }
             else:
-                dbg_print(1, 'Unrecognized source format.')
+                dbg_print(1, 'Unrecognized image format.')
                 return None
             
             if 'origin' in obj_desc:
@@ -607,8 +596,8 @@ class ObjTranslator:
             if 'colorscale' in obj_desc:
                 s = float(obj_desc['colorscale'])
                 obj_conf.update({'property': {
-                    'copy_from': 'volume',
                     'type'     : 'volume',
+                    'copy_from': 'volume',
                     'opacity_transfer_function': {'opacity_scale': s},
                     'color_transfer_function'  : {'trans_scale': s}
                 }})
@@ -660,16 +649,17 @@ class ObjTranslator:
             volume_mapper.SetBlendMode(blend_modes)
 
             # get property used in rendering
-            ref_prop_conf = obj_conf.get('property', 'volume')
-            if isinstance(ref_prop_conf, dict):
-                # add new property
+            prop_conf_ref = obj_conf.get('property', 'volume')
+            if isinstance(prop_conf_ref, dict):
+                # add a new property
                 prop_name = self.gui_ctrl.GetNonconflitName('volume', 'property')
                 dbg_print(3, 'AddObject(): Adding prop:', prop_name)
-                self.gui_ctrl.AddObjectProperty(prop_name, ref_prop_conf)
+                self.gui_ctrl.AddObjectProperty(prop_name, prop_conf_ref)
                 volume_property = self.gui_ctrl.object_properties[prop_name]
             else:
-                dbg_print(3, 'AddObject(): Using existing prop:', ref_prop_conf)
-                volume_property = self.gui_ctrl.object_properties[ref_prop_conf]
+                # name of existing property, e.g. 'volume'
+                dbg_print(3, 'AddObject(): Using existing prop:', prop_conf_ref)
+                volume_property = self.gui_ctrl.object_properties[prop_conf_ref]
 
             # The volume holds the mapper and the property and
             # can be used to position/orient the volume.

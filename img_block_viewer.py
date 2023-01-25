@@ -57,6 +57,7 @@ import time
 import argparse
 import json
 import joblib
+import copy
 
 import numpy as np
 from numpy import array as _a
@@ -127,7 +128,7 @@ def DefaultGUIConfig():
     d = {
         "window": {
             "size": "auto",
-            "title": "SimpleRayCast",
+            "title": "SimpleVolumeViewer",
             "number_of_layers": 2,
         },
 
@@ -674,13 +675,30 @@ class GUIControl:
             dbg_print(2, '                     will be overwritten.')
         dbg_print(3, 'AddObjectProperty(): "'+name+'" :', prop_conf)
         if name.startswith('volume'):
+            if 'copy_from' in prop_conf:
+                # copy reference object property configuration and update it
+                dbg_print(4, 'Copy property from "' + prop_conf['copy_from'] + '"')
+                name_ref = prop_conf['copy_from']
+                prop_conf_ref = self.scene_saved['object_properties'][name_ref]
+                prop_conf_z = copy.deepcopy(prop_conf_ref)
+                dbg_print(4, 'prop_conf_z =', prop_conf_z)
+                MergeFullDict(prop_conf_z, prop_conf)
+                del prop_conf_z['copy_from']
+                dbg_print(4, 'prop_conf_z =', prop_conf_z)
+            else:
+                prop_conf_z = prop_conf
             object_property = self.translator \
-                            .translate_prop_conf(self, prop_conf)
+                            .translate_prop_conf(self, prop_conf_z)
+            if 'copy_from' in prop_conf:
+                # TODO: we might not need these
+                object_property.prop_conf = prop_conf_ref
+                prop_ref = self.object_properties[name_ref]
+                object_property.ref_prop = prop_ref
         else:
-            dbg_print(2, 'AddObjectProperty(): unknown object type')
+            dbg_print(2, 'AddObjectProperty(): unknown property type')
 
-        if not self.loading_default_config:
-            self.scene_saved['object_properties'][name] = prop_conf
+        #if not self.loading_default_config:
+        self.scene_saved['object_properties'][name] = prop_conf
 
         self.object_properties.update({name: object_property})
 
@@ -940,7 +958,8 @@ class GUIControl:
         li_swc_conf = [o for o in li_obj_conf if o['type'] == 'swc']
         li_obj_conf = [o for o in li_obj_conf if o['type'] != 'swc']
 
-        self.AddBatchSWC('swc', li_swc_conf)
+        if len(li_swc_conf) > 0:
+            self.AddBatchSWC('swc', li_swc_conf)
         
         for obj_conf in li_obj_conf:
             name = self.GetNonconflitName(obj_conf['type'])

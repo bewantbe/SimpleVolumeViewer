@@ -48,6 +48,9 @@ def _mat3d(d):
     """ Convert vector of length 9 to 3x3 numpy array. """
     return np.array(d, dtype=np.float64).reshape(3,3)
 
+def array2str(a, prec = 4, sep = '\n'):
+    return sep + np.array_str(np.array(a), precision = prec, suppress_small = True)
+
 def vtkGetColorAny(c):
     if isinstance(c, str):
         colors = vtkNamedColors()
@@ -136,6 +139,7 @@ def GetNonconflitName(prefix, name_set):
 def MergeFullDict(d_contain, d_update):
     """
     Update dict d_contain by d_update.
+    It is a "deep update" version of the dict.update().
     i.e. overwrite d_contain for items exist in d_update
     Ref. https://stackoverflow.com/questions/38987/how-do-i-merge-two-dictionaries-in-a-single-expression-take-union-of-dictionari
     """
