@@ -120,7 +120,10 @@ from ui_interactions import (
     GenerateKeyBindingDoc,
     PointSetHolder,
 )
-from data_loader import OnDemandVolumeLoader
+from data_loader import (
+    OnDemandVolumeLoader,
+    GetUndirectedGraph,
+)
 from cg_translators import ObjTranslator
 
 # Default configuration parameters are as follow
@@ -362,6 +365,7 @@ class PointSearcher:
     """
 
     def __init__(self, point_graph, level = 5, points_coor = None):
+        # The point graph is initialized when adding SWC type objects and used to find adjacent points
         self.point_graph = point_graph
         self.visited_points = set()
         self.level = level
@@ -422,61 +426,81 @@ class FocusModeController:
         self.renderer = None
         self.iren = None
         self.point_searcher = None
-        self.center_point = None
+        self.global_pid = None
         self.volume_clipper = None
         self.isOn = False
         self.swc_polydata = None
         self.swc_mapper = None
         self.cut_swc_flag = True
         self.focus_swc = None
+        self.last_swc_name = None
 
     def SetPointsInfo(self, point_graph, point_coor):
         self.point_searcher = PointSearcher(point_graph, points_coor=point_coor)
 
     def SetGUIController(self, gui_ctrl):
+        # called in GUIController
         self.gui_ctrl = gui_ctrl
-        self.renderer = self.gui_ctrl.GetMainRenderer()
+        self.renderer = gui_ctrl.GetMainRenderer()
         self.iren = gui_ctrl.interactor
         self.gui_ctrl.volume_observers.append(self)
-        swc_objs = self.gui_ctrl.GetObjectsByType('swc', 1)
-        if swc_objs:
-            self.swc_mapper = swc_objs[0].actor.GetMapper()
-            self.swc_polydata = self.swc_mapper.GetInput()
-        else:
+
+    def InitPointSearcher(self, global_pid):
+        obj_name = self.gui_ctrl.point_set_holder.GetNameByPointId(global_pid)
+        if obj_name == self.last_swc_name:
+            # we are updated
+            return
+        dbg_print(4, 'FocusModeController::InitPointSearcher(): swc =', obj_name)
+        self.last_swc_name = obj_name
+        if self.gui_ctrl.scene_saved['objects'][obj_name]['type'] != 'swc':
+            dbg_print(3, 'FocusModeController::InitPointSearcher(): Not a swc object.')
             self.swc_mapper = None
             self.swc_polydata = None
+            self.point_searcher = None
+            return
+        swc_obj = self.gui_ctrl.scene_objects[obj_name]
+        if not hasattr(swc_obj, 'point_graph'):
+            swc_obj.point_graph = GetUndirectedGraph(swc_obj.tree_swc)
+            swc_obj.raw_points = swc_obj.tree_swc[1][:,0:3]
+        self.swc_mapper = swc_obj.actor.GetMapper()
+        self.swc_polydata = self.swc_mapper.GetInput()
         self.point_searcher = PointSearcher(
-            self.gui_ctrl.point_graph,
-            points_coor = self.gui_ctrl.point_set_holder())
+            swc_obj.point_graph,
+            points_coor = swc_obj.raw_points.T)
 
-    def SetCenterPoint(self, pid):
+    def SetCenterPoint(self, global_pid):
         """
         Update spot site according to point position.
+        interface
         """
-        self.center_point = pid
-        if self.isOn:
-            points = self.point_searcher \
-                     .SearchPointsAround_coor(self.center_point)
-            if not self.volume_clipper:
-                self.volume_clipper = VolumeClipper(points)
-            else:
-                self.volume_clipper.SetPoints(points)
-            self.gui_ctrl.UpdateVolumesNear(
-                self.point_searcher.points_coordinate.T[self.center_point])
-            self.volume_clipper.RestoreVolumes(self.renderer.GetVolumes())
-            self.volume_clipper.CutVolumes(self.renderer.GetVolumes())
-            if self.cut_swc_flag:
-                if self.focus_swc:
-                    self.gui_ctrl.GetMainRenderer().RemoveActor(self.focus_swc)
-                oldClipper = vtkClipPolyData()
-                oldClipper.SetInputData(self.swc_polydata)
-                oldClipper.SetClipFunction(self.volume_clipper.planes[0])
-                path = self.point_searcher.SearchPathAround(self.center_point)
-                self.swc_mapper.SetInputData(oldClipper.GetOutput())
-                self.CreateLines(path[1])
-            self.iren.GetRenderWindow().Render()
+        self.global_pid = global_pid
+        if not self.isOn:
+            return
+        self.InitPointSearcher(global_pid)
+        local_pid = self.gui_ctrl.point_set_holder.GetLocalPid(global_pid)
+        points = self.point_searcher \
+                    .SearchPointsAround_coor(local_pid)
+        if not self.volume_clipper:
+            self.volume_clipper = VolumeClipper(points)
+        else:
+            self.volume_clipper.SetPoints(points)
+        self.gui_ctrl.UpdateVolumesNear(
+            self.point_searcher.points_coordinate.T[local_pid])
+        self.volume_clipper.RestoreVolumes(self.renderer.GetVolumes())
+        self.volume_clipper.CutVolumes(self.renderer.GetVolumes())
+        if self.cut_swc_flag:
+            if self.focus_swc:
+                self.gui_ctrl.GetMainRenderer().RemoveActor(self.focus_swc)
+            oldClipper = vtkClipPolyData()
+            oldClipper.SetInputData(self.swc_polydata)
+            oldClipper.SetClipFunction(self.volume_clipper.planes[0])
+            path = self.point_searcher.SearchPathAround(local_pid)
+            self.swc_mapper.SetInputData(oldClipper.GetOutput())
+            self.CreateLines(path[1])
+        self.iren.GetRenderWindow().Render()
 
     def Toggle(self):
+        # interface
         if self.isOn:
             self.isOn = False
             self.volume_clipper.RestoreVolumes(self.renderer.GetVolumes())
@@ -486,13 +510,13 @@ class FocusModeController:
             self.iren.GetRenderWindow().Render()
         else:
             self.isOn = True
-            if self.center_point:
-                self.SetCenterPoint(self.center_point)
+            if self.global_pid:
+                self.SetCenterPoint(self.global_pid)
 
     def CreateLines(self, path):
         points = vtkPoints()
         points.SetData(numpy_to_vtk(
-            self.gui_ctrl.point_set_holder().T, deep=True))
+            self.point_searcher.points_coordinate.T, deep=True))
         cells = vtkCellArray()
         for proc in path:
             polyLine = vtkPolyLine()
@@ -544,8 +568,6 @@ class GUIControl:
             'objects': {}
         }
         self.point_set_holder = PointSetHolder()
-        # The point graph is initialized when adding SWC type objects and used to find adjacent points
-        self.point_graph = None
         # If a new volume is loaded, it will be clipped by the observers
         self.volume_observers = []
         self.selected_pid = None
@@ -604,6 +626,7 @@ class GUIControl:
 
     def SetSelectedPID(self, pid):
         if pid < len(self.point_set_holder):
+            dbg_print(4, 'SetSelectedPID(): pid =', pid)
             self.selected_pid = pid
             self.focusController.SetCenterPoint(pid)
             self.Set3DCursor(self.point_set_holder()[:,pid])
@@ -681,10 +704,8 @@ class GUIControl:
                 name_ref = prop_conf['copy_from']
                 prop_conf_ref = self.scene_saved['object_properties'][name_ref]
                 prop_conf_z = copy.deepcopy(prop_conf_ref)
-                dbg_print(4, 'prop_conf_z =', prop_conf_z)
                 MergeFullDict(prop_conf_z, prop_conf)
                 del prop_conf_z['copy_from']
-                dbg_print(4, 'prop_conf_z =', prop_conf_z)
             else:
                 prop_conf_z = prop_conf
             object_property = self.translator \

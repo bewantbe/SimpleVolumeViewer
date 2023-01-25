@@ -165,7 +165,7 @@ class PointSetHolder():
     def __init__(self):
         self._points_list = []
         self._len = 0
-        self._point_set_boundaries = []
+        self._point_set_boundaries = [0]
         self.name_list = []
     
     def AddPoints(self, points, name):
@@ -186,10 +186,17 @@ class PointSetHolder():
         else:
             return np.array([[],[],[]], dtype=_point_set_dtype_)
     
-    def GetNameByPointId(self, point_id):
+    def GetSetidByPointId(self, point_id):
         set_id = np.searchsorted(self._point_set_boundaries,
-                                 point_id, side='right')
-        return self.name_list[set_id]
+                                 point_id, side='right') - 1
+        return set_id
+
+    def GetNameByPointId(self, point_id):
+        return self.name_list[self.GetSetidByPointId(point_id)]
+    
+    def GetLocalPid(self, point_id):
+        return point_id - self._point_set_boundaries[
+                                   self.GetSetidByPointId(point_id)]
     
     def __len__(self):
         return self._len

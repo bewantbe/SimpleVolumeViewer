@@ -377,6 +377,7 @@ def SplitSWCTree(tr):
     return processes
 
 def GetUndirectedGraph(tr):
+    """ return undirected graph of the tree, root (-1) is stripped. """
     # re-label index in tr, this part is the same as SplitSWCTree()
     tr_idx = tr[0].copy()
     max_id = max(tr_idx[:, 0])  # max occur node index

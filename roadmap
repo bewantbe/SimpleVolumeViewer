@@ -58,14 +58,16 @@ Done:
   - vtkOutputWindow Class Reference
   - https://vtk.org/doc/nightly/html/classvtkOutputWindow.html#details
   - not possible, but possible to output error when in full GUI mode.
+* Bug: after loading volume with colorscale set, press +/- will get weird rendering results.
+  - python .\img_block_viewer.py --img_path tests\ref_data\RM06_s56_c10_f3597_p0.tif
+  - python .\img_block_viewer.py --img_path tests\ref_data\RM06_s56_c10_f3597_p0.tif --colorscale 10
+  - done
+* parallel load swc: do not save a copy of undirected graph, to save RAM.
+  - done
 
 
 
 Under consideration:
-* Bug: after loading volume with colorscale set, press +/- will get weird rendering results.
-  - python .\img_block_viewer.py --img_path tests\ref_data\RM06_s56_c10_f3597_p0.tif
-  - python .\img_block_viewer.py --img_path tests\ref_data\RM06_s56_c10_f3597_p0.tif --colorscale 10
-* parallel load swc: do not save a copy of undirected graph, to save RAM.
 * make color any accept RGB pair.
 * Add tips to clicked point, by click "i" key. plus linewraping for long message.
 * Testing class ArrayfyList for easier scripting about SWC in plugin.

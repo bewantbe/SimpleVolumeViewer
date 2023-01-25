@@ -802,27 +802,23 @@ class ObjTranslator:
             self.swc_name   = None
             # for data structure see def LoadSWCTree(filepath)
             self.tree_swc   = None
-            # undirected graph of the tree, root (-1) is stripped
-            self.tree_graph = None
         
         def parse(self, obj_conf):
             t0 = time.time()
             
             if not hasattr(self, 'cache1'):
-                processes, point_graph, raw_points = \
+                processes, raw_points, ntree = \
                     self.LoadRawSwc(obj_conf['file_path'])
-                self.cache1 = (processes, point_graph, raw_points, ntree)
+                self.cache1 = (processes, raw_points, ntree)
             else:
-                processes, point_graph, raw_points, ntree = self.cache1
+                processes, raw_points, ntree = self.cache1
             del self.cache1      # release the variables to speed up
 
-            self.gui_ctrl.point_graph = point_graph
             self.raw_points = raw_points
 
             self.file_path  = obj_conf['file_path']
             self.swc_name   = os.path.splitext(os.path.basename(self.file_path))[0]
             self.tree_swc   = ntree
-            self.tree_graph = point_graph
 
             # ref: 
             # https://kitware.github.io/vtk-examples/site/Python/GeometricObjects/PolyLine/
@@ -869,11 +865,9 @@ class ObjTranslator:
             ntree = LoadSWCTree(file_path)
             processes = SplitSWCTree(ntree)
             
-            point_graph = GetUndirectedGraph(ntree)
             raw_points = ntree[1][:,0:3]
 
-            # the point_graph cost so much memory and slows everything down
-            return processes, point_graph, raw_points, ntree
+            return processes, raw_points, ntree
 
         @staticmethod
         def ConstructPolyData(raw_points, processes):
@@ -883,9 +877,10 @@ class ObjTranslator:
             cells = vtkCellArray()
             for proc in processes:
                 polyLine = vtkPolyLine()
-                polyLine.GetPointIds().SetNumberOfIds(len(proc))
+                lpid = polyLine.GetPointIds()
+                lpid.SetNumberOfIds(len(proc))
                 for i in range(0, len(proc)):
-                    polyLine.GetPointIds().SetId(i, proc[i])
+                    lpid.SetId(i, proc[i])
                 cells.InsertNextCell(polyLine)
 
             polyData = vtkPolyData()
