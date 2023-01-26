@@ -70,11 +70,12 @@ Done:
 
 
 Under consideration:
+* Testing class ArrayfyList for easier scripting about SWC in plugin.
+  - Add easier runtime env, e.g. prepare swc enhanced list, for array setter.
 * Add tips to clicked point, by click "i" key. plus linewraping for long message.
 * Adding current picked point to selected set.
 * Avoid selection to non-visible object.
   - test picker?
-* Testing class ArrayfyList for easier scripting about SWC in plugin.
 * Solve the window init flash problem, i.e. properly set window size only once.
 * Add more smart command line option: non-optional, auto dectact type.
   - hash + rnd seed file name to determine swc color?
