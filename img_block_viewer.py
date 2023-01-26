@@ -51,9 +51,10 @@
 # Performance for time:
 # load 6356 neurons: <19m34.236s
 
+import time
+g_t0 = time.time()
 import os
 import os.path
-import time
 import argparse
 import json
 import joblib
@@ -794,11 +795,12 @@ class GUIControl:
         n_job_cores = min(self.n_max_cpu_cores_default, joblib.cpu_count())
         dbg_print(4, f'AddBatchSWC(): using {n_job_cores} cores')
 
-        def batch_load(file_path_batch):
+        def batch_load(file_path_batch, verbosity):
+            # somehow, we need this 'verbosity' to pass module level variable
+            utils.debug_level = verbosity
             dbg_print(5, '...dealing', file_path_batch)
             results = []
             for f in file_path_batch:
-                #results.append(self.translator.obj_swc.LoadRawSwc(f))
                 results.append(ObjTranslator.obj_swc.LoadRawSwc(f))
             return results
 
@@ -813,9 +815,10 @@ class GUIControl:
         #       The profiler (cProfile) sees
         #       {method 'acquire' of '_thread.lock' objects} which consumes
         #       most of the run time.
+        # PS: joblib also has a batch_size, we might use that as well.
         t1 = time.time()
         cached_pointsets = joblib.Parallel(n_jobs = n_job_cores) \
-                (joblib.delayed(batch_load)(j) for j in li_file_path_batch)
+                (joblib.delayed(batch_load)(j, utils.debug_level) for j in li_file_path_batch)
         t2 = time.time()
         dbg_print(4, f'                       done, t = {t2-t1:.3f} sec.')
 
@@ -1059,6 +1062,9 @@ def get_program_parameters():
 if __name__ == '__main__':
     cmd_obj_desc = get_program_parameters()
     gui = GUIControl()
+    t1 = time.time()
+    dbg_print(4, f'Init time: {t1 - g_t0:.3f} sec.')
     gui.EasyObjectImporter(cmd_obj_desc)
     gui.Start()
-
+    te = time.time()
+    dbg_print(4, f'Wall time: {te - g_t0:.3f} sec.')
