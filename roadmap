@@ -64,19 +64,24 @@ Done:
   - done
 * parallel load swc: do not save a copy of undirected graph, to save RAM.
   - done
+* make vtkGetColorAny() accept RGB pair.
+  - it is supporting, now add opacity (alpha).
 
 
 
 Under consideration:
-* make color any accept RGB pair.
 * Add tips to clicked point, by click "i" key. plus linewraping for long message.
+* Adding current picked point to selected set.
+* Avoid selection to non-visible object.
+  - test picker?
 * Testing class ArrayfyList for easier scripting about SWC in plugin.
 * Solve the window init flash problem, i.e. properly set window size only once.
 * Add more smart command line option: non-optional, auto dectact type.
   - hash + rnd seed file name to determine swc color?
 * Support drag and drop to load data.
-* Avoid selection to non-visible object.
+* Add initial message to prompt uset to drag-and-drop and press h.
 * Use direction keys to navigate (go forward, backward, left, right, with shift to rotate, or small keyboard)
+* optimize volume blending, by alpha + color to approximate max(a,b).
 * Add transition animation framework for moving viewport
   - Make Y direction the up direction.
   - rotation.

@@ -55,7 +55,8 @@ from vtkmodules.vtkFiltersSources import vtkSphereSource
 from vtkmodules.util.numpy_support import numpy_to_vtk
 
 from utils import (
-    vtkGetColorAny,
+    vtkGetColorAny3d,
+    vtkGetColorAny4d,
     _mat3d,
     dbg_print,
     UpdatePropertyOTFScale,
@@ -796,6 +797,7 @@ class ObjTranslator:
             super().__init__(gui_ctrl, renderer)
             self._visible   = True
             self._color     = None
+            self._color_val = None
             # file path of the source SWC data
             self.file_path  = None
             # essentially file name
@@ -848,9 +850,14 @@ class ObjTranslator:
             mapper.SetInputData(polyData)
             actor = vtkActor()
             actor.SetMapper(mapper)
-            actor.GetProperty().SetColor(
-                vtkGetColorAny(obj_conf['color']))
-            actor.GetProperty().SetLineWidth(line_width)
+            c_desc = obj_conf['color'] # TODO: use self.color
+            c4 = vtkGetColorAny4d(c_desc)
+            self._color = c_desc
+            self._color_val = c4
+            prop = actor.GetProperty()
+            prop.SetColor(c4[0], c4[1], c4[2])
+            prop.SetOpacity(c4[3])
+            prop.SetLineWidth(line_width)
             
             self.renderer.AddActor(actor)
             self.actor = actor
@@ -925,14 +932,19 @@ class ObjTranslator:
             return self._color
 
         @color.setter
-        def color(self, c):
-            if (type(c) == type(self._color)) and \
-               not np.any( np.array(vtkGetColorAny(c)) -
-                           np.array(vtkGetColorAny(self._color)) ):
+        def color(self, c_desc):
+            c4 = vtkGetColorAny4d(c_desc)
+            # if the same color, no need to update
+            if (type(c_desc) == type(self._color)) and \
+               not np.any( np.array(c4) -
+                           np.array(self._color_val) ):
                 return
-            vtk_color = vtkGetColorAny(c)
-            self.actor.GetProperty().SetColor(vtk_color)
-            self._color = c
+            self._color_val = c4
+            prop = self.actor.GetProperty()
+            # note: vtkProperty.SetColor() accept only RGB color, no alpha
+            prop.SetColor(c4[0], c4[1], c4[2])
+            prop.SetOpacity(c4[3])
+            self._color = c_desc
 
     class obj_AxesActor(TranslatorUnit):
         """

@@ -7,7 +7,8 @@ import numpy as np
 
 from vtkmodules.vtkCommonDataModel import (
     vtkColor3ub,
-    vtkColor3d
+    vtkColor3d,
+    vtkColor4d,
 )
 from vtkmodules.vtkCommonColor import (
     vtkNamedColors,
@@ -51,7 +52,7 @@ def _mat3d(d):
 def array2str(a, prec = 4, sep = '\n'):
     return sep + np.array_str(np.array(a), precision = prec, suppress_small = True)
 
-def vtkGetColorAny(c):
+def vtkGetColorAny3d(c):
     if isinstance(c, str):
         colors = vtkNamedColors()
         return colors.GetColor3d(c)
@@ -61,11 +62,22 @@ def vtkGetColorAny(c):
         return c
     elif hasattr(c, '__len__') and (len(c) == 3 or len(c) == 4):
         # tuple, list, numpy array of 3 floating numbers
-        # TODO: should we do something about the alpha channel?
+        # ignore alpha channel, if you want, try vtkGetColorAny4d
         if (c[0]>1.0) or (c[1]>1.0) or (c[2]>1.0):
             dbg_print(3, 'vtkGetColorAny(): assuming uint8*3 color.')
             return vtkColor3d(c[0]/255, c[1]/255, c[2]/255)
         return vtkColor3d(c[0], c[1], c[2])
+    else:
+        return c
+
+def vtkGetColorAny4d(c):
+    if isinstance(c, str):
+        colors = vtkNamedColors()
+        return colors.GetColor4d(c)
+    elif hasattr(c, '__len__') and (len(c) == 3 or len(c) == 4):
+        # tuple, list, numpy array of 3 or 4 floating numbers
+        a = c[3] if len(c) == 4 else 1.0
+        return vtkColor4d(c[0], c[1], c[2], a)
     else:
         return c
 

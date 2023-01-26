@@ -60,7 +60,7 @@ def GetValueByAnchorPoints(color_anchor_points, swc_objs):
     for k, o in enumerate(swc_objs):
         v = int(o.swc_name.split('#')[1]) / n_swc
         
-        r_xyz = o.tree_data[1][:,0:3]
+        r_xyz = o.tree_swc[1][:,0:3]
         
         # find a point that is near the cutting plane
         near_plane_idx = np.argmin(np.abs(
