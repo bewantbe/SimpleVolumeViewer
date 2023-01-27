@@ -84,7 +84,6 @@ from vtkmodules.vtkCommonDataModel import (
 from vtkmodules.vtkIOImage import (
     vtkPNGWriter,
 )
-from vtkmodules.vtkInteractionWidgets import vtkOrientationMarkerWidget
 from vtkmodules.vtkCommonTransforms import vtkTransform
 from vtkmodules.vtkRenderingCore import (
     vtkWindowToImageFilter,

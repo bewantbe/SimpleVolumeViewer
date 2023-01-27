@@ -362,9 +362,13 @@ class UIActions():
         try:
             # running in globals() is a bit danger, any better idea?
             exec(open(plugin_dir+script_name).read(), globals(), None)
-            #exec('PluginMain(ren1, iren, self.gui_ctrl)')
-            PluginMain(ren1, iren, self.gui_ctrl)
-            #locals()['PluginMain'](ren1, iren, self.gui_ctrl)
+            if 'PluginMain' in globals():
+                #exec('PluginMain(ren1, iren, self.gui_ctrl)')
+                # noinspection PyUnresolvedReferences
+                PluginMain(ren1, iren, self.gui_ctrl)
+                #locals()['PluginMain'](ren1, iren, self.gui_ctrl)
+            else:
+                dbg_print(1, 'In the plugin, you must define "PluginMain(ren, iren, gui_ctrl)".')
         except Exception as inst:
             dbg_print(1, 'Failed to run due to exception:')
             dbg_print(1, type(inst))

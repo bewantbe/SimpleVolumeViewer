@@ -31,6 +31,7 @@ from vtkmodules.vtkCommonColor import (
     vtkNamedColors,
     vtkColorSeries
 )
+from vtkmodules.vtkInteractionWidgets import vtkOrientationMarkerWidget
 from vtkmodules.vtkRenderingCore import (
     vtkRenderWindow,
     vtkRenderWindowInteractor,
@@ -738,9 +739,10 @@ class ObjTranslator:
         prototype:
         "swc": {
             "type": "swc",
-            "color": "Tomato",
-            "line_width": 2.0,
             "file_path": "RM006-004-lychnis/F5.json.swc"
+            "color": "Tomato",
+            "opacity": 1.0,        # optional
+            "line_width": 2.0,
         }
         """
 
@@ -749,12 +751,12 @@ class ObjTranslator:
             group = parser.add_argument_group('SWC (neuron fiber) file options')
             group.add_argument('--swc', action='append', metavar='FILE_PATH',
                     help='Read and draw SWC file. Note: SWC nodes must sorted.')
-            group.add_argument('--swc_dir',
-                    help='Read and draw SWC files in the directory.')
             group.add_argument('--fibercolor', metavar='COLOR',
                     help='Set fiber color, like "Red".')
             group.add_argument('--line_width',
                     help='Set fiber line width.')
+            group.add_argument('--swc_dir',
+                    help='Read and draw SWC files in the directory.')
 
         @staticmethod
         def parse_cmd_args(obj_desc):
@@ -785,9 +787,9 @@ class ObjTranslator:
                 c = list(_a([c[0], c[1], c[2]]) / 255.0)
                 obj_conf = {
                     "type": "swc",
+                    "file_path": obj_desc['swc'][id_s],
                     "color": obj_desc.get('fibercolor', c),
                     "line_width": obj_desc.get('line_width', "auto"),
-                    "file_path": obj_desc['swc'][id_s]
                 }
                 li_obj_conf.append(obj_conf)
 
@@ -804,7 +806,7 @@ class ObjTranslator:
             # fields for properties
             self._visible   = True
             self._color     = None
-            self._color_val = None
+            self._opacity   = None
             self._line_width = None
         
         def parse(self, obj_conf):
@@ -849,9 +851,11 @@ class ObjTranslator:
             mapper = vtkPolyDataMapper()
             mapper.SetInputData(polyData)
             actor = vtkActor()
-            self.actor = actor    # bind as early as possible, for properties
             actor.SetMapper(mapper)
+            self.actor = actor    # bind as early as possible, for properties
+            self.property = actor.GetProperty()
             self.color = obj_conf['color']
+            self.opacity = obj_conf.get('opacity', 1.0)
             self.line_width = line_width
             
             self.renderer.AddActor(actor)
@@ -924,20 +928,29 @@ class ObjTranslator:
 
         @color.setter
         def color(self, c_desc):
-            c4 = vtkGetColorAny4d(c_desc)
-            prop = self.actor.GetProperty()
+            c3 = vtkGetColorAny3d(c_desc)
             # note: vtkProperty.SetColor() accept only RGB color, no alpha
-            prop.SetColor(c4[0], c4[1], c4[2])
-            prop.SetOpacity(c4[3])
+            self.property.SetColor(c3)
             self._color = c_desc
 
         @property
+        def opacity(self):
+            """Get/Set opacity of the whole fiber."""
+            return self._opacity
+
+        @opacity.setter
+        def opacity(self, op):
+            self.property.SetOpacity(op)
+            self._opacity = op
+
+        @property
         def line_width(self):
+            """Get/Set line width of the whole fiber."""
             return self._line_width
 
         @line_width.setter
         def line_width(self, lw):
-            self.actor.GetProperty().SetLineWidth(lw)
+            self.property.SetLineWidth(lw)
             self._line_width = lw
 
     class obj_AxesActor(TranslatorUnit):
