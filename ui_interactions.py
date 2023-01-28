@@ -343,14 +343,25 @@ class UIActions():
         # the main UI is not freezed. For this to work we may need a customized
         # event(command/observer) to signal(notify) the main UI to read the
         # commands from the shell through a queue.
+        # from IPython import embed
+        from IPython import start_ipython
         if not hasattr(self, 'embed_shell'):
+            # Note: there is a limitation, in the cmd, we can't call complex list comprehensions.
+            # Ref. https://stackoverflow.com/questions/35161324/how-to-make-imports-closures-work-from-ipythons-embed
+            # such as:
+            #     swc_objs = gui_ctrl.GetObjectsByType('swc')
+            #     s = swc_objs[0]
+            #     ty_s = type(s)
+            #     prop_names = [ty_s for k in vars(s).keys()]
             self.embed_shell = InteractiveShellEmbed(banner1 = "IPython Interactive Shell")
             # or simpler: from IPython import embed then call embed()
         gui_ctrl   = self.gui_ctrl
         iren       = self.iren
         interactor = self.interactor
         ren        = self.GetRenderers(1)
-        self.embed_shell()
+        # TODO: Add a function to flush variables to locals() or globals() so that cmd can use them.
+        #self.embed_shell()
+        start_ipython(argv=[], user_ns = locals())
         iren.GetRenderWindow().Render()
 
     def exec_script(self, script_name = 'test_call.py'):
