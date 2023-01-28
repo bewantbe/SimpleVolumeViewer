@@ -9,8 +9,6 @@ import numpy as np
 from numpy import sqrt, sin, cos, tan, pi
 from numpy import array as _a
 
-from IPython.terminal.embed import InteractiveShellEmbed
-
 from vtkmodules.vtkCommonCore import (
     vtkCommand,
 )
@@ -343,7 +341,8 @@ class UIActions():
         # the main UI is not freezed. For this to work we may need a customized
         # event(command/observer) to signal(notify) the main UI to read the
         # commands from the shell through a queue.
-        # from IPython import embed
+        #from IPython import embed
+        from IPython.terminal.embed import InteractiveShellEmbed
         from IPython import start_ipython
         if not hasattr(self, 'embed_shell'):
             # Note: there is a limitation, in the cmd, we can't call complex list comprehensions.
@@ -361,6 +360,7 @@ class UIActions():
         ren        = self.GetRenderers(1)
         # TODO: Add a function to flush variables to locals() or globals() so that cmd can use them.
         #self.embed_shell()
+        # we might try user_ns = locals() | globals()
         start_ipython(argv=[], user_ns = locals())
         iren.GetRenderWindow().Render()
 
