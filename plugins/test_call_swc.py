@@ -27,8 +27,16 @@ def bind_property_broadcasting(li, pn, docs):
     #setattr(li, 'get_'+pn, getx_bind)
     
     def setx(li, x):
-        for o in li:
-            setattr(o, pn, x)
+        if isinstance(x, (list, np.ndarray, ArrayfyList)):
+            # array assignment
+            if len(x) != len(li):
+                raise ValueError(f'Length not match: assign length {len(x)} to length {len(li)}.')
+            for j, o in enumerate(li):
+                setattr(o, pn, x[j])
+        else:
+            # scalar assignment
+            for o in li:
+                setattr(o, pn, x)
     #setx_bind = setx.__get__(li, li.__class__)
     #setattr(li, 'set_'+pn, setx_bind)
 
@@ -49,7 +57,7 @@ class ArrayfyList:
         elif index_style == 'file_name':
             self.obj_dict = {o.swc_name: o for o in self.obj_list}
         else:
-            pass
+            raise TypeError(f'Unknown index style "{index_style}".')
     
     def _bind_properties(self):
         if len(self.obj_list) == 0:
@@ -72,13 +80,26 @@ class ArrayfyList:
     def items(self):
         return self.obj_dict.items()
 
-    def __getitem__(self, i):
-        if isinstance(i, str):
+    def __getitem__(self, idx):
+        if isinstance(idx, str):
             # index by swc name
-            return self.obj_dict[i]
+            return self.obj_dict[idx]
+        elif isinstance(idx, (slice, range)):
+            idx_max = self.__len__()
+            idx_range = [0, idx_max, 1]     # default values
+            if idx.start is not None:
+                idx_range[0] = idx.start % idx_max
+            if idx.stop is not None:
+                idx_range[1] = idx.stop  % idx_max
+            if idx.step is not None:
+                idx_range[2] = idx.step
+            return ArrayfyList([self.__getitem__(i) for i in range(*idx_range)])
+        elif isinstance(idx, (list, np.ndarray)):
+            # array style index
+            return ArrayfyList([self.__getitem__(i) for i in idx])
         else:
-            # index by order
-            return self.obj_list[i]
+            # index by order in the list
+            return self.obj_list[idx]
 
 def PluginMain(ren, iren, gui_ctrl):
     swc_objs = gui_ctrl.GetObjectsByType('swc')
@@ -89,10 +110,13 @@ def PluginMain(ren, iren, gui_ctrl):
 
     #for i in range(len(s)): s[i].visible = False
     s.visible = False
-    s['487'].visible = True
-    s['487'].color = (0.0, 1.0, 0)
-    s['538'].visible = True
-    s['538'].color = (1.0, 1.0, 0)
+    s[['487', '538']].visible = True
+    s[['487', '538']].color = [(0.0, 1.0, 0), (1.0, 1.0, 0)]
+    s[:10].visible = True
+    #s['487'].visible = True
+    #s['487'].color = (0.0, 1.0, 0)
+    #s['538'].visible = True
+    #s['538'].color = (1.0, 1.0, 0)
 
 #    print(np.min(s['538'].tree_swc[0], axis=0))
 #    print(np.min(s['538'].tree_swc[1], axis=0))
