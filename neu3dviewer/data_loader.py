@@ -15,7 +15,7 @@ import scipy.sparse
 import tifffile
 import h5py
 
-from utils import (
+from .utils import (
     dbg_print,
     str2array,
     slice_from_str

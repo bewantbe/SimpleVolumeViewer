@@ -55,7 +55,7 @@ from vtkmodules.vtkRenderingVolume import (
 from vtkmodules.vtkFiltersSources import vtkSphereSource
 from vtkmodules.util.numpy_support import numpy_to_vtk
 
-from utils import (
+from .utils import (
     vtkGetColorAny3d,
     vtkGetColorAny4d,
     _mat3d,
@@ -68,12 +68,12 @@ from utils import (
     WindowsFriendlyDateTime,
 )
 
-from ui_interactions import (
+from .ui_interactions import (
     MyInteractorStyle,
     execSmoothRotation,
 )
 
-from data_loader import *
+from .data_loader import *
 
 def AlignCameraDirection(cam2, cam1, dist=4.0):
     """

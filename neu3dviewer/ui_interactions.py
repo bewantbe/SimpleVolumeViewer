@@ -19,7 +19,7 @@ from vtkmodules.vtkInteractionStyle import (
     vtkInteractorStyleTerrain,
     vtkInteractorStyleUser
 )
-from utils import (
+from .utils import (
     dbg_print,
     vtkMatrix2array,
     inject_swc_utils,

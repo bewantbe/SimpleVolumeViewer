@@ -40,11 +40,17 @@ Features
 
 * In command line (terminal) window
 
-    `python3 img_block_viewer.py <options>`
+    `cd` to where you put this repo:
+
+    `cd SimpleVolumeViewer`
+    
+    Run:
+
+    `python3 -m neu3dviewer <options>`
 
 * To get help
 
-    `python3 img_block_viewer.py --help`
+    `python3 -m neu3dviewer --help`
 
     Or, during running, press h key.
 

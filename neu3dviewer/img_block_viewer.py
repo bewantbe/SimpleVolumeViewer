@@ -107,8 +107,8 @@ from vtkmodules.util.numpy_support import numpy_to_vtk
 
 #import vtkmodules.all as vtk
 
-import utils
-from utils import (
+from . import utils
+from .utils import (
     dbg_print,
     GetNonconflitName,
     WindowsFriendlyDateTime,
@@ -116,15 +116,15 @@ from utils import (
 )
 utils.debug_level = 5
 
-from ui_interactions import (
+from .ui_interactions import (
     GenerateKeyBindingDoc,
     PointSetHolder,
 )
-from data_loader import (
+from .data_loader import (
     OnDemandVolumeLoader,
     GetUndirectedGraph,
 )
-from cg_translators import ObjTranslator
+from .cg_translators import ObjTranslator
 
 # Default configuration parameters are as follow
 def DefaultGUIConfig():
@@ -1058,7 +1058,7 @@ def get_program_parameters():
     dbg_print(3, 'get_program_parameters(): d=', args)
     return args
 
-if __name__ == '__main__':
+def main():
     cmd_obj_desc = get_program_parameters()
     gui = GUIControl()
     t1 = time.time()
