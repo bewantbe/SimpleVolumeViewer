@@ -345,10 +345,33 @@ class ArrayfyList:
             # index by order in the list
             return self.obj_list[idx]
 
+def ArrayFunc(func):
+    """
+    Arrayfy the func such that it accept array(list) input, i.e. broadcasting.
+    Usage:
+      # for y = func(x)
+      y_list = ArrayFunc(func)(x_list)
+    Could be used as a decorator.
+    """
+    def broadcasted_func(x_list):
+        if isinstance(x_list, np.ndarray):
+            y_list = np.zeros(x_list.shape)
+        elif isinstance(x_list, (list, ArrayfyList)):
+            y_list = [None] * len(x_list)
+        else:
+            # not a list, assume scalar
+            return func(x_list)
+        # TODO: maybe use parallel here
+        for j, x in enumerate(x_list):
+            y_list[j] = func(x)
+        return y_list
+    return broadcasted_func
+
 def inject_swc_utils(ns, oracal = None):
     if oracal is None:
         # e.g. when used in UIActions and passing ns = locals()
         oracal = ns['self']
+    ns |= globals() | ns   # merge globals in utils.py but not overwrite ns.
     ns['gui_ctrl']   = oracal.gui_ctrl
     ns['iren']       = oracal.iren
     ns['interactor'] = oracal.interactor
@@ -356,5 +379,4 @@ def inject_swc_utils(ns, oracal = None):
     gui_ctrl = ns['gui_ctrl']
     swc_objs = gui_ctrl.GetObjectsByType('swc')
     ns['swcs'] = ArrayfyList(swc_objs)
-    ns['np'] = np  # numpy
     ns['Render'] = oracal.iren.GetRenderWindow().Render
