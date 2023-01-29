@@ -22,6 +22,7 @@ from vtkmodules.vtkInteractionStyle import (
 from utils import (
     dbg_print,
     vtkMatrix2array,
+    inject_swc_utils,
 )
 
 _point_set_dtype_ = np.float32
@@ -354,15 +355,13 @@ class UIActions():
             #     prop_names = [ty_s for k in vars(s).keys()]
             self.embed_shell = InteractiveShellEmbed(banner1 = "IPython Interactive Shell")
             # or simpler: from IPython import embed then call embed()
-        gui_ctrl   = self.gui_ctrl
-        iren       = self.iren
-        interactor = self.interactor
-        ren        = self.GetRenderers(1)
-        # TODO: Add a function to flush variables to locals() or globals() so that cmd can use them.
+        ns = {}
+        inject_swc_utils(ns, self)
         #self.embed_shell()
         # we might try user_ns = locals() | globals()
-        start_ipython(argv=[], user_ns = locals())
-        iren.GetRenderWindow().Render()
+        # start_ipython(argv=[], user_ns = locals())
+        start_ipython(argv=[], user_ns = ns)
+        self.iren.GetRenderWindow().Render()
 
     def exec_script(self, script_name = 'test_call.py'):
         """Run a specific script."""

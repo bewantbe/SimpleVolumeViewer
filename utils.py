@@ -344,3 +344,17 @@ class ArrayfyList:
         else:
             # index by order in the list
             return self.obj_list[idx]
+
+def inject_swc_utils(ns, oracal = None):
+    if oracal is None:
+        # e.g. when used in UIActions and passing ns = locals()
+        oracal = ns['self']
+    ns['gui_ctrl']   = oracal.gui_ctrl
+    ns['iren']       = oracal.iren
+    ns['interactor'] = oracal.interactor
+    ns['ren']        = oracal.GetRenderers(1)
+    gui_ctrl = ns['gui_ctrl']
+    swc_objs = gui_ctrl.GetObjectsByType('swc')
+    ns['swcs'] = ArrayfyList(swc_objs)
+    ns['np'] = np  # numpy
+    ns['Render'] = oracal.iren.GetRenderWindow().Render
