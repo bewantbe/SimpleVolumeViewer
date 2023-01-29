@@ -66,12 +66,20 @@ Done:
   - done
 * make vtkGetColorAny() accept RGB pair.
   - it is supporting, now add opacity (alpha).
-
-
-
-Under consideration:
 * Testing class ArrayfyList for easier scripting about SWC in plugin.
   - Add easier runtime env, e.g. prepare swc enhanced list, for array setter.
+  - done
+* Command-Line Application Layouts
+  - done (windows)
+* write: requirements.txt
+  - done
+
+Under consideration:
+* Give a tip on GUI when in cmd mode.
+  - 'Exit the command line to return GUI.'
+* Write tips when start IPython
+* Support *.lpy
+* (env and command line options)Path to find plugins
 * Add tips to clicked point, by click "i" key. plus linewraping for long message.
 * Adding current picked point to selected set.
 * Avoid selection to non-visible object.
@@ -106,4 +114,3 @@ Under consideration:
 * seems usefull: AddRepresentation()  see https://vtk.org/wp-content/uploads/2021/08/VTKUsersGuide.pdf
 * allow loading obj file.
   - vtkOBJReader  read .obj
-* Command-Line Application Layouts

@@ -1,0 +1,7 @@
+numpy
+scipy
+tifffile
+vtk
+joblib
+h5py
+IPython

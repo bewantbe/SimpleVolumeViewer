@@ -34,7 +34,15 @@ Features
 
 * Use pip
 
-    `pip install vtk opencv-python tifffile h5py scipy joblib IPython`
+    `pip install vtk tifffile h5py scipy joblib IPython`
+
+    or
+
+    `pip install -r requirements.txt`
+
+    or if you are in mainland China and need a faster pip download speed:
+
+    `pip install -i https://pypi.tuna.tsinghua.edu.cn/simple -r requirements.txt`
 
 # Running
 
