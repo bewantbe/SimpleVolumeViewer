@@ -345,7 +345,8 @@ class UIActions():
         #from IPython import embed
         from IPython.terminal.embed import InteractiveShellEmbed
         from IPython import start_ipython
-        if not hasattr(self, 'embed_shell'):
+        if not hasattr(self, '_shell_mode'):
+            self._shell_mode = 'embed'
             # Note: there is a limitation, in the cmd, we can't call complex list comprehensions.
             # Ref. https://stackoverflow.com/questions/35161324/how-to-make-imports-closures-work-from-ipythons-embed
             # such as:
@@ -353,15 +354,27 @@ class UIActions():
             #     s = swc_objs[0]
             #     ty_s = type(s)
             #     prop_names = [ty_s for k in vars(s).keys()]
-            self.embed_shell = InteractiveShellEmbed(banner1 = "IPython Interactive Shell")
+            banner = "IPython Interactive Shell\n" + inject_swc_utils.__doc__
             # or simpler: from IPython import embed then call embed()
-        ns = {}
-        inject_swc_utils(ns, self)
-        #self.embed_shell()
-        # we might try user_ns = locals() | globals()
-        # start_ipython(argv=[], user_ns = locals())
-        print(inject_swc_utils.__doc__)
-        start_ipython(argv=['--no-confirm-exit', '--no-banner'], user_ns = ns)
+            # See https://ipython.org/ipython-doc/stable/config/options/terminal.html
+            # for possible parameters and configurations
+            self.embed_shell = InteractiveShellEmbed(
+                banner1 = banner,
+                confirm_exit = False)
+
+        if self._shell_mode == 'embed':
+            ns = locals()
+            inject_swc_utils(ns, self)
+            self.embed_shell(user_ns = ns)
+        elif self._shell_mode == 'full':
+            # we might try user_ns = locals() | globals()
+            # start_ipython(argv=[], user_ns = locals())
+            ns = {}
+            inject_swc_utils(ns, self)
+            print(inject_swc_utils.__doc__)
+            start_ipython(argv=['--no-confirm-exit', '--no-banner'], user_ns = ns)
+        else:
+            dbg_print(1, "embed_interactive_shell: No such shell.")
         self.iren.GetRenderWindow().Render()
 
     def exec_script(self, script_name = 'test_call.py'):

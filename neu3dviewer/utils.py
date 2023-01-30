@@ -332,6 +332,10 @@ class ArrayfyList:
     def items(self):
         return self.obj_dict.items()
 
+    def __str__(self):
+        s = '[' + ', '.join([f'"{k}"' for k in self.obj_dict.keys()]) + ']'
+        return s
+
     def __getitem__(self, idx):
         if isinstance(idx, str):
             # index by swc name, like "['123']"
@@ -385,7 +389,7 @@ See the help like `help(swcs)`, or reference the plugins directory.
     if oracal is None:
         # e.g. when used in UIActions and passing ns = locals()
         oracal = ns['self']
-    ns |= globals() | ns   # merge globals in utils.py but not overwrite ns.
+    #ns |= globals() | ns   # merge globals in utils.py but not overwrite ns.
     ns['gui_ctrl']   = oracal.gui_ctrl
     ns['iren']       = oracal.iren
     ns['interactor'] = oracal.interactor
