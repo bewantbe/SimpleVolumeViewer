@@ -246,6 +246,20 @@ def WindowsFriendlyDateTime():
                     .replace(':', 'h', 1).replace(':', 'm', 1)[:22]
     return st_time
 
+def GetRangeTuple(idx, idx_max):
+    """Input: slice or range, output: numerical [start, end, step]"""
+    # usage example:
+    # idx_range = GetRangeTuple(idx, self.__len__())
+    # for j, i in enumerate(range(*idx_range)):
+    idx_range = [0, idx_max, 1]     # default values
+    if idx.start is not None:
+        idx_range[0] = idx.start % idx_max
+    if idx.stop is not None:
+        idx_range[1] = idx.stop  % idx_max
+    if idx.step is not None:
+        idx_range[2] = idx.step
+    return idx_range
+
 def bind_property_broadcasting(li, pn, docs):
     # With help of:
     # https://stackoverflow.com/questions/1015307/python-bind-an-unbound-method
@@ -298,26 +312,42 @@ class ArrayfyList:
             raise TypeError('Wrapper for list only.')
         self.obj_list = obj_list
         setattr(self, '__iter__', obj_list.__iter__)
-        setattr(self, '__len__',  obj_list.__len__)
+        #setattr(self, '__len__',  obj_list.__len__)  # need to rebind
         self.rebuild_index()
         self._bind_properties()
+
+    def list(self):
+        return self.obj_list
 
     def rebuild_index(self, index_style = 'numeric'):
         """
         Rebuild indexing string according style.
         index_style can be 'numeric'
         """
-        if index_style == 'numeric':
-            self.obj_dict = {o.swc_name.split('#')[1]: o for o in self.obj_list}
-        elif index_style == 'file_name':
-            self.obj_dict = {o.swc_name: o for o in self.obj_list}
+        # guess the type
+        if self.__len__() == 0:
+            self.obj_dict = {}
+            return
+        
+        s = self.obj_list[0]
+        if hasattr(s, 'swc_name'):  # should be a swc file
+            if index_style == 'numeric':
+                fn = lambda j, o: o.swc_name.split('#')[1]
+            elif index_style == 'file_name':
+                fn = lambda j, o: o.swc_name
+            else:
+                raise TypeError(f'Unknown index style "{index_style}".')
         else:
-            raise TypeError(f'Unknown index style "{index_style}".')
+            fn = lambda j, o: str(j)
+
+        self.obj_dict = {fn(j, o): o for j, o in enumerate(self.obj_list)}
     
     def _bind_properties(self):
         if len(self.obj_list) == 0:
             return
         s = self.obj_list[0]
+        if not hasattr(s, '__dict__'):
+            return
         ty_s = type(s)
         # get property attributes, in the form _prop
         prop_names = [k[1:] for k in vars(s).keys() \
@@ -326,11 +356,17 @@ class ArrayfyList:
         for pn in prop_names:
             bind_property_broadcasting(self, pn, getattr(ty_s, pn).__doc__)
 
+    def __len__(self):
+        return self.obj_list.__len__()
+
     def keys(self):
         return self.obj_dict.keys()
 
     def items(self):
         return self.obj_dict.items()
+
+    def __repr__(self):
+        return self.obj_list.__repr__()
 
     def __str__(self):
         s = '[' + ', '.join([f'"{k}"' for k in self.obj_dict.keys()]) + ']'
@@ -340,23 +376,30 @@ class ArrayfyList:
         if isinstance(idx, str):
             # index by swc name, like "['123']"
             return self.obj_dict[idx]
-        elif isinstance(idx, (slice, range)):
+        elif isinstance(idx, slice):
             # indexing by slice or range, like: "[:10]"
-            idx_max = self.__len__()
-            idx_range = [0, idx_max, 1]     # default values
-            if idx.start is not None:
-                idx_range[0] = idx.start % idx_max
-            if idx.stop is not None:
-                idx_range[1] = idx.stop  % idx_max
-            if idx.step is not None:
-                idx_range[2] = idx.step
-            return ArrayfyList([self.__getitem__(i) for i in range(*idx_range)])
+            return ArrayfyList(self.obj_list[idx])
         elif isinstance(idx, (list, np.ndarray)):
             # array style index, like "[["1", "2", "3"]]"
             return ArrayfyList([self.__getitem__(i) for i in idx])
         else:
             # index by order in the list, like "[123]"
             return self.obj_list[idx]
+
+    def __setitem__(self, idx, val):
+        if isinstance(idx, str):
+            raise TypeError('Assigment by string is not allowed.')
+        elif isinstance(idx, slice):
+            # indexing by slice or range, like: "[:10]"
+            self.obj_list[idx] = val
+        elif isinstance(idx, (list, np.ndarray)):
+            # array style index, like "[[1, 2, 3]]"
+            for j, i in enumerate(idx):
+                self.obj_list[i] = val[j]
+        else:
+            # index by order in the list, like "[123]"
+            self.obj_list[idx] = val
+        self.rebuild_index()
 
 def ArrayFunc(func):
     """
@@ -389,12 +432,19 @@ See the help like `help(swcs)`, or reference the plugins directory.
     if oracal is None:
         # e.g. when used in UIActions and passing ns = locals()
         oracal = ns['self']
-    #ns |= globals() | ns   # merge globals in utils.py but not overwrite ns.
+    ns |= globals() | ns   # merge globals in utils.py but not overwrite ns.
     ns['gui_ctrl']   = oracal.gui_ctrl
     ns['iren']       = oracal.iren
     ns['interactor'] = oracal.interactor
     ns['ren']        = oracal.GetRenderers(1)
+
     gui_ctrl = ns['gui_ctrl']
+    iren = ns['iren']
+    ns.update(NamespaceOfSwcUtils(gui_ctrl, iren))
+
+def NamespaceOfSwcUtils(gui_ctrl, iren):
+    ns = {}
     swc_objs = gui_ctrl.GetObjectsByType('swc')
     ns['swcs'] = ArrayfyList(swc_objs)
-    ns['Render'] = oracal.iren.GetRenderWindow().Render
+    ns['Render'] = iren.GetRenderWindow().Render
+    return ns

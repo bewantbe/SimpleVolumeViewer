@@ -3,13 +3,19 @@
 import numpy as np
 import tifffile
 
+from neu3dviewer.data_loader import (
+    Read3DImageDataFromFile,
+    Save3DImageToFile,
+)
+
 def PluginMain(ren, iren, gui_ctrl):
-    file_name = 'b.tif'
+    file_name = "tests/ref_data/RM06_s56_c10_f3597_p0.tif"
     img_arr, img_meta = Read3DImageDataFromFile(file_name)
     Save3DImageToFile('c.tif', img_arr, img_meta)
     gui_ctrl.RemoveObject('volume2')
     gui_ctrl.AddObjectProperty('volume2',
         {
+            "type": "volume",
             "opacity_transfer_function": {
                 "AddPoint": [
                     [20, 0.1],
@@ -33,6 +39,6 @@ def PluginMain(ren, iren, gui_ctrl):
         "property"       : "volume2",
         "origin"         : [100, 100, 0],
         "rotation_matrix": [1,0,0, 0,1,0, 0,0,1],
-        "file_path"      : "c.tif",
+        "file_path"      : file_name,
     })
     iren.GetRenderWindow().Render()

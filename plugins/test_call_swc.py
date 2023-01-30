@@ -1,29 +1,31 @@
 #
 
 import numpy as np
-from utils import (
+from neu3dviewer.utils import (
     ArrayfyList,
+    ArrayFunc,
+    NamespaceOfSwcUtils,
 )
 
 def PluginMain(ren, iren, gui_ctrl):
-    swc_objs = gui_ctrl.GetObjectsByType('swc')
-    print('Number of SWC:', len(swc_objs))
+    user_ns = NamespaceOfSwcUtils(gui_ctrl, iren)
+    swcs = user_ns['swcs']
+    Render = user_ns['Render']
 
-    s = ArrayfyList(swc_objs)
-    print(len(s.color))
+    print('Number of SWC:', len(swcs))
 
-    #for i in range(len(s)): s[i].visible = False
-    s.visible = False
-    s[['487', '538']].visible = True
-    s[['487', '538']].color = [(0.0, 1.0, 0), (1.0, 1.0, 0)]
-    s[:10].visible = True
-    #s['487'].visible = True
-    #s['487'].color = (0.0, 1.0, 0)
-    #s['538'].visible = True
-    #s['538'].color = (1.0, 1.0, 0)
+    #for i in range(len(swcs)): swcs[i].visible = False
+    swcs.visible = False
+    swcs[['487', '538']].visible = True
+    swcs[['487', '538']].color = [(0.0, 1.0, 0), (1.0, 1.0, 0)]
+    swcs[:10].visible = True
+    #swcs['487'].visible = True
+    #swcs['487'].color = (0.0, 1.0, 0)
+    #swcs['538'].visible = True
+    #swcs['538'].color = (1.0, 1.0, 0)
 
-#    print(np.min(s['538'].tree_swc[0], axis=0))
-#    print(np.min(s['538'].tree_swc[1], axis=0))
+#    print(np.min(swcs['538'].tree_swc[0], axis=0))
+#    print(np.min(swcs['538'].tree_swc[1], axis=0))
 
 #    for o in swc_objs:
 #        o.visible = np.random.rand() < 0.1
@@ -42,5 +44,4 @@ def PluginMain(ren, iren, gui_ctrl):
 #        else:
 #            o.visible = False
 
-    iren.GetRenderWindow().Render()
-    # TODO: make it possible to open a ipython environment, like Matlab.
+    Render()
