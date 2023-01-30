@@ -360,7 +360,8 @@ class UIActions():
         #self.embed_shell()
         # we might try user_ns = locals() | globals()
         # start_ipython(argv=[], user_ns = locals())
-        start_ipython(argv=[], user_ns = ns)
+        print(inject_swc_utils.__doc__)
+        start_ipython(argv=['--no-confirm-exit', '--no-banner'], user_ns = ns)
         self.iren.GetRenderWindow().Render()
 
     def exec_script(self, script_name = 'test_call.py'):

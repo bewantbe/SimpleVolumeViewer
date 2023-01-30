@@ -288,14 +288,25 @@ def bind_property_broadcasting(li, pn, docs):
     setattr(type(li), pn, property(getx, setx, None, docs))
 
 class ArrayfyList:
-    """Wrapper for list of swc objects. Support for other objects is possible."""
+    """
+    Wrapper for list of SWC objects, so that has a numpy array style access.
+    Essentially automatically broadcast the properties of the items.
+    Support for objects other than SWC is possible.
+    """
     def __init__(self, obj_list):
+        if not isinstance(obj_list, (list, np.ndarray, tuple)):
+            raise TypeError('Wrapper for list only.')
         self.obj_list = obj_list
         setattr(self, '__iter__', obj_list.__iter__)
+        setattr(self, '__len__',  obj_list.__len__)
         self.rebuild_index()
         self._bind_properties()
 
     def rebuild_index(self, index_style = 'numeric'):
+        """
+        Rebuild indexing string according style.
+        index_style can be 'numeric'
+        """
         if index_style == 'numeric':
             self.obj_dict = {o.swc_name.split('#')[1]: o for o in self.obj_list}
         elif index_style == 'file_name':
@@ -315,9 +326,6 @@ class ArrayfyList:
         for pn in prop_names:
             bind_property_broadcasting(self, pn, getattr(ty_s, pn).__doc__)
 
-    def __len__(self):
-        return len(self.obj_list)
-    
     def keys(self):
         return self.obj_dict.keys()
 
@@ -326,9 +334,10 @@ class ArrayfyList:
 
     def __getitem__(self, idx):
         if isinstance(idx, str):
-            # index by swc name
+            # index by swc name, like "['123']"
             return self.obj_dict[idx]
         elif isinstance(idx, (slice, range)):
+            # indexing by slice or range, like: "[:10]"
             idx_max = self.__len__()
             idx_range = [0, idx_max, 1]     # default values
             if idx.start is not None:
@@ -339,10 +348,10 @@ class ArrayfyList:
                 idx_range[2] = idx.step
             return ArrayfyList([self.__getitem__(i) for i in range(*idx_range)])
         elif isinstance(idx, (list, np.ndarray)):
-            # array style index
+            # array style index, like "[["1", "2", "3"]]"
             return ArrayfyList([self.__getitem__(i) for i in idx])
         else:
-            # index by order in the list
+            # index by order in the list, like "[123]"
             return self.obj_list[idx]
 
 def ArrayFunc(func):
@@ -368,6 +377,11 @@ def ArrayFunc(func):
     return broadcasted_func
 
 def inject_swc_utils(ns, oracal = None):
+    """
+The following variables are prepared:
+    gui_ctrl, iren, interactor, ren, swcs
+See the help like `help(swcs)`, or reference the plugins directory.
+    """
     if oracal is None:
         # e.g. when used in UIActions and passing ns = locals()
         oracal = ns['self']
