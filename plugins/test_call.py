@@ -41,4 +41,3 @@ def PluginMain(ren, iren, gui_ctrl):
         "rotation_matrix": [1,0,0, 0,1,0, 0,0,1],
         "file_path"      : file_name,
     })
-    iren.GetRenderWindow().Render()

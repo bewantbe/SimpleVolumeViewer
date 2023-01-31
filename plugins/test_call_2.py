@@ -91,6 +91,3 @@ def PluginMain(ren, iren, gui_ctrl):
 #    plt.hist(s_v, 100)
 #    plt.show()
 #    print('hello?')
-
-    iren.GetRenderWindow().Render()
-    # TODO: make it possible to open a ipython environment, like Matlab.

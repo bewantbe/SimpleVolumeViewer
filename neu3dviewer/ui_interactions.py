@@ -343,6 +343,8 @@ class UIActions():
         # event(command/observer) to signal(notify) the main UI to read the
         # commands from the shell through a queue.
         #from IPython import embed
+        self.gui_ctrl.StatusBar('Exit the interactive shell (CMD) to return to this GUI.')
+        self.iren.GetRenderWindow().Render()
         from IPython.terminal.embed import InteractiveShellEmbed
         from IPython import start_ipython
         if not hasattr(self, '_shell_mode'):
@@ -354,7 +356,8 @@ class UIActions():
             #     s = swc_objs[0]
             #     ty_s = type(s)
             #     prop_names = [ty_s for k in vars(s).keys()]
-            banner = "IPython Interactive Shell\n" + inject_swc_utils.__doc__
+            banner = "IPython interactive shell. Type 'exit' or press Ctrl+D to exit.\n" \
+                     + inject_swc_utils.__doc__
             # or simpler: from IPython import embed then call embed()
             # See https://ipython.org/ipython-doc/stable/config/options/terminal.html
             # for possible parameters and configurations
@@ -375,6 +378,7 @@ class UIActions():
             start_ipython(argv=['--no-confirm-exit', '--no-banner'], user_ns = ns)
         else:
             dbg_print(1, "embed_interactive_shell: No such shell.")
+        self.gui_ctrl.StatusBar(None)
         self.iren.GetRenderWindow().Render()
 
     def exec_script(self, script_name = 'test_call.py'):
@@ -382,6 +386,8 @@ class UIActions():
         plugin_dir = './plugins/'
         ren1 = self.GetRenderers(1)
         iren = self.iren
+        self.gui_ctrl.StatusBar(f'Running script: {script_name}')
+        self.iren.GetRenderWindow().Render()
         dbg_print(3, 'Running script:', script_name)
         try:
             # running in globals() is a bit danger, any better idea?
@@ -397,6 +403,8 @@ class UIActions():
             dbg_print(1, 'Failed to run due to exception:')
             dbg_print(1, type(inst))
             dbg_print(1, inst)
+        self.gui_ctrl.StatusBar(None)
+        self.iren.GetRenderWindow().Render()
 
     def scene_zooming(self, direction, zooming_factor = 1.2):
         """Zoom in or out."""

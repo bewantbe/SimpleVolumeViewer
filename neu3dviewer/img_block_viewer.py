@@ -73,7 +73,6 @@ from vtkmodules.vtkCommonCore import (
 )
 from vtkmodules.vtkCommonColor import (
     vtkNamedColors,
-    vtkColorSeries
 )
 from vtkmodules.vtkCommonDataModel import (
     vtkCellArray,
@@ -91,7 +90,6 @@ from vtkmodules.vtkRenderingCore import (
     vtkPointPicker,
     vtkActor,
     vtkPolyDataMapper,
-    vtkTextActor,
 )
 # 
 # noinspection PyUnresolvedReferences
@@ -925,31 +923,45 @@ class GUIControl:
             )
 
     def ShowOnScreenHelp(self):
-        if not hasattr(self, 'text_actor'):
-            win_size = self.render_window.GetSize()
-
-            font_size = int(31 * win_size[1] / 1600)
-            text_actor = vtkTextActor()
-            text_actor.SetInput(GenerateKeyBindingDoc())
-            prop = text_actor.GetTextProperty()
-            prop.SetFontFamilyToCourier()
-            prop.SetColor(1.0, 1.0, 0.0)
-            prop.SetBackgroundColor(0.0, 0.2, 0.5)
-            prop.SetBackgroundOpacity(0.8)
-            prop.FrameOn()
-            prop.SetFontSize(font_size)
-            # put the text box to center of window
-            prop.SetVerticalJustificationToCentered()
-            v = _a([0]*4)
-            text_actor.GetBoundingBox(self.GetMainRenderer(), v)
-            text_actor.SetPosition(win_size[0]/2 - (v[1]-v[0])/2, win_size[1]/2)
-
-            self.text_actor = text_actor
-            self.GetMainRenderer().AddActor2D(text_actor)
+        if "_help_msg" not in self.scene_objects:
+            # show help
+            conf = {
+                "type": "TextBox",
+                "text": GenerateKeyBindingDoc(),
+                "font_size": "auto",                   # auto or a number
+                "font_family": "mono",                 # optional
+                "color": [1.0, 1.0, 0.1],
+                "background_color": [0.0, 0.2, 0.5],
+                "background_opacity": 0.8,             # optional
+                "position": "center",                  # optional
+                "frame_on": True,                      # optional
+            }
+            self.AddObject("_help_msg", conf)
         else:
-            # remove the text actor
-            self.GetMainRenderer().RemoveActor(self.text_actor)
-            del self.text_actor
+            # remove help
+            self.RemoveObject("_help_msg")
+        self.render_window.Render()
+
+    def StatusBar(self, msg, timeout = None):
+        """Message shown on the button."""
+        if (msg is None) and ("_status_bar" in self.scene_objects):
+            self.RemoveObject("_status_bar")
+            return
+        if "_status_bar" not in self.scene_objects:
+            # show help
+            conf = {
+                "type": "TextBox",
+                "text": msg,
+                "font_size": "auto",                   # auto or a number
+                "font_family": "mono",                 # optional
+                "color": [1.0, 1.0, 0.1],
+                "background_color": [0.0, 0.2, 0.5],
+                "background_opacity": 0.8,             # optional
+            }
+            self.AddObject("_status_bar", conf)
+        else:
+            # update message
+            self.scene_objects['_status_bar'].text = msg
         self.render_window.Render()
 
     def EasyObjectImporter(self, cmd_obj_desc):

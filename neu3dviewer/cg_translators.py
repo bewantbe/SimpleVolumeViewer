@@ -42,6 +42,7 @@ from vtkmodules.vtkRenderingCore import (
     vtkVolumeProperty,
     vtkActor,
     vtkPolyDataMapper,
+    vtkTextActor,
 )
 from vtkmodules.vtkRenderingAnnotation import vtkAxesActor
 
@@ -1039,6 +1040,66 @@ class ObjTranslator:
             self.actor = om
             return self
 
+    class obj_TextBox(TranslatorUnit):
+        """
+        prototype:
+        "message": {
+            "type": "TextBox",
+            "text": GenerateKeyBindingDoc(),
+            "font_size": "auto",                   # auto or a number
+            "font_family": "mono",                 # optional
+            "color": [1.0, 1.0, 0.1],
+            "background_color": [0.0, 0.2, 0.5],
+            "background_opacity": 0.8,             # optional
+            "position": "center",                  # optional
+            "frame_on": True,                      # optional
+        },
+        """
+        def parse(self, obj_conf):
+            win_size = self.gui_ctrl.render_window.GetSize()
+            text_actor = vtkTextActor()
+            text_actor.SetInput(obj_conf['text'])
+
+            prop = text_actor.GetTextProperty()
+            # set font
+            if obj_conf.get('font_family', '') == 'mono':
+                prop.SetFontFamilyToCourier()
+            font_size = obj_conf['font_size']
+            if font_size == 'auto':
+                font_size = int(31 * win_size[1] / 1600)
+            prop.SetFontSize(font_size)
+            # set color of text and background
+            prop.SetColor(obj_conf['color'])
+            prop.SetBackgroundColor(obj_conf['background_color'])
+            prop.SetBackgroundOpacity(obj_conf.get('background_opacity', 1.0))
+            # set frame (bounding box)
+            if obj_conf.get('frame_on', False):
+                prop.FrameOn()
+
+            # set position of text
+            position = obj_conf.get('position', None)
+            if position == 'center':
+                prop.SetVerticalJustificationToCentered()
+                v = _a([0]*4)
+                text_actor.GetBoundingBox(self.renderer, v)
+                text_actor.SetPosition(win_size[0]/2 - (v[1]-v[0])/2, win_size[1]/2)
+            elif isinstance(position, (list, tuple)):  # assume position is [x,y]
+                text_actor.SetPosition(position[0], position[1])
+
+            self.renderer.AddActor2D(text_actor)
+            self.actor = text_actor
+            self._text = obj_conf['text']
+            return self
+    
+        @property
+        def text(self):
+            return self._text
+    
+        @text.setter
+        def text(self, msg):
+            self.actor.SetInput(msg)
+            self._text = msg
+    
     class obj_Background(TranslatorUnit):
         """
         prototype:

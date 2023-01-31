@@ -10,7 +10,6 @@ from neu3dviewer.utils import (
 def PluginMain(ren, iren, gui_ctrl):
     user_ns = NamespaceOfSwcUtils(gui_ctrl, iren)
     swcs = user_ns['swcs']
-    Render = user_ns['Render']
 
     print('Number of SWC:', len(swcs))
 
@@ -43,5 +42,3 @@ def PluginMain(ren, iren, gui_ctrl):
 #            o.visible = True
 #        else:
 #            o.visible = False
-
-    Render()

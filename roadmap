@@ -74,11 +74,11 @@ Done:
 * write: requirements.txt
   - done
 * Write tips when start IPython
-
-Under consideration:
 * Fix plugins import
 * Give a tip on GUI when in cmd mode.
   - 'Exit the command line to return GUI.'
+
+Under consideration:
 * Support *.lpy
 * (env and command line options)Path to find plugins
 * Add tips to clicked point, by click "i" key. plus linewraping for long message.
