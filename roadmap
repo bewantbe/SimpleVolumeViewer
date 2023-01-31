@@ -74,6 +74,7 @@ Done:
 * Add initial message to prompt uset to drag-and-drop and press h.
 * Add tips to clicked point, by click "i" key. plus linewraping for long message.
   - now show info, but no i key and no linewraping.
+* Standalone exe
 
 Under consideration:
 * Avoid selection to non-visible object.
