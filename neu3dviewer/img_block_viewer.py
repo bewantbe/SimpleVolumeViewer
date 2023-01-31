@@ -965,6 +965,40 @@ class GUIControl:
             self.scene_objects['_status_bar'].text = msg
         self.render_window.Render()
 
+    def InfoBar(self, msg):
+        # prepare obj message
+        if isinstance(msg, dict):
+            d_msg = msg
+            msg = ''
+            if d_msg['type'] == 'swc':
+                name = d_msg['obj_name']
+                obj = self.scene_objects[name]
+                if 'header' in d_msg:
+                    msg = d_msg['header'] + '\n'
+                else:
+                    msg = ''
+                msg += f'file name: {obj.swc_name} \n'
+                msg += f'index: {name} '
+            else:
+                dbg_print(1, 'What type:', msg['type'])
+
+        if "_info_bar" not in self.scene_objects:
+            # show help
+            conf = {
+                "type": "TextBox",
+                "text": msg,
+                "font_size": "auto",                   # auto or a number
+                "font_family": "mono",                 # optional
+                "color": [0.5, 1.0, 0.1],
+                "background_color": [0.0, 0.2, 0.3],
+                "background_opacity": 0.8,             # optional
+                "position": "lowerright"
+            }
+            self.AddObject("_info_bar", conf)
+        else:
+            self.scene_objects["_info_bar"].text = msg
+        self.render_window.Render()
+
     def ShowWelcomeMessage(self, show = True):
         welcome_msg = " Drag-and-drop to load data. Press 'h' key to get help."
         if ("_welcome_msg" not in self.scene_objects) and show:

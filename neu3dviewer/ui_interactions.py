@@ -469,8 +469,10 @@ class UIActions():
         
         if pxyz.size > 0:
             obj_name = self.gui_ctrl.point_set_holder.GetNameByPointId(pid)
-            dbg_print(4, 'picked point id =', pid, ' xyz =', pxyz)
-            dbg_print(4, 'selected object:', obj_name)
+            dbg_print(4, f'picked point id = {pid}, xyz = {pxyz}')
+            dbg_print(4, f'selected object: {obj_name}')
+            info = f'picked point: \nxyz = {pxyz} '
+            self.gui_ctrl.InfoBar({'type':'swc', 'obj_name':obj_name, 'header':info})
             self.gui_ctrl.SetSelectedPID(pid)
             if select_mode == 'append':
                 if obj_name in self.gui_ctrl.selected_objects:
@@ -482,6 +484,7 @@ class UIActions():
             dbg_print(4, 'selected obj:', self.gui_ctrl.selected_objects)
         else:
             dbg_print(4, 'picked no point', pid, pxyz)
+            self.gui_ctrl.InfoBar('')
         # purposely no call to self.OnRightButtonDown()
     
     def select_and_fly_to(self):

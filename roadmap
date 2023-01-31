@@ -71,13 +71,14 @@ Done:
   - 'Exit the command line to return GUI.'
 * Support drag and drop to load data.
 * command line options change Path to find plugins
-
-Under consideration:
 * Add initial message to prompt uset to drag-and-drop and press h.
 * Add tips to clicked point, by click "i" key. plus linewraping for long message.
-* Adding current picked point to selected set.
+  - now show info, but no i key and no linewraping.
+
+Under consideration:
 * Avoid selection to non-visible object.
   - test picker?
+* Adding current picked point to selected set.
 * Solve the window init flash problem, i.e. properly set window size only once.
 * hash + rnd seed file name to determine swc color?
 * Support *.lpy

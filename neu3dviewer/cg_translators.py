@@ -1088,6 +1088,12 @@ class ObjTranslator:
                 v = _a([0]*4)
                 text_actor.GetBoundingBox(self.renderer, v)
                 text_actor.SetPosition(win_size[0]/2 - (v[1]-v[0])/2, win_size[1]/2)
+            elif position == 'lowerright':
+                #prop.SetJustificationToRight()
+                prop.SetVerticalJustificationToBottom()
+                v = _a([0]*4)
+                text_actor.GetBoundingBox(self.renderer, v)
+                text_actor.SetPosition(win_size[0] - (v[1]-v[0]), 0)
             elif isinstance(position, (list, tuple)):  # assume position is [x,y]
                 text_actor.SetPosition(position[0], position[1])
 
