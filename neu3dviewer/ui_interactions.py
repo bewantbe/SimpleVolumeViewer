@@ -11,7 +11,11 @@ from numpy import array as _a
 
 from vtkmodules.vtkCommonCore import (
     vtkCommand,
+    vtkStringArray,
+    VTK_STRING,
+    VTK_OBJECT,
 )
+from vtkmodules.util.misc import calldata_type
 # vtk.vtkCommand.KeyPressEvent
 from vtkmodules.vtkInteractionStyle import (
     vtkInteractorStyleTrackballCamera,
@@ -785,6 +789,7 @@ class MyInteractorStyle(vtkInteractorStyleTerrain):
         self.AddObserver('CharEvent', self.OnChar)
         self.AddObserver('KeyPressEvent', self.OnKeyPress)
 
+        self.AddObserver('DropFilesEvent', self.OnDropFiles)
         self.AddObserver(self.user_event_cmd_id, self.OnUserEventCmd)
 
         self.ui_action = UIActions(self, iren, gui_ctrl)
@@ -918,7 +923,24 @@ class MyInteractorStyle(vtkInteractorStyleTerrain):
 
         super().OnKeyPress()
 
+    @calldata_type(VTK_OBJECT)
+    def OnDropFiles(self, obj, event, calldata):
+        # With help of:
+        # VTK Python Wrappers - Observer Callbacks - Call Data
+        # https://vtk.org/doc/nightly/html/md__builds_gitlab_kitware_sciviz_ci_Documentation_Doxygen_PythonWrappers.html#observer-call-data
+        # DropFilesEvent processing in vtkInteractorStyle::ProcessEvents
+        # https://github.com/Kitware/VTK/blob/0fc87520d81ac51f48104bf5be7455eda3f365c3/Rendering/Core/vtkInteractorStyle.cxx#L1491
+        # OnDropFiles Windows implementation
+        # https://github.com/Kitware/VTK/blob/d706250a1422ae1e7ece0fa09a510186769a5fec/Rendering/UI/vtkWin32RenderWindowInteractor.cxx#L779
+        assert isinstance(calldata, vtkStringArray)
+        sa = calldata
+        file_list = [sa.GetValue(j) for j in range(sa.GetNumberOfValues())]
+        self.gui_ctrl.DropFilesObjectImporter(file_list)
+
+    #@calldata_type(VTK_STRING)
+    #def OnUserEventCmd(self, obj, event, calldata):
     def OnUserEventCmd(self, obj, event):
         # Ref.
         # https://kitware.github.io/vtk-examples/site/Cxx/Interaction/UserEvent/
+        # https://vtk.org/doc/nightly/html/md__builds_gitlab_kitware_sciviz_ci_Documentation_Doxygen_PythonWrappers.html#observer-callbacks
         dbg_print(3, 'OnUserEventCmd() called.')

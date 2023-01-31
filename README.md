@@ -36,7 +36,7 @@ Features
 
     `pip install vtk tifffile h5py scipy joblib IPython`
 
-    or
+    Or
 
     `pip install -r requirements.txt`
 
@@ -48,17 +48,24 @@ Features
 
 * In command line (terminal) window
 
-    `cd` to where you put this repo:
+    `cd` to where you put this repo, e.g.:
 
     `cd SimpleVolumeViewer`
     
     Run:
 
+    `python3 -m neu3dviewer`
+
+    then drag-and-drop file(s) to the GUI.
+    
+    Or, with more control options:
+
     `python3 -m neu3dviewer <options>`
+
+    See `python3 -m neu3dviewer --help` for full list of options.
 
 * To get help
 
     `python3 -m neu3dviewer --help`
 
-    Or, during running, press h key.
-
+    Or, press h key in the GUI.

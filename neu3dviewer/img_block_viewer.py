@@ -1000,6 +1000,34 @@ class GUIControl:
             name = self.GetNonconflitName(obj_conf['type'])
             self.AddObject(name, obj_conf)
 
+    def DropFilesObjectImporter(self, file_path_list):
+        # put each file to each category
+        swc_file_list = []
+        swc_dir_list = []
+        img_file_list = []
+        for file_path in file_path_list:
+            if file_path.endswith('.swc'):
+                swc_file_list.append(file_path)
+            elif file_path.endswith('.tif') or file_path.endswith('.ims'):
+                img_file_list.append(file_path)
+            elif os.path.isdir(file_path):
+                swc_dir_list.append(file_path)
+            else:
+                dbg_print(2, 'Unrecognized object:', file_path)
+        
+        # swc type
+        if len(swc_file_list) > 0:
+            self.EasyObjectImporter({'swc': swc_file_list})
+        # swc_dir type
+        for swc_dir in swc_dir_list:
+            self.EasyObjectImporter({'swc_dir': swc_dir})
+        # img file
+        for img_path in img_file_list:
+            self.EasyObjectImporter({'img_path': img_path})
+        # see it
+        self.GetMainRenderer().ResetCamera()
+        self.render_window.Render()
+
     def ShotScreen(self, filename = ''):
         if filename == '':
             filename = 'screenshot_' + WindowsFriendlyDateTime() + '.png'
