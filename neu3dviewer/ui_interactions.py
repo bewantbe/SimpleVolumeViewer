@@ -387,15 +387,15 @@ class UIActions():
 
     def exec_script(self, script_name = 'test_call.py'):
         """Run a specific script."""
-        plugin_dir = './plugins/'
         ren1 = self.GetRenderers(1)
         iren = self.iren
+        script_path = self.gui_ctrl.plugin_dir + script_name
         self.gui_ctrl.StatusBar(f'Running script: {script_name}')
         self.iren.GetRenderWindow().Render()
         dbg_print(3, 'Running script:', script_name)
         try:
             # running in globals() is a bit danger, any better idea?
-            exec(open(plugin_dir+script_name).read(), globals(), None)
+            exec(open(script_path).read(), globals(), None)
             if 'PluginMain' in globals():
                 #exec('PluginMain(ren1, iren, self.gui_ctrl)')
                 # noinspection PyUnresolvedReferences

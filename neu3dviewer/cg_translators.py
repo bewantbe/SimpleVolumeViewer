@@ -222,7 +222,8 @@ class ObjTranslator:
             "swc_loading_batch_size": 2,
             "full_screen": 1,
             "off_screen_rendering": 0,
-            "no_interaction": 0
+            "no_interaction": 0,
+            "plugin_dir": "./plugins/"
         },
         """
 
@@ -253,6 +254,8 @@ class ObjTranslator:
                             Currently only for loading SWC.""")
             group.add_argument('--swc_loading_batch_size', type=int, metavar='SIZE',
                     help='The batch size for each CPU when loading SWC files, default: 2.')
+            group.add_argument('--plugin_dir',
+                    help=f'Set directory of plugins. Default: ./plugins/')
 
         @staticmethod
         def parse_cmd_args(cmd_obj_desc):
@@ -261,6 +264,7 @@ class ObjTranslator:
                 'off_screen_rendering':'', 'no_interaction':'',
                 'full_screen':'', 'stereo_type':'',
                 'max_cpu':'', 'swc_loading_batch_size':'',
+                'plugin_dir':'',
                 'window_size':'size',
             }
             for name, key_name in li_name.items():
@@ -332,6 +336,7 @@ class ObjTranslator:
                 self.gui_ctrl.n_max_cpu_cores_default = win_conf['max_cpu']
             if 'swc_loading_batch_size' in win_conf:
                 self.gui_ctrl.swc_loading_batch_size = win_conf['swc_loading_batch_size']
+            self.gui_ctrl.plugin_dir = win_conf.get('plugin_dir', './plugins/')
             if 'full_screen' in win_conf:
                 render_window.SetFullScreen(win_conf['full_screen']>0)
             # note down

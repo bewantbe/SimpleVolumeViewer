@@ -29,7 +29,6 @@ Done:
 * Use GetInitialized () to set sleep time?
   - not necessary.
 * set window size automatically, and allow command line
-  - done.
 * Add "interpreter" for operating objects, in complement to plugin script.
   - we have two ways (at least)
     + write a widget in the window for command line operation.
@@ -49,11 +48,8 @@ Done:
     + or we go back to Enter -> iren.Render() -> Promoter loop.
   - done single thread version.
 * Fix bug about not showing linear (line-like) SWC.
-  - done.
 * Add option group
-  - done.
 * Auto update focu point to center
-  - done.
 * VTK 弹窗，用于输入文本。
   - vtkOutputWindow Class Reference
   - https://vtk.org/doc/nightly/html/classvtkOutputWindow.html#details
@@ -61,35 +57,30 @@ Done:
 * Bug: after loading volume with colorscale set, press +/- will get weird rendering results.
   - python .\img_block_viewer.py --img_path tests\ref_data\RM06_s56_c10_f3597_p0.tif
   - python .\img_block_viewer.py --img_path tests\ref_data\RM06_s56_c10_f3597_p0.tif --colorscale 10
-  - done
 * parallel load swc: do not save a copy of undirected graph, to save RAM.
-  - done
 * make vtkGetColorAny() accept RGB pair.
   - it is supporting, now add opacity (alpha).
 * Testing class ArrayfyList for easier scripting about SWC in plugin.
   - Add easier runtime env, e.g. prepare swc enhanced list, for array setter.
-  - done
 * Command-Line Application Layouts
   - done (windows)
 * write: requirements.txt
-  - done
 * Write tips when start IPython
 * Fix plugins import
 * Give a tip on GUI when in cmd mode.
   - 'Exit the command line to return GUI.'
 * Support drag and drop to load data.
+* command line options change Path to find plugins
 
 Under consideration:
-* Add more smart command line option: non-optional, auto dectact type.
-* Support *.lpy
-* (env and command line options)Path to find plugins
+* Add initial message to prompt uset to drag-and-drop and press h.
 * Add tips to clicked point, by click "i" key. plus linewraping for long message.
 * Adding current picked point to selected set.
 * Avoid selection to non-visible object.
   - test picker?
 * Solve the window init flash problem, i.e. properly set window size only once.
 * hash + rnd seed file name to determine swc color?
-* Add initial message to prompt uset to drag-and-drop and press h.
+* Support *.lpy
 * Use direction keys to navigate (go forward, backward, left, right, with shift to rotate, or small keyboard)
 * optimize volume blending, by alpha + color to approximate max(a,b).
 * Add transition animation framework for moving viewport
