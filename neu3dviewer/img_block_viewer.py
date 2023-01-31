@@ -754,6 +754,7 @@ class GUIControl:
                 self.scene_saved['objects'][name].update(obj_conf)
             else:
                 self.scene_saved['objects'][name] = obj_conf
+            self.ShowWelcomeMessage(False)
         
         self.scene_objects.update({name: scene_object})
 
@@ -964,6 +965,24 @@ class GUIControl:
             self.scene_objects['_status_bar'].text = msg
         self.render_window.Render()
 
+    def ShowWelcomeMessage(self, show = True):
+        welcome_msg = " Drag-and-drop to load data. Press 'h' key to get help."
+        if ("_welcome_msg" not in self.scene_objects) and show:
+            # show help
+            conf = {
+                "type": "TextBox",
+                "text": welcome_msg,
+                "font_size": "auto",                   # auto or a number
+                "font_family": "mono",                 # optional
+                "color": [1.0, 1.0, 0.1],
+                "background_color": [0.0, 0.0, 0.0],
+                "background_opacity": 0.0,             # optional
+            }
+            self.AddObject("_welcome_msg", conf)
+        elif ("_welcome_msg" in self.scene_objects) and not show:
+            self.RemoveObject("_welcome_msg")
+            self.render_window.Render()
+
     def EasyObjectImporter(self, cmd_obj_desc):
         """
         Used to accept command line inputs which need default parameters.
@@ -1103,6 +1122,8 @@ def main():
     gui = GUIControl()
     t1 = time.time()
     dbg_print(4, f'Init time: {t1 - g_t0:.3f} sec.')
+    if len(cmd_obj_desc.keys()) == 0:
+        gui.ShowWelcomeMessage()
     gui.EasyObjectImporter(cmd_obj_desc)
     gui.Start()
     te = time.time()

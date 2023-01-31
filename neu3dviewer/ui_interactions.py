@@ -347,7 +347,7 @@ class UIActions():
         # event(command/observer) to signal(notify) the main UI to read the
         # commands from the shell through a queue.
         #from IPython import embed
-        self.gui_ctrl.StatusBar('Exit the interactive shell (CMD) to return to this GUI.')
+        self.gui_ctrl.StatusBar(' Exit the interactive shell (CMD) to return to this GUI.')
         self.iren.GetRenderWindow().Render()
         from IPython.terminal.embed import InteractiveShellEmbed
         from IPython import start_ipython
@@ -390,7 +390,7 @@ class UIActions():
         ren1 = self.GetRenderers(1)
         iren = self.iren
         script_path = self.gui_ctrl.plugin_dir + script_name
-        self.gui_ctrl.StatusBar(f'Running script: {script_name}')
+        self.gui_ctrl.StatusBar(f' Running script: {script_name}')
         self.iren.GetRenderWindow().Render()
         dbg_print(3, 'Running script:', script_name)
         try:
