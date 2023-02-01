@@ -60,6 +60,22 @@ import json
 import joblib
 import copy
 
+# Use pyinstaller with joblib is not possible due to bug:
+#   https://github.com/joblib/joblib/issues/1002
+# The workaround parallel_backend("multiprocessing") do not work due to 
+#   AttributeError: Can't pickle local object 'GUIControl.AddBatchSWC.<locals>.batch_load'
+# Seems there is solution padding: https://github.com/joblib/loky/pull/375
+# multiprocessing has the same problem
+# https://docs.python.org/3/library/multiprocessing.html#multiprocessing.freeze_support
+## Fix for pyinstaller
+##from multiprocessing import freeze_support
+##from joblib import parallel_backend
+##parallel_backend("multiprocessing")
+##if __name__ == '__main__':
+##    # Pyinstaller fix
+##    freeze_support()
+##    main()
+
 import numpy as np
 from numpy import array as _a
 
@@ -539,6 +555,17 @@ class FocusModeController:
         if self.isOn:
             self.volume_clipper.CutVolume(volume)
 
+# Moved from GUIControl.AddBatchSWC() to here,
+# so that to solve "Can't pickle local object" problem
+def batch_load(file_path_batch, verbosity):
+    # somehow, we need this 'verbosity' to pass module level variable
+    utils.debug_level = verbosity
+    dbg_print(5, '...dealing', file_path_batch)
+    results = []
+    for f in file_path_batch:
+        results.append(ObjTranslator.obj_swc.LoadRawSwc(f))
+    return results
+
 class GUIControl:
     """
     Controller of VTK.
@@ -793,15 +820,6 @@ class GUIControl:
         n_job_cores = min(self.n_max_cpu_cores_default, joblib.cpu_count())
         dbg_print(4, f'AddBatchSWC(): using {n_job_cores} cores')
 
-        def batch_load(file_path_batch, verbosity):
-            # somehow, we need this 'verbosity' to pass module level variable
-            utils.debug_level = verbosity
-            dbg_print(5, '...dealing', file_path_batch)
-            results = []
-            for f in file_path_batch:
-                results.append(ObjTranslator.obj_swc.LoadRawSwc(f))
-            return results
-
         dbg_print(4, 'AddBatchSWC(): loading...')
         # load swc data in parallel
         #cached_pointsets = [batch_load(j)
@@ -815,8 +833,16 @@ class GUIControl:
         #       most of the run time.
         # PS: joblib also has a batch_size, we might use that as well.
         t1 = time.time()
-        cached_pointsets = joblib.Parallel(n_jobs = n_job_cores) \
-                (joblib.delayed(batch_load)(j, utils.debug_level) for j in li_file_path_batch)
+        if False:
+            cached_pointsets = joblib.Parallel(n_jobs = n_job_cores) \
+                    (joblib.delayed(batch_load)(j, utils.debug_level)
+                        for j in li_file_path_batch)
+        else:
+            from multiprocessing import Pool
+            with Pool(n_job_cores) as p:
+                li_file_path_batch_ext = zip(li_file_path_batch,
+                    (utils.debug_level for i in range(len(li_file_path_batch))))
+                cached_pointsets = p.starmap(batch_load, li_file_path_batch_ext)
         t2 = time.time()
         dbg_print(4, f'                       done, t = {t2-t1:.3f} sec.')
 
