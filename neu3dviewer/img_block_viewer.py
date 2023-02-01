@@ -67,7 +67,9 @@ import copy
 # Seems there is solution padding: https://github.com/joblib/loky/pull/375
 # multiprocessing has the same problem
 # https://docs.python.org/3/library/multiprocessing.html#multiprocessing.freeze_support
-## Fix for pyinstaller
+## Fix WARNING for nuitka
+# pip install --force-reinstall pywin32
+## Failed Fix for pyinstaller
 ##from multiprocessing import freeze_support
 ##from joblib import parallel_backend
 ##parallel_backend("multiprocessing")
@@ -75,6 +77,11 @@ import copy
 ##    # Pyinstaller fix
 ##    freeze_support()
 ##    main()
+
+from multiprocessing import Pool
+# Fix for pyinstaller
+# https://docs.python.org/3/library/multiprocessing.html#multiprocessing.freeze_support
+from multiprocessing import freeze_support
 
 import numpy as np
 from numpy import array as _a
@@ -838,7 +845,6 @@ class GUIControl:
                     (joblib.delayed(batch_load)(j, utils.debug_level)
                         for j in li_file_path_batch)
         else:
-            from multiprocessing import Pool
             with Pool(n_job_cores) as p:
                 li_file_path_batch_ext = zip(li_file_path_batch,
                     (utils.debug_level for i in range(len(li_file_path_batch))))
@@ -1178,6 +1184,7 @@ def get_program_parameters():
     return args
 
 def main():
+    freeze_support()
     cmd_obj_desc = get_program_parameters()
     gui = GUIControl()
     t1 = time.time()
