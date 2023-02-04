@@ -18,6 +18,7 @@ from numpy import array as _a
 import json
 
 from vtkmodules.vtkCommonCore import (
+    vtkCommand,
     vtkPoints,
     VTK_CUBIC_INTERPOLATION
 )
@@ -272,6 +273,7 @@ class ObjTranslator:
             return win_conf
 
         def parse(self, win_conf):
+            # TODO: return render_window object to gui_ctrl
             # TODO: try vtkVRRenderWindow?
             if self.gui_ctrl.render_window is None:
                 self.gui_ctrl.render_window = vtkRenderWindow()
@@ -1064,8 +1066,11 @@ class ObjTranslator:
             win_size = self.gui_ctrl.render_window.GetSize()
             text_actor = vtkTextActor()
             text_actor.SetInput(obj_conf['text'])
+            self.actor = text_actor
+            self._text = obj_conf['text']
 
             prop = text_actor.GetTextProperty()
+            self.property = prop
             # set font
             if obj_conf.get('font_family', '') == 'mono':
                 prop.SetFontFamilyToCourier()
@@ -1083,6 +1088,28 @@ class ObjTranslator:
 
             # set position of text
             position = obj_conf.get('position', None)
+            self._position = position
+            self.OnWindowResize(None, None, win_size)
+
+            self.renderer.AddActor2D(text_actor)
+            self._win_resize_ob_tag = \
+                self.gui_ctrl.render_window. \
+                AddObserver(vtkCommand.WindowResizeEvent, self.OnWindowResize)
+            dbg_print(2, '_win_resize_ob_tag:', self._win_resize_ob_tag)
+            return self
+    
+        def __del__(self):
+            self.gui_ctrl.render_window. \
+                RemoveObserver(self._win_resize_ob_tag)
+            super().__del__()
+    
+        def OnWindowResize(self, obj, event, win_size = None):
+            if win_size is None:
+                # assert isinstance(obj, vtkRenderWindow)
+                win_size = obj.GetSize()
+            position = self._position
+            text_actor = self.actor
+            prop = self.property
             if position == 'center':
                 prop.SetVerticalJustificationToCentered()
                 v = _a([0]*4)
@@ -1096,11 +1123,6 @@ class ObjTranslator:
                 text_actor.SetPosition(win_size[0] - (v[1]-v[0]), 0)
             elif isinstance(position, (list, tuple)):  # assume position is [x,y]
                 text_actor.SetPosition(position[0], position[1])
-
-            self.renderer.AddActor2D(text_actor)
-            self.actor = text_actor
-            self._text = obj_conf['text']
-            return self
     
         @property
         def text(self):

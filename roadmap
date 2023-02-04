@@ -74,15 +74,20 @@ Done:
 * Add initial message to prompt uset to drag-and-drop and press h.
 * Add tips to clicked point, by click "i" key. plus linewraping for long message.
   - now show info, but no i key and no linewraping.
-* Standalone exe
+* Standalone exe - now possible with pyinstaller.
+* auto update window size related objects.
 
 Under consideration:
+* allow loading obj file.
+  - vtkOBJReader  read .obj
 * Avoid selection to non-visible object.
   - test picker?
+* better rotation operation.
+* range selection.
 * Adding current picked point to selected set.
 * Solve the window init flash problem, i.e. properly set window size only once.
 * hash + rnd seed file name to determine swc color?
-* Support *.lpy
+* Support *.lpy, or convert .lyp first
 * Use direction keys to navigate (go forward, backward, left, right, with shift to rotate, or small keyboard)
 * optimize volume blending, by alpha + color to approximate max(a,b).
 * Add transition animation framework for moving viewport
@@ -106,5 +111,3 @@ Under consideration:
 * large render: vtkUnstructuredGrid  https://discourse.vtk.org/t/how-to-draw-10000-object/8438/15
 * why GetTimerEventId (), GetVTKTimerId () not work??  See here https://vtk.org/doc/nightly/html/classvtkRenderWindowInteractor.html#a7ef06e3e7c8cff5767c3b0d328934f55
 * seems usefull: AddRepresentation()  see https://vtk.org/wp-content/uploads/2021/08/VTKUsersGuide.pdf
-* allow loading obj file.
-  - vtkOBJReader  read .obj
