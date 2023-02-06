@@ -341,6 +341,16 @@ class ObjTranslator:
             self.gui_ctrl.plugin_dir = win_conf.get('plugin_dir', './plugins/')
             if 'full_screen' in win_conf:
                 render_window.SetFullScreen(win_conf['full_screen']>0)
+                # TODO: show screen size
+                dbg_print(5, 'screen size:', render_window.GetScreenSize())
+                dbg_print(5, 'window size:', render_window.GetSize())
+                if win_conf['full_screen']:
+                    # Prabably a VTK bug:
+                    # force window size to be the same as the screen size.
+                    wnd_sz = render_window.GetScreenSize()
+                    render_window.SetSize(wnd_sz)
+                    dbg_print(5, 'forced window size:', render_window.GetSize())
+                # TODO: Invoke win size change
             # note down
             self.gui_ctrl.win_conf.update(win_conf)
 
@@ -771,13 +781,20 @@ class ObjTranslator:
             if ('swc' not in obj_desc) and ('swc_dir' not in obj_desc):
                 return None
 
+            if 'swc' not in obj_desc:  # for swc_dir
+                obj_desc['swc'] = []
+
             if 'swc_dir' in obj_desc:
-                # note down *.swc files it to obj_desc['swc']
-                import glob
-                fns = glob.glob(obj_desc['swc_dir'] + '/*.swc')
-                if 'swc' not in obj_desc:
-                    obj_desc['swc'] = []
-                obj_desc['swc'].extend(fns)
+                swc_dir = obj_desc['swc_dir']
+                if os.path.isdir(swc_dir):
+                    # note down *.swc files it to obj_desc['swc']
+                    import glob
+                    fns = glob.glob(swc_dir + '/*.swc')
+                    if len(fns) == 0:
+                        dbg_print(2, f'Option --swc_dir "{swc_dir}" contains no swc.')
+                    obj_desc['swc'].extend(fns)
+                else:
+                    dbg_print(1, f'Option --swc_dir "{swc_dir}" not a directory.')
         
             if not isinstance(obj_desc['swc'], (list, tuple)):
                 obj_desc['swc'] = [obj_desc['swc'],]
