@@ -341,16 +341,18 @@ class ObjTranslator:
             self.gui_ctrl.plugin_dir = win_conf.get('plugin_dir', './plugins/')
             if 'full_screen' in win_conf:
                 render_window.SetFullScreen(win_conf['full_screen']>0)
-                # TODO: show screen size
-                dbg_print(5, 'screen size:', render_window.GetScreenSize())
+                wnd_sz = render_window.GetScreenSize()
+                dbg_print(5, 'screen size:', wnd_sz)
                 dbg_print(5, 'window size:', render_window.GetSize())
                 if win_conf['full_screen']:
                     # Prabably a VTK bug:
                     # force window size to be the same as the screen size.
-                    wnd_sz = render_window.GetScreenSize()
                     render_window.SetSize(wnd_sz)
                     dbg_print(5, 'forced window size:', render_window.GetSize())
-                # TODO: Invoke win size change
+                if render_window.DetectDPI():
+                    render_window.dpi = render_window.GetDPI()
+                    dbg_print(4, 'DPI:', render_window.dpi)
+                render_window.InvokeEvent(vtkCommand.WindowResizeEvent)
             # note down
             self.gui_ctrl.win_conf.update(win_conf)
 
@@ -1091,10 +1093,7 @@ class ObjTranslator:
             # set font
             if obj_conf.get('font_family', '') == 'mono':
                 prop.SetFontFamilyToCourier()
-            font_size = obj_conf['font_size']
-            if font_size == 'auto':
-                font_size = int(31 * win_size[1] / 1600)
-            prop.SetFontSize(font_size)
+            self._font_size = obj_conf['font_size']
             # set color of text and background
             prop.SetColor(obj_conf['color'])
             prop.SetBackgroundColor(obj_conf['background_color'])
@@ -1124,9 +1123,20 @@ class ObjTranslator:
             if win_size is None:
                 # assert isinstance(obj, vtkRenderWindow)
                 win_size = obj.GetSize()
-            position = self._position
+
             text_actor = self.actor
             prop = self.property
+
+            # set auto font size
+            if self._font_size == 'auto':
+                fs = int(31 * win_size[1] / 1600)
+            else:
+                fs = self._font_size
+            if prop.GetFontSize() != fs:
+                prop.SetFontSize(fs)
+
+            # set auto position
+            position = self._position
             if position == 'center':
                 prop.SetVerticalJustificationToCentered()
                 v = _a([0]*4)
@@ -1149,7 +1159,7 @@ class ObjTranslator:
         def text(self, msg):
             self.actor.SetInput(msg)
             self._text = msg
-    
+
     class obj_Background(TranslatorUnit):
         """
         prototype:
