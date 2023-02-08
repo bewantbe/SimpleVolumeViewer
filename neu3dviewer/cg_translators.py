@@ -351,19 +351,30 @@ class ObjTranslator:
             #    render_window.dpi = 96
             #    dbg_print(4, 'DPI default:', render_window.dpi)
             if 'full_screen' in win_conf:
+                window_size_old   = render_window.GetSize()
+                window_position_old = render_window.GetPosition()
                 screen_size = render_window.GetScreenSize()
                 render_window.SetFullScreen(win_conf['full_screen']>0)
                 dbg_print(5, 'screen size:', screen_size)
-                window_size_old = render_window.GetSize()
-                dbg_print(5, 'window size:', window_size_old)
+                window_size_full = render_window.GetSize()
+                dbg_print(5, 'window size:', window_size_full)
                 if win_conf['full_screen']:
+                    # non full screen -> full screen
+                    # note down old window size and position
+                    render_window._windows_size = window_size_old
+                    render_window._windows_position = window_position_old
                     # Prabably a VTK bug:
                     # force window size to be the same as the screen size.
-                    if np.any(_a(window_size_old) - _a(screen_size)):
+                    if np.any(_a(window_size_full) - _a(screen_size)):
                         render_window.SetSize(screen_size)
                         dbg_print(5, 'Forced window to size:', render_window.GetSize())
                 else:
-                    render_window.InvokeEvent(vtkCommand.WindowResizeEvent)
+                    if hasattr(render_window, '_windows_position'):
+                        dbg_print(4, 'Restoring window position and size.')
+                        render_window.SetPosition(render_window._windows_position)
+                        render_window.SetSize(render_window._windows_size)
+                    else:
+                        render_window.InvokeEvent(vtkCommand.WindowResizeEvent)
             # note down
             self.gui_ctrl.win_conf.update(win_conf)
 
