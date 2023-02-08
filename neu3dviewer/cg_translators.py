@@ -339,20 +339,31 @@ class ObjTranslator:
             if 'swc_loading_batch_size' in win_conf:
                 self.gui_ctrl.swc_loading_batch_size = win_conf['swc_loading_batch_size']
             self.gui_ctrl.plugin_dir = win_conf.get('plugin_dir', './plugins/')
+            # The get DPI function in VTK is very unusable.
+            #if render_window.DetectDPI():
+            #    render_window.dpi = render_window.GetDPI()
+            #    dbg_print(4, 'DPI:', render_window.dpi)
+            #    render_window.SetDPI(96)
+            #    dbg_print(4, 'set DPI = 267')
+            #    render_window.dpi = render_window.GetDPI()
+            #    dbg_print(4, 'DPI:', render_window.dpi)
+            #else:
+            #    render_window.dpi = 96
+            #    dbg_print(4, 'DPI default:', render_window.dpi)
             if 'full_screen' in win_conf:
+                screen_size = render_window.GetScreenSize()
                 render_window.SetFullScreen(win_conf['full_screen']>0)
-                wnd_sz = render_window.GetScreenSize()
-                dbg_print(5, 'screen size:', wnd_sz)
-                dbg_print(5, 'window size:', render_window.GetSize())
+                dbg_print(5, 'screen size:', screen_size)
+                window_size_old = render_window.GetSize()
+                dbg_print(5, 'window size:', window_size_old)
                 if win_conf['full_screen']:
                     # Prabably a VTK bug:
                     # force window size to be the same as the screen size.
-                    render_window.SetSize(wnd_sz)
-                    dbg_print(5, 'forced window size:', render_window.GetSize())
-                if render_window.DetectDPI():
-                    render_window.dpi = render_window.GetDPI()
-                    dbg_print(4, 'DPI:', render_window.dpi)
-                render_window.InvokeEvent(vtkCommand.WindowResizeEvent)
+                    if np.any(_a(window_size_old) - _a(screen_size)):
+                        render_window.SetSize(screen_size)
+                        dbg_print(5, 'Forced window to size:', render_window.GetSize())
+                else:
+                    render_window.InvokeEvent(vtkCommand.WindowResizeEvent)
             # note down
             self.gui_ctrl.win_conf.update(win_conf)
 
@@ -1082,7 +1093,6 @@ class ObjTranslator:
         },
         """
         def parse(self, obj_conf):
-            win_size = self.gui_ctrl.render_window.GetSize()
             text_actor = vtkTextActor()
             text_actor.SetInput(obj_conf['text'])
             self.actor = text_actor
@@ -1105,34 +1115,38 @@ class ObjTranslator:
             # set position of text
             position = obj_conf.get('position', None)
             self._position = position
-            self.OnWindowResize(None, None, win_size)
+            self.OnWindowResize(self.gui_ctrl.render_window, None)
 
             self.renderer.AddActor2D(text_actor)
             self._win_resize_ob_tag = \
                 self.gui_ctrl.render_window. \
                 AddObserver(vtkCommand.WindowResizeEvent, self.OnWindowResize)
-            dbg_print(2, '_win_resize_ob_tag:', self._win_resize_ob_tag)
             return self
     
         def __del__(self):
-            self.gui_ctrl.render_window. \
-                RemoveObserver(self._win_resize_ob_tag)
+            if hasattr(self, '_win_resize_ob_tag'):
+                self.gui_ctrl.render_window. \
+                    RemoveObserver(self._win_resize_ob_tag)
             super().__del__()
     
-        def OnWindowResize(self, obj, event, win_size = None):
-            if win_size is None:
-                # assert isinstance(obj, vtkRenderWindow)
-                win_size = obj.GetSize()
+        def OnWindowResize(self, obj, event):
+            # assert isinstance(obj, vtkRenderWindow)
+            win_size = obj.GetSize()
+            dbg_print(5, "obj_text: window size:", win_size)
 
             text_actor = self.actor
             prop = self.property
 
             # set auto font size
             if self._font_size == 'auto':
-                fs = int(31 * win_size[1] / 1600)
+                screen_size = obj.GetScreenSize()
+                #dpi = self.gui_ctrl.render_window.dpi
+                #fs = int(dpi / 96 * 31 * screen_size[1] / 1600)
+                fs = int(31 * screen_size[1] / 1600)
             else:
                 fs = self._font_size
             if prop.GetFontSize() != fs:
+                dbg_print(4, 'obj_text: set font size:', fs)
                 prop.SetFontSize(fs)
 
             # set auto position
