@@ -76,14 +76,16 @@ Done:
   - now show info, but no i key and no linewraping.
 * Standalone exe - now possible with pyinstaller.
 * auto update window size related objects.
-
-Under consideration:
 * allow loading obj file.
   - vtkOBJReader  read .obj
+
+Under consideration:
 * Avoid selection to non-visible object.
   - test picker?
 * better rotation operation.
 * range selection.
+* Add scale bar.
+* Add timeout of status bar.
 * Adding current picked point to selected set.
 * Solve the window init flash problem, i.e. properly set window size only once.
 * hash + rnd seed file name to determine swc color?

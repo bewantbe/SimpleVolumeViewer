@@ -1033,7 +1033,7 @@ class GUIControl:
         self.render_window.Render()
 
     def ShowWelcomeMessage(self, show = True):
-        welcome_msg = " Drag-and-drop to load data. Press 'h' key to get help."
+        welcome_msg = " Drag-and-drop files or a directory here to load data. Press 'h' key to get help."
         if ("_welcome_msg" not in self.scene_objects) and show:
             # show help
             conf = {
