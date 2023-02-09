@@ -17,14 +17,14 @@ Done:
   - almost done, debug where slow, probably the data transfer part.
   - done for now
 * Design an interface for user script?
-  - Use object property to serves the use (analysing) script.
+  - Use object property to serves the user (analyzing) script.
     - done for now, no multi-thread
 * Solve windows Fn key and Home/Del key capture problem? such as receive the KeyPressEvent () (instead of now CharEvent())
   - Check official interactor for OnChar(), do we need to change it after switch from "CharEvent' to "KeyPressEvent"?
   - done.
 * Use Namespace instead of dict for data exchange?
   - considered not suitable for core target.
-* Thinking of use message(event)/callbacks mechanism, to replace the now input/configure/parser mechanism, especially to deal with event priority. e.g. after parse the commandline, sort the events according to the priority, then the GUIControl comsumes the event by the order, also there maybe a special class to deal with the sorting and batch pop-out.
+* Thinking of use message(event)/callbacks mechanism, to replace the now input/configure/parser mechanism, especially to deal with event priority. e.g. after parse the commandline, sort the events according to the priority, then the GUIControl consumes the event by the order, also there maybe a special class to deal with the sorting and batch pop-out.
   - not necessary.
 * Use GetInitialized () to set sleep time?
   - not necessary.

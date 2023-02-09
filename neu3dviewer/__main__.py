@@ -4,7 +4,7 @@
 # Ref.
 # Python package
 # https://docs.python.org/3/library/__main__.html#main-py-in-python-packages
-# Python Appllication
+# Python Application
 # https://docs.python.org/3/using/windows.html#python-application
 
 from .img_block_viewer import main

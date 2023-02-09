@@ -34,7 +34,7 @@ Features
 
 * Use pip
 
-    `pip install vtk tifffile h5py scipy joblib IPython`
+    `pip install vtk tifffile h5py scipy IPython`
 
     Or
 
@@ -44,9 +44,9 @@ Features
 
     `pip install -i https://pypi.tuna.tsinghua.edu.cn/simple -r requirements.txt`
 
-    It is recommended to use a newer version of vtk.
+    It is recommended to use the latest stable version of vtk. e.g. vtk 8.2 has a known bug affects this program, and it is fixed in vtk 9.2.
 
-    `pip install --upgrade vtk
+    `pip install --upgrade vtk`
 
 ## Download code
 
@@ -56,11 +56,13 @@ Features
 
     For example `<url>` could be:
 
-        https://github.com/bewantbe/SimpleVolumeViewer.git
+      https://github.com/bewantbe/SimpleVolumeViewer.git
 
 * Or, download current version
 
     Click the "[Download ZIP](https://github.com/bewantbe/SimpleVolumeViewer/archive/refs/heads/main.zip)".
+
+    Unzip it somewhere, there is no need to "install" it.
 
 # Running
 
@@ -76,11 +78,22 @@ Features
 
     then drag-and-drop file(s) to the GUI.
     
-    Or, with more control options:
+    Or, with options:
 
     `python3 -m neu3dviewer <options>`
+    
+    e.g. to load all SWCs in a directory:
+
+    `python3 -m neu3dviewer --swc_dir brain_data\v1.6.2\swc_registered_low\`
 
     See `python3 -m neu3dviewer --help` for full list of options.
+
+* Use the "Windows" way:
+
+  Double click the executable `SimpleVolumeViewer/bin/neu3dviewer.bat` the drag-and-drop.
+
+  Or create/use a shortcut like `SimpleVolumeViewer/bin/neu3dviewer_py310`. It is recommended to alter the compatibility option for HiDPI to fix the blur problem.
+  e.g. in properties of the shortcut open Compatibility tab, -> Change high DPI settings -> Override high DPI scaling behavior. Scaling performed by: Application.
 
 * To get help
 

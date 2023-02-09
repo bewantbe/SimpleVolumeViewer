@@ -367,7 +367,7 @@ class ObjTranslator:
                     # note down old window size and position
                     render_window._windows_size = window_size_old
                     render_window._windows_position = window_position_old
-                    # Prabably a VTK bug:
+                    # Probably a VTK bug:
                     # force window size to be the same as the screen size.
                     if np.any(_a(window_size_full) - _a(screen_size)):
                         render_window.SetSize(screen_size)

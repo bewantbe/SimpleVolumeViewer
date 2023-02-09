@@ -388,7 +388,7 @@ class ArrayfyList:
 
     def __setitem__(self, idx, val):
         if isinstance(idx, str):
-            raise TypeError('Assigment by string is not allowed.')
+            raise TypeError('Assignment by string is not allowed.')
         elif isinstance(idx, slice):
             # indexing by slice or range, like: "[:10]"
             self.obj_list[idx] = val
@@ -423,20 +423,20 @@ def ArrayFunc(func):
         return y_list
     return broadcasted_func
 
-def inject_swc_utils(ns, oracal = None):
+def inject_swc_utils(ns, oracle = None):
     """
 The following variables are prepared:
     gui_ctrl, iren, interactor, ren, swcs
 See the help like `help(swcs)`, or reference the plugins directory.
     """
-    if oracal is None:
+    if oracle is None:
         # e.g. when used in UIActions and passing ns = locals()
-        oracal = ns['self']
+        oracle = ns['self']
     ns |= globals() | ns   # merge globals in utils.py but not overwrite ns.
-    ns['gui_ctrl']   = oracal.gui_ctrl
-    ns['iren']       = oracal.iren
-    ns['interactor'] = oracal.interactor
-    ns['ren']        = oracal.GetRenderers(1)
+    ns['gui_ctrl']   = oracle.gui_ctrl
+    ns['iren']       = oracle.iren
+    ns['interactor'] = oracle.interactor
+    ns['ren']        = oracle.GetRenderers(1)
 
     gui_ctrl = ns['gui_ctrl']
     iren = ns['iren']

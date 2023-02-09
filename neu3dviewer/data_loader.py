@@ -27,7 +27,7 @@ from vtkmodules.vtkIOImage import (
 
 def read_tiff(tif_path, as_np_array = True):
     """
-    Read tiff file, return images (as nparray) and meta data.
+    Read tiff file, return images (as np.ndarray) and meta data.
     Copy from volumeio.py
     See also https://pypi.org/project/tifffile/
     """
@@ -390,12 +390,12 @@ def GetUndirectedGraph(tr):
     tr_idx = np.array(tr_idx)
 
     # remove edge s.t. parent = -1
-    negtive_parent_idx, = np.nonzero(tr_idx[:, 1] == -1)
+    negative_parent_idx, = np.nonzero(tr_idx[:, 1] == -1)
     bidx = np.ones(tr_idx.shape[0], dtype=bool)
-    bidx[negtive_parent_idx] = False
+    bidx[negative_parent_idx] = False
     tr_idx = tr_idx[bidx, :]
-    if len(negtive_parent_idx) > 1:
-        dbg_print(4, 'GetUndirectedGraph(): multiple roots! ', negtive_parent_idx)
+    if len(negative_parent_idx) > 1:
+        dbg_print(4, 'GetUndirectedGraph(): multiple roots! ', negative_parent_idx)
 
     # Generate undirected graph
     ij = np.concatenate([tr_idx[1:, 0:2], tr_idx[1:, 1::-1]], axis=0)

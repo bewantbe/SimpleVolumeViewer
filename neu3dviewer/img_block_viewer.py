@@ -286,7 +286,7 @@ class VolumeClipper:
         """
         Parameter description:
           points               : the Points to calculate the bounding box
-          box_scaling          : the scale of the bouding box
+          box_scaling          : the scale of the bounding box
           min_boundary_length  : the min length/width/height of the bounding box 
         """
         self.points = None

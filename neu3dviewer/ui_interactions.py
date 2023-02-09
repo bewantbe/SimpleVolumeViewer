@@ -62,7 +62,7 @@ class RepeatingTimerHandler():
     Requirements:
         exec_obj(obj, event, t_now)   Observer obj and event, parameter t_now.
         exec_obj.startat(t)           parameter t.
-    Implimented by adding interactor observer TimerEvent.
+    Implemented by adding interactor observer TimerEvent.
     """
     def __init__(self, interactor, duration, exec_obj, fps = 30, b_fixed_clock_rate = False):
         self.exec_obj = exec_obj
