@@ -738,6 +738,34 @@ def GenerateKeyBindingDoc(key_binding = DefaultKeyBindings(),
     s += " \n"
     return s
 
+class MouseDoubleClickHelper:
+    max_click_interval = 0.33  # second
+    max_click_dislocation = 5  # pixel
+    
+    def __init__(self):
+        self.t_last = -1.0
+        self.position = np.array([0, 0], dtype = np.int32)
+        self.repeat_count = 0
+    
+    def ClickedAt(self, x, y):
+        # typical usage:
+        #   mdc.ClickedAt(x,y).repeat_count == 2
+        t = time.time()
+        if (t - self.t_last <= self.max_click_interval) and \
+          (abs(x - self.position[0]) <= self.max_click_dislocation) and \
+          (abs(y - self.position[1]) <= self.max_click_dislocation):
+            self.repeat_count += 1
+        else:
+            self.repeat_count = 1
+        self.position[0] = x
+        self.position[1] = y
+        self.t_last = t
+        return self
+
+    def Clicked(self, iren):
+        clickPos = iren.GetEventPosition()
+        return self.ClickedAt(clickPos[0], clickPos[1])
+    
 class MyInteractorStyle(vtkInteractorStyleTerrain):
     """
     Deal with keyboard and mouse interactions.
@@ -781,8 +809,9 @@ class MyInteractorStyle(vtkInteractorStyleTerrain):
                          self.right_button_release_event)
         # somehow VTK do not trigger LeftButtonDoubleClickEvent(at least v9.2)
         # we have to implement it ourself.
-        #self.AddObserver('LeftButtonDoubleClickEvent',
-                         #self.left_button_double_click_event)
+        #self.AddObserver(vtkCommand.LeftButtonDoubleClickEvent,
+        #                 self.left_button_double_click_event)
+        self.mdc = MouseDoubleClickHelper()
 
         for m in ['MouseLeftButton', 'MouseMiddleButton', 'MouseRightButton']:
             setattr(self, self.get_mb_var_name(m), '')
@@ -824,10 +853,13 @@ class MyInteractorStyle(vtkInteractorStyleTerrain):
             self.OnLeftButtonUp()
 
     def left_button_press_event(self, obj, event):
-        if self.iren.GetRepeatCount() == 1:  # double click
+        if self.mdc.Clicked(self.iren).repeat_count == 2:  # double click
             self.mouse_press_event_common(obj, 'MouseLeftButtonDoubleClick')
         else:   # single click
             self.mouse_press_event_common(obj, 'MouseLeftButton')
+
+#    def left_button_double_click_event(self, obj, event):
+#        self.mouse_press_event_common(obj, 'MouseLeftButtonDoubleClick')
 
     def left_button_release_event(self, obj, event):
         if getattr(self, '_last_MouseLeftButtonDoubleClick_combo', None):
@@ -857,9 +889,6 @@ class MyInteractorStyle(vtkInteractorStyleTerrain):
     def right_button_release_event(self, obj, event):
         self.mouse_release_event_common(obj, 'MouseRightButton')
         return
-
-    def left_button_double_click_event(self, obj, event):
-        self.mouse_press_event_common(obj, 'MouseLeftButtonDoubleClick')
 
     def get_key_modifier(self, iren):
         """Return key modifier, in fixed order (Ctrl, Alt, Shift)."""
