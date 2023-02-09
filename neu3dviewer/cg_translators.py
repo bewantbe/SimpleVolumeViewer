@@ -28,6 +28,10 @@ from vtkmodules.vtkCommonDataModel import (
     vtkPolyData,
     vtkPolyLine,
 )
+from vtkmodules.vtkIOGeometry import (
+    vtkOBJReader,
+    vtkSTLReader,
+)
 from vtkmodules.vtkCommonColor import (
     vtkNamedColors,
     vtkColorSeries
@@ -1001,6 +1005,103 @@ class ObjTranslator:
         def line_width(self, lw):
             self.property.SetLineWidth(lw)
             self._line_width = lw
+
+    class obj_mesh(TranslatorUnit):
+        """
+        prototype:
+        "mesh": {
+            "type": "mesh",
+            "file_path": "path_to_file",  # can be .obj or .stl
+            "color": "grey",
+            "opacity": 0.7,
+        },
+        """
+
+        @staticmethod
+        def add_argument_to(parser):
+            group = parser.add_argument_group('Mesh file options')
+            group.add_argument('--mesh_path', action='append',
+                    help='Read and draw OBJ/STL file path.')
+            group.add_argument('--mesh_dir',
+                    help='Read and draw OBJ/STL in directory.')
+            group.add_argument('--mesh_color', metavar='COLOR',
+                    help='Set color, like "Red".')
+            group.add_argument('--mesh_opacity', metavar='OPACITY', type=float,
+                    help='Set opacity, e.g. "0.7".')
+
+        @staticmethod
+        def parse_cmd_args(obj_desc):
+            if ('mesh_path' not in obj_desc) and ('mesh_dir' not in obj_desc):
+                return None
+
+            if 'mesh_path' not in obj_desc:  # for mesh_dir
+                obj_desc['mesh_path'] = []
+
+            if 'mesh_dir' in obj_desc:
+                mesh_dir = obj_desc['mesh_dir']
+                if os.path.isdir(mesh_dir):
+                    # note down *.mesh_path files it to obj_desc['mesh_path']
+                    import glob
+                    fns = glob.glob(mesh_dir + '/*.obj')
+                    fns.extend(glob.glob(mesh_dir + '/*.stl'))
+                    if len(fns) == 0:
+                        dbg_print(2, f'Option --mesh_dir "{mesh_dir}" contains no OBJ/STL.')
+                    obj_desc['mesh_path'].extend(fns)
+                else:
+                    dbg_print(1, f'Option --mesh_dir "{mesh_dir}" not a directory.')
+
+            file_paths = obj_desc['mesh_path']
+            if not isinstance(file_paths, list):
+                file_paths = [file_paths]
+            
+            obj_conf_s = [
+                {
+                    "type": "mesh",
+                    "file_path": p,
+                    "color": obj_desc.get('mesh_color', 'grey'),
+                    "opacity": obj_desc.get('mesh_opacity', 0.7),
+                }
+                for p in file_paths
+            ]
+            return obj_conf_s
+
+        def parse(self, obj_conf):
+            file_path = obj_conf['file_path']
+            if file_path.endswith('.obj'):
+                reader = vtkOBJReader()
+                reader.SetFileName(file_path)
+            elif file_path.endswith('.stl'):
+                reader = vtkSTLReader()
+                reader.SetFileName(file_path)
+            else:
+                dbg_print(1, 'Unrecognized file format.')
+                return self
+
+            mapper = vtkPolyDataMapper()
+            mapper.SetInputConnection(reader.GetOutputPort())
+
+            actor = vtkActor()
+            actor.SetMapper(mapper)
+            self.actor = actor
+            prop = actor.GetProperty()
+            self.property = prop
+            self._opacity = obj_conf['opacity']
+            self._color   = obj_conf['color']
+            if self._opacity == 1.0:
+                prop.SetDiffuse(0.8)
+                prop.SetDiffuseColor(vtkGetColorAny3d(self._color))
+                prop.SetSpecular(0.3)
+                prop.SetSpecularPower(60.0)
+            else:
+                prop.SetOpacity(self._opacity)
+                prop.SetColor(vtkGetColorAny3d(self._color))
+                #prop.SetAmbientColor(0.0, 0.0, 0.0)
+                #prop.SetDiffuseColor(0.0, 0.0, 0.0)
+                #prop.SetSpecularColor(0.0, 0.0, 0.0)
+
+            self.renderer.AddActor(actor)
+            return self
+
 
     class obj_AxesActor(TranslatorUnit):
         """
