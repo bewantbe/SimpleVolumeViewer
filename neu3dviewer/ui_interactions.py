@@ -118,7 +118,7 @@ class PointPicker():
         ren_win = renderer.GetRenderWindow()
         cam = renderer.GetActiveCamera()
         self.InitViewParam(cam, ren_win.GetSize())
-        self.p = np.array(points, dtype=np.float64)
+        self.p = np.array(points, dtype=_point_set_dtype_)
 
     def InitViewParam(self, camera, screen_dims):
         # The matrix from cam to world
@@ -138,11 +138,10 @@ class PointPicker():
             unit_view_window = _a([view_length*aspect_ratio, view_length])
         self.pixel_scale = unit_view_window / _a(screen_dims)
 
-    def PickAt(self, posxy):
+    def PickAt(self, posxy, ret_all = False):
         cam_min_view_distance = 0
         selection_angle_tol = 0.01
         dbg_print(5, 'PickAt(): number of points:', self.p.shape[1])
-        p = self.p.astype(_point_set_dtype_)
         # constructing picker line: r = v * t + o
         o = - self.cam_m[0:3,0:3].T @ self.cam_m[0:3, 3:4]  # cam pos in world
         o = o.astype(_point_set_dtype_)
@@ -151,7 +150,7 @@ class PointPicker():
         v = self.cam_m[0:3,0:3].T @ _a([[posxy_cam[0], posxy_cam[1], -1]]).T
         v = v.astype(_point_set_dtype_)
         # compute distance from p to the line r
-        u = p - o
+        u = self.p - o
         t = (v.T @ u) / (v.T @ v)
         dist = np.linalg.norm(u - v * t, axis=0)   # slow for large data set
         angle_dist = dist / t
@@ -159,10 +158,18 @@ class PointPicker():
         # find nearest point
         in_view_tol = (t > cam_min_view_distance) & (angle_dist < selection_angle_tol)
         ID_selected = np.flatnonzero(in_view_tol)
+        angle_dist_selected = angle_dist[0, ID_selected]
+
+        if ret_all:
+            # sort by angle
+            ind = np.argsort(angle_dist_selected)
+            ID_selected = ID_selected[ind]
+            return ID_selected, self.p[:, ID_selected]
+
         if ID_selected.size > 0:
-            angle_dist_selected = angle_dist[0, ID_selected]
             ID_selected = ID_selected[np.argmin(angle_dist_selected)]
-        return ID_selected, p[:, ID_selected]
+
+        return ID_selected, self.p[:, ID_selected]
 
 class PointSetHolder():
     def __init__(self):
@@ -170,6 +177,7 @@ class PointSetHolder():
         self._len = 0
         self._point_set_boundaries = [0]
         self.name_list = []
+        self._name_idx_map = {}
     
     def AddPoints(self, points, name):
         # TODO, maybe make it possible to find 'name' by point
@@ -206,6 +214,46 @@ class PointSetHolder():
     
     def __call__(self):
         return self.ConstructMergedArray()
+
+    @property
+    def name_idx_map(self):
+        if len(self._name_idx_map) != len(self.name_list):
+            # build it!
+            self._name_idx_map = {n:j for j, n in enumerate(self.name_list)}
+        return self._name_idx_map
+
+    def FindFirstObject(self, point_id_array, allowable_object_list):
+        """
+        Return the object name that corresponds to a point in point_id_array which:
+        * the object is in allowable_object_list;
+        * it is the first appeared object corresponds to points in point_id_array.
+        """
+        none = None, np.array([], dtype=np.int32)
+        if point_id_array.size == 0:
+            return none
+
+        if allowable_object_list is None:
+            # select only the first object
+            pidid = 0
+            pid = point_id_array[0]
+        else:
+            if len(allowable_object_list) == 0:
+                return none
+            name_idx_map = self.name_idx_map
+            object_ids = [name_idx_map[n] for n in allowable_object_list]
+            # naive algorithm, may be do it segment by segment?
+            obj_idx_list = self.GetSetidByPointId(point_id_array)
+            obj_hit = np.isin(obj_idx_list, object_ids)
+            idx_hit = np.flatnonzero(obj_hit)
+            dbg_print(4, 'FindFirstObject: found:', idx_hit)
+            if len(idx_hit) == 0:
+                return none
+            pidid = idx_hit[0]
+            pid = point_id_array[pidid]
+        
+        #obj_name = self.GetNameByPointId(pid)
+        #return obj_name
+        return pid, pidid
 
 class UIActions():
     """
@@ -457,20 +505,37 @@ class UIActions():
         # Ref. HighlightWithSilhouette
         # https://kitware.github.io/vtk-examples/site/Python/Picking/HighlightWithSilhouette/
         clickPos = self.iren.GetEventPosition()
-        dbg_print(4, 'clicked at', clickPos)
+        dbg_print(4, 'Clicked at', clickPos)
         if in_vr_mode:
             win_size = wnd.GetSize()
             wx2 = win_size[0]/2
             dx = wx2 if clickPos[0] > wx2 else 0
             clickPos = (2*(clickPos[0]-dx), clickPos[0])
 
-        ppicker = PointPicker(self.gui_ctrl.point_set_holder(), ren)
-        pid, pxyz = ppicker.PickAt(clickPos)
+        obj_swc = self.gui_ctrl.GetObjectsByType('swc')
+        selectable_names = [
+            n
+            for n,o in obj_swc.items()
+            if o.visible == True
+        ]
+
+        pointsh = self.gui_ctrl.point_set_holder
+
+        ppicker = PointPicker(pointsh(), ren)
+        
+        if len(selectable_names) == len(obj_swc):
+            pid, pxyz = ppicker.PickAt(clickPos)
+        else:
+            pid, pxyz = ppicker.PickAt(clickPos, True)
+            pid, pidid = pointsh.FindFirstObject(pid, selectable_names)
+            dbg_print(4, 'PickAt(): Multi-pick: pid =', pid)
+            pxyz = pxyz[:, pidid]
         
         if pxyz.size > 0:
-            obj_name = self.gui_ctrl.point_set_holder.GetNameByPointId(pid)
-            dbg_print(4, f'picked point id = {pid}, xyz = {pxyz}')
-            dbg_print(4, f'selected object: {obj_name}')
+            dbg_print(4, f'PickAt(): point id = {pid}, xyz = {pxyz}')
+            obj_name = pointsh.GetNameByPointId(pid)
+            swc_name = self.gui_ctrl.scene_objects[obj_name].swc_name
+            dbg_print(4, f'PickAt(): object: {obj_name} ({swc_name})')
             info = f'picked point: \nxyz = {pxyz} '
             self.gui_ctrl.InfoBar({'type':'swc', 'obj_name':obj_name, 'header':info})
             self.gui_ctrl.SetSelectedPID(pid)
@@ -481,16 +546,18 @@ class UIActions():
                 else:
                     # add
                     self.gui_ctrl.selected_objects.append(obj_name)
-            dbg_print(4, 'selected obj:', self.gui_ctrl.selected_objects)
+            dbg_print(4, 'Selected obj:', self.gui_ctrl.selected_objects)
+            return True
         else:
-            dbg_print(4, 'picked no point', pid, pxyz)
+            dbg_print(4, 'PickAt(): picked no point', pid, pxyz)
             self.gui_ctrl.InfoBar('')
-        # purposely no call to self.OnRightButtonDown()
+            return False
     
     def select_and_fly_to(self):
         """Pick the point at cursor and fly to it."""
-        self.select_a_point()
-        self.fly_to_cursor()
+        valid = self.select_a_point()
+        if valid:
+            self.fly_to_cursor()
 
     def deselect(self, select_mode = ''):
         """Deselect all selected objects."""

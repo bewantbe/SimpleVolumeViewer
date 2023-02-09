@@ -44,17 +44,21 @@ Features
 
     `pip install -i https://pypi.tuna.tsinghua.edu.cn/simple -r requirements.txt`
 
+    It is recommended to use a newer version of vtk.
+
+    `pip install --upgrade vtk
+
 ## Download code
 
 * Use git
 
     `git clone <url>`
 
-    For example <url> could be:
+    For example `<url>` could be:
 
         https://github.com/bewantbe/SimpleVolumeViewer.git
 
-* Download current version
+* Or, download current version
 
     Click the "[Download ZIP](https://github.com/bewantbe/SimpleVolumeViewer/archive/refs/heads/main.zip)".
 

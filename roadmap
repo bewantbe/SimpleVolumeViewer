@@ -78,10 +78,9 @@ Done:
 * auto update window size related objects.
 * allow loading obj file.
   - vtkOBJReader  read .obj
+* Avoid selection to non-visible object.
 
 Under consideration:
-* Avoid selection to non-visible object.
-  - test picker?
 * better rotation operation.
 * range selection.
 * Add scale bar.
@@ -91,6 +90,7 @@ Under consideration:
 * hash + rnd seed file name to determine swc color?
 * Support *.lpy, or convert .lyp first
 * Use direction keys to navigate (go forward, backward, left, right, with shift to rotate, or small keyboard)
+* test vtk picker?
 * optimize volume blending, by alpha + color to approximate max(a,b).
 * Add transition animation framework for moving viewport
   - Make Y direction the up direction.

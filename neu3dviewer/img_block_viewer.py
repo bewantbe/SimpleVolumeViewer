@@ -669,10 +669,10 @@ class GUIControl:
 
     def GetObjectsByType(self, str_type, n_find = -1):
         """ Find all (at most n_find) objects with the type str_type. """
-        li_obj = []
+        li_obj = {}
         for k, conf in self.scene_saved['objects'].items():
             if conf['type'] == str_type:
-                li_obj.append(self.scene_objects[k])
+                li_obj[k] = self.scene_objects[k]
                 n_find -= 1
                 if n_find == 0:
                     break

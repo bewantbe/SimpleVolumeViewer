@@ -444,7 +444,7 @@ See the help like `help(swcs)`, or reference the plugins directory.
 
 def NamespaceOfSwcUtils(gui_ctrl, iren):
     ns = {}
-    swc_objs = gui_ctrl.GetObjectsByType('swc')
+    swc_objs = list(gui_ctrl.GetObjectsByType('swc').values())
     ns['swcs'] = ArrayfyList(swc_objs)
     ns['Render'] = iren.GetRenderWindow().Render
     return ns

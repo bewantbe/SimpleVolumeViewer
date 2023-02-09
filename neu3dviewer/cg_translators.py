@@ -1244,7 +1244,8 @@ class ObjTranslator:
         def OnWindowResize(self, obj, event):
             # assert isinstance(obj, vtkRenderWindow)
             win_size = obj.GetSize()
-            dbg_print(5, "obj_text: window size:", win_size)
+            if event is not None:
+                dbg_print(5, "obj_text: window size:", win_size)
 
             text_actor = self.actor
             prop = self.property
@@ -1284,6 +1285,8 @@ class ObjTranslator:
         @text.setter
         def text(self, msg):
             self.actor.SetInput(msg)
+            # re-position
+            self.OnWindowResize(self.gui_ctrl.render_window, None)
             self._text = msg
 
     class obj_Background(TranslatorUnit):
