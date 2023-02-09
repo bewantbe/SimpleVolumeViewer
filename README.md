@@ -44,6 +44,20 @@ Features
 
     `pip install -i https://pypi.tuna.tsinghua.edu.cn/simple -r requirements.txt`
 
+## Download code
+
+* Use git
+
+    `git clone <url>`
+
+    For example <url> could be:
+
+        https://github.com/bewantbe/SimpleVolumeViewer.git
+
+* Download current version
+
+    Click the "[Download ZIP](https://github.com/bewantbe/SimpleVolumeViewer/archive/refs/heads/main.zip)".
+
 # Running
 
 * In command line (terminal) window

@@ -5,12 +5,12 @@
 # specialized for viewing of neuron tracing results.
 
 # Dependencies:
-# pip install vtk tifffile h5py scipy joblib IPython
+# pip install vtk tifffile h5py scipy IPython
 
 # Usage examples:
-# python img_block_viewer.py --filepath RM006_s128_c13_f8906-9056.tif
-# ./img_block_viewer.py --filepath z00060_c3_2.ims --level 3 --range '[400:800, 200:600, 300:700]' --colorscale 10
-# ./img_block_viewer.py --filepath 3864-3596-2992_C3.ims --colorscale 10 --swc R2-N1-A2.json.swc_modified.swc --fibercolor green
+# python img_block_viewer.py --img_path RM006_s128_c13_f8906-9056.tif
+# ./img_block_viewer.py --img_path z00060_c3_2.ims --level 3 --range '[400:800, 200:600, 300:700]' --colorscale 10
+# ./img_block_viewer.py --img_path 3864-3596-2992_C3.ims --colorscale 10 --swc R2-N1-A2.json.swc_modified.swc --fibercolor green
 # ./img_block_viewer.py --lychnis_blocks RM006-004-lychnis/image/blocks.json --swc RM006-004-lychnis/F5.json.swc
 # ./img_block_viewer.py --scene scene_example_vol_swc.json
 # ./img_block_viewer.py --scene scene_example_rm006_3.json --lychnis_blocks RM006-004-lychnis/image/blocks.json
@@ -57,9 +57,9 @@ import os
 import os.path
 import argparse
 import json
-import joblib
 import copy
 
+#import joblib
 # Use pyinstaller with joblib is not possible due to bug:
 #   https://github.com/joblib/joblib/issues/1002
 # The workaround parallel_backend("multiprocessing") do not work due to 
@@ -79,6 +79,7 @@ import copy
 ##    main()
 
 from multiprocessing import Pool
+from multiprocessing import cpu_count
 # Fix for pyinstaller
 # https://docs.python.org/3/library/multiprocessing.html#multiprocessing.freeze_support
 from multiprocessing import freeze_support
@@ -824,7 +825,7 @@ class GUIControl:
             li_file_path_batch.append(li_file_path[k : k + n_batch_size])
             k += n_batch_size
         dbg_print(5, f'AddBatchSWC(): n_jobs = {len(li_file_path)}, batch_size = {n_batch_size}, n_batch = {len(li_file_path_batch)}')
-        n_job_cores = min(self.n_max_cpu_cores_default, joblib.cpu_count())
+        n_job_cores = min(self.n_max_cpu_cores_default, cpu_count())
         dbg_print(4, f'AddBatchSWC(): using {n_job_cores} cores')
 
         dbg_print(4, 'AddBatchSWC(): loading...')
@@ -1056,7 +1057,11 @@ class GUIControl:
         if not cmd_obj_desc:
             return
         if isinstance(cmd_obj_desc, str):
-            cmd_obj_desc = {'filepath': cmd_obj_desc}
+            self.DropFilesObjectImporter([cmd_obj_desc])
+            return
+        if isinstance(cmd_obj_desc, list):
+            self.DropFilesObjectImporter(cmd_obj_desc)
+            return
 
         self.li_cg_conf = self.translator \
                           .parse_all_cmd_args_obj(cmd_obj_desc, 'animation')
