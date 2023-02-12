@@ -182,7 +182,6 @@ class PointSetHolder():
         self._name_idx_map = {}
     
     def AddPoints(self, points, name):
-        # TODO, maybe make it possible to find 'name' by point
         # points shape should be space_dim x index_dim
         self._points_list.append(points.astype(_point_set_dtype_))
         self._len += points.shape[1]
@@ -401,7 +400,7 @@ class UIActions():
         # event(command/observer) to signal(notify) the main UI to read the
         # commands from the shell through a queue.
         #from IPython import embed
-        self.gui_ctrl.StatusBar(' Exit the interactive shell (CMD) to return to this GUI.')
+        self.gui_ctrl.StatusBar(' To return to this GUI, exit the interactive shell (CMD).')
         self.iren.GetRenderWindow().Render()
         from IPython.terminal.embed import InteractiveShellEmbed
         from IPython import start_ipython
@@ -836,7 +835,7 @@ def GenerateKeyBindingDoc(key_binding = DefaultKeyBindings(),
                           action = UIActions('', '', ''), help_mode = ''):
     """Generate the key binding description from code, for help message."""
     if help_mode == 'quick':
-        s = QuickKeyBindingsHelpDoc()  # TODO remove this?
+        s = QuickKeyBindingsHelpDoc()
         return s
     # Some function(command) binds to multiple keys, we better merge them.
     # get unique function items

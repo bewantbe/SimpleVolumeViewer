@@ -234,7 +234,6 @@ class ObjTranslator:
 
         @staticmethod
         def add_argument_to(parser):
-            # TODO: add group
             group = parser.add_argument_group('Window settings')
             group.add_argument('--window_size', metavar='SIZE',
                     help='Set window size like "1024x768".')
@@ -385,7 +384,6 @@ class ObjTranslator:
         def parse_post_renderers(self, win_conf):
             # Off screen rendering
             # https://discourse.vtk.org/t/status-of-vtk-9-0-with-respect-to-off-screen-rendering-under-ubuntu-with-pip-install/5631/2
-            # TODO: add an option for off screen rendering
             if win_conf.get('off_screen_rendering', False) > 0:
                 self.gui_ctrl.render_window.SetOffScreenRendering(1)
                 self.gui_ctrl.do_not_start_interaction = True
@@ -1251,12 +1249,15 @@ class ObjTranslator:
             text_actor = self.actor
             prop = self.property
 
+            if text_actor is None:
+                return
+
             # set auto font size
             if self._font_size == 'auto':
                 screen_size = obj.GetScreenSize()
                 #dpi = self.gui_ctrl.render_window.dpi
                 #fs = int(dpi / 96 * 31 * screen_size[1] / 1600)
-                fs = int(31 * screen_size[1] / 1600)
+                fs = int(26 * screen_size[1] / 1600)
             else:
                 fs = self._font_size
             if prop.GetFontSize() != fs:
