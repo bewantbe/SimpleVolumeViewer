@@ -25,6 +25,8 @@ from vtkmodules.vtkInteractionStyle import (
 )
 from .utils import (
     dbg_print,
+    Struct,
+    RotationMat,
     vtkMatrix2array,
     inject_swc_utils,
 )
@@ -272,6 +274,10 @@ class UIActions():
         self.iren = iren
         self.gui_ctrl = gui_ctrl
 
+        # private variables for actions
+        self.on_mouse_move_observer_id = {}
+        self._rotation_assistant = Struct()
+
     def ExecByCmd(self, fn_name, get_attr_name = None):
         """Call the action by name or list of name and arguments."""
         if get_attr_name is None:
@@ -482,10 +488,87 @@ class UIActions():
 
     def camera_rotate_around(self):
         """Rotate view angle around the focus point."""
-        self.interactor.OnLeftButtonDown()    # vtkInteractorStyleTerrain
+        iren = self.iren
+        win = self.gui_ctrl.render_window
+        ren = self.gui_ctrl.GetMainRenderer()
+        cam = ren.GetActiveCamera()
+        mouse_pos = _a(iren.GetEventPosition())
+        # state of beginning of rotation
+        ra = self._rotation_assistant
+        ra.mouse_pos_init = mouse_pos
+        ra.mouse_pos      = mouse_pos
+        ra.window_size    = _a(win.GetSize())
+        ra.window_pos     = _a(win.GetPosition())
+        ra.mtime_init     = iren.GetMTime()
+        ra.mtime          = ra.mtime_init
+        # see PointPicker::InitViewParam on how to use this matrix
+        ra.camera_mat_init = vtkMatrix2array(cam.GetModelViewTransformMatrix())
+        ra.cam_focal_init  = _a(cam.GetFocalPoint())
+        ra.cam_pos_init    = _a(cam.GetPosition())
+        # pre computation
+        r_rel_start = (ra.mouse_pos_init - ra.window_size / 2) / ra.window_size
+        th_v0 = -pi*r_rel_start[1]
+        th_h0 =  pi*r_rel_start[0]
+        ra.rolling_space = RotationMat(th_v0, 'x') @ RotationMat(th_h0, 'y')
+        # note down observer
+        ob_id = self.interactor. \
+            AddObserver(vtkCommand.MouseMoveEvent, self.camera_rotate_around_update)
+        self.on_mouse_move_observer_id['rotate'] = ob_id
+        # old implimentation
+        #self.interactor.OnLeftButtonDown()    # vtkInteractorStyleTerrain
     
+    def camera_rotate_around_update(self, e_obj, event):
+        # Ref.
+        # void vtkInteractorStyleTerrain::Rotate()
+        # https://github.com/Kitware/VTK/blob/d706250a1422ae1e7ece0fa09a510186769a5fec/Interaction/Style/vtkInteractorStyleTerrain.cxx#L186
+        iren = self.iren
+        ren = self.gui_ctrl.GetMainRenderer()
+        cam = ren.GetActiveCamera()
+        mouse_pos = _a(iren.GetEventPosition())
+        # compute rotation
+        ra = self._rotation_assistant
+        # relative positions, range [-0.5 ~ 0.5], 0 = middle of window
+        r_rel       = (mouse_pos         - ra.mouse_pos_init ) / ra.window_size
+        # rotation matrix
+        th_vertical   = -pi*r_rel[1]
+        #th_horizontal = pi*r_rel[0] * ra.window_size[0] / ra.window_size[1]
+        th_horizontal = pi*r_rel[0]
+        rot = RotationMat(th_vertical, 'x') @ RotationMat(th_horizontal, 'y')
+        # denote cam_m =[[u, v],
+        #                [0, 1]]
+        # [vec_cam, 1]' = cam_m * [vec_world, 1]'
+        # vec_cam = u * vec_world + v
+        # vec_cam = u * (vec_world + u' * v)
+        # invariants
+        #   cam_focal
+        #   u * (cam_pos - cam_focal) = u0 * (cam_pos_init - cam_focal)
+
+        u0 = ra.camera_mat_init[0:3, 0:3]
+        ## The old rotation is equivalent to 
+        #u = RotationMat(th_vertical, 'x') @ u0 @ RotationMat(th_horizontal, 'y')
+        u = ra.rolling_space @ rot @ ra.rolling_space.T @ u0
+        cam_pos = u.T @ u0 @ (ra.cam_pos_init - ra.cam_focal_init) + ra.cam_focal_init
+        v = u @ (-cam_pos)
+        cam.SetRoll(0.0)
+        cam.SetPosition(cam_pos)
+        cam.SetFocalPoint(ra.cam_focal_init)
+        cam.SetViewUp(u.T[:,1])
+
+        #dbg_print(5, 'u =\n', u)
+        #dbg_print(5, 'v =\n', v)
+
+        ## the old rotation
+        ## e_obj.Rotate()
+        ## camera_mat = vtkMatrix2array(cam.GetModelViewTransformMatrix())
+        ## dbg_print(5, 'rot =\n', camera_mat[0:3,0:3])
+
+        iren.GetRenderWindow().Render()
+
     def camera_rotate_around_release(self):
-        self.interactor.OnLeftButtonUp()      # vtkInteractorStyleTerrain
+        ob_id = self.on_mouse_move_observer_id.get('rotate', None)
+        if ob_id is not None:
+            self.interactor.RemoveObserver(ob_id)
+        #self.interactor.OnLeftButtonUp()      # vtkInteractorStyleTerrain
 
     def camera_move_translational(self):
         """Move camera translationally in the scene."""
@@ -843,6 +926,10 @@ class MyInteractorStyle(vtkInteractorStyleTerrain):
         vtkInteractorStyleTrackballCamera
         vtkInteractorStyleUser
     """
+    # vtkWin32RenderWindowInteractor.cxx
+    # https://github.com/Kitware/VTK/blob/d706250a1422ae1e7ece0fa09a510186769a5fec/Rendering/UI/vtkWin32RenderWindowInteractor.cxx
+    # vtkInteractorStyleTerrain.cxx
+    # https://github.com/Kitware/VTK/blob/d706250a1422ae1e7ece0fa09a510186769a5fec/Interaction/Style/vtkInteractorStyleTerrain.cxx
 
     user_event_cmd_id = vtkCommand.UserEvent + 1
 
@@ -887,6 +974,11 @@ class MyInteractorStyle(vtkInteractorStyleTerrain):
         # 'CharEvent' is not working on Windows for many of the keys and most of key combinations
         self.AddObserver('CharEvent', self.OnChar)
         self.AddObserver('KeyPressEvent', self.OnKeyPress)
+
+        #self.gui_ctrl.GetMainRenderer(). \
+        #    AddObserver(vtkCommand.EndEvent, self.OnRenderEnd)
+        #self.t_last_update = time.time()
+        #self.n_frames = 0
 
         self.AddObserver('DropFilesEvent', self.OnDropFiles)
         self.AddObserver(self.user_event_cmd_id, self.OnUserEventCmd)
@@ -1021,6 +1113,15 @@ class MyInteractorStyle(vtkInteractorStyleTerrain):
         self.execute_key_cmd(key_combo)
 
         super().OnKeyPress()
+
+    def OnRenderEnd(self, obj, event):
+        self.n_frames += 1
+        t = time.time()
+        if t - self.t_last_update > 2.0:
+            fps = self.n_frames / (t - self.t_last_update)
+            dbg_print(5, f'FPS = {fps:.3f}')
+            self.t_last_update = t
+            self.n_frames = 0
 
     @calldata_type(VTK_OBJECT)
     def OnDropFiles(self, obj, event, calldata):

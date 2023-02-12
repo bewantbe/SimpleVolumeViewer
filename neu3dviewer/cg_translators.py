@@ -444,6 +444,7 @@ class ObjTranslator:
                     MyInteractorStyle(interactor, self.gui_ctrl))
         #    interactor.AddObserver('ModifiedEvent', ModifiedCallbackFunction)
             interactor.SetRenderWindow(self.gui_ctrl.render_window)
+            #interactor.SetDesiredUpdateRate(30.0)
             return interactor
 
     class init_scene(TranslatorUnit):

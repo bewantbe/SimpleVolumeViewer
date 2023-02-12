@@ -4,6 +4,7 @@
 
 import datetime
 import numpy as np
+from numpy import eye, sin, cos
 
 from vtkmodules.vtkCommonDataModel import (
     vtkColor3ub,
@@ -245,6 +246,37 @@ def WindowsFriendlyDateTime():
     st_time = str(datetime.datetime.now()).replace(' ', '_') \
                     .replace(':', 'h', 1).replace(':', 'm', 1)[:22]
     return st_time
+
+def RotationMat(theta, axis :int):
+    # construct a rotation matrix around the axis
+    # or try
+    ## https://docs.scipy.org/doc/scipy/reference/generated/scipy.spatial.transform.Rotation.html
+    #from scipy.spatial.transform import Rotation
+    s = sin(theta)
+    c = cos(theta)
+    m = eye(3)
+    if axis == 2 or axis == 'z':  # z -> [x, y]  (2 -> [0, 1])
+        ax = 0
+        ay = 1
+        az = 2
+    elif axis == 1 or axis == 'y':  # y -> [z, x]  (1 -> [2, 0])
+        ax = 2
+        ay = 0
+        az = 1
+    elif axis == 0 or axis == 'x':  # x -> [y, z]  (0 -> [1, 2])
+        ax = 1
+        ay = 2
+        az = 0
+    else:
+        raise ValueError('invalid axis')
+    m[ax,ax] = m[ay,ay] = c
+    m[ax,ay] = -s
+    m[ay,ax] = s
+    return m
+
+class Struct:
+    """somewhat like the struct in matlab"""
+    pass
 
 def GetRangeTuple(idx, idx_max):
     """Input: slice or range, output: numerical [start, end, step]"""
