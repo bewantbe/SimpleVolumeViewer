@@ -789,7 +789,6 @@ class GUIControl:
                 self.scene_saved['objects'][name].update(obj_conf)
             else:
                 self.scene_saved['objects'][name] = obj_conf
-            self.ShowWelcomeMessage(False)
         
         self.scene_objects.update({name: scene_object})
 
@@ -904,8 +903,8 @@ class GUIControl:
         if name in self.selected_objects:
             self.selected_objects.remove(name)
         del self.scene_objects[name]
-        del self.scene_saved['objects'][name]
-        # TODO: correctly remove a object, possibly from adding process.
+        if name in self.scene_saved['objects']:
+            del self.scene_saved['objects'][name]
 
     def LoadVolumeNear(self, pos, radius=20):
         if (pos is None) or (len(pos) != 3):
@@ -1033,6 +1032,7 @@ class GUIControl:
         self.render_window.Render()
 
     def ShowWelcomeMessage(self, show = True):
+        dbg_print(4, 'ShowWelcomeMessage(): show =', show)
         welcome_msg = " Drag-and-drop files or a directory here to load data. Press 'h' key to get help."
         if ("_welcome_msg" not in self.scene_objects) and show:
             # show help
@@ -1045,7 +1045,9 @@ class GUIControl:
                 "background_color": [0.0, 0.0, 0.0],
                 "background_opacity": 0.0,             # optional
             }
+            self.loading_default_config = True
             self.AddObject("_welcome_msg", conf)
+            self.loading_default_config = False
         elif ("_welcome_msg" in self.scene_objects) and not show:
             self.RemoveObject("_welcome_msg")
             self.render_window.Render()
@@ -1091,6 +1093,7 @@ class GUIControl:
             self.AddObject(name, obj_conf)
 
     def DropFilesObjectImporter(self, file_path_list):
+        self.ShowWelcomeMessage(False)
         # put each file to each category
         swc_file_list = []
         swc_dir_list = []
