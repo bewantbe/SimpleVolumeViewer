@@ -73,13 +73,11 @@ from .utils import (
     ConditionalAddItem,
     WindowsFriendlyDateTime,
 )
-
+from .data_loader import *
 from .ui_interactions import (
     MyInteractorStyle,
     execSmoothRotation,
 )
-
-from .data_loader import *
 
 def AlignCameraDirection(cam2, cam1, dist=4.0):
     """

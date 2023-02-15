@@ -16,13 +16,13 @@ from vtkmodules.vtkCommonCore import (
     VTK_OBJECT,
 )
 from vtkmodules.util.misc import calldata_type
-# vtk.vtkCommand.KeyPressEvent
 from vtkmodules.vtkInteractionStyle import (
     vtkInteractorStyleTrackballCamera,
     vtkInteractorStyleFlight,
     vtkInteractorStyleTerrain,
     vtkInteractorStyleUser
 )
+
 from .utils import (
     dbg_print,
     Struct,
@@ -31,7 +31,92 @@ from .utils import (
     inject_swc_utils,
 )
 
+## Pollute the namespace with Events, prabably bad for IDE.
+#_events = filter(lambda o: o[0].endswith('Event'), vars(vtkCommand).items())
+#globals().update(dict(_events))
+
 _point_set_dtype_ = np.float32
+
+def DefaultKeyBindings():
+    """GUI keyboard and mouse actions."""
+    # See class UIAction for all available actions.
+    # Not that if there are multiple modifiers, i.e. Ctrl, Alt, Shift, they have to appear in
+    # the order Ctrl, Alt and Shift, and it is case sensitive.
+    d = {
+        'q'            : 'exit_program',
+        'h'            : 'toggle_help_message',
+        'p'            : 'screen_shot',
+        'MouseLeftButton'               : 'camera_rotate_around',
+        'MouseLeftButtonRelease'        : 'camera_rotate_around_release',
+        'Shift+MouseLeftButton'         : 'camera_move_translational',
+        'Shift+MouseLeftButtonRelease'  : 'camera_move_translational_release',
+        'MouseMiddleButton'             : 'camera_move_translational',
+        'MouseMiddleButtonRelease'      : 'camera_move_translational_release',
+        'MouseWheelForward'             : ['scene_zooming',  1],
+        'MouseWheelBackward'            : ['scene_zooming', -1],
+        'MouseRightButton'              : 'select_a_point',
+        'Ctrl+MouseRightButton'         : 'select_a_point append',
+        'MouseLeftButtonDoubleClick'    : 'select_and_fly_to',
+        '0'            : 'fly_to_cursor',
+        'KP_0'         : 'fly_to_cursor',
+        'KP_Insert'    : 'fly_to_cursor',         # LEGION
+        ' '            : 'fly_to_selected',
+        'Shift+|'      : 'set_view_up',
+        'Shift+\\'     : 'set_view_up',           # LEGION
+        'Home'         : 'reset_camera_view',
+        'r'            : 'auto_rotate',
+        '+'            : 'inc_brightness +',
+        'KP_Add'       : 'inc_brightness +',      # LEGION
+        '-'            : 'inc_brightness -',
+        'KP_Subtract'  : 'inc_brightness -',      # LEGION
+        'Ctrl++'       : 'inc_brightness C+',
+        'Ctrl+-'       : 'inc_brightness C-',
+        'Return'       : 'load_near_volume',
+        'KP_Enter'     : 'load_near_volume',
+        'x'            : 'remove_selected_object',
+        '`'            : 'toggle_show_local_volume',
+        'i'            : 'show_selected_info',
+        'F2'           : 'embed_interactive_shell',
+        'Ctrl+g'       : 'exec_script',
+        'Ctrl+2'       : 'exec_script test_call_2.py',
+        'Ctrl+5'       : 'exec_script test_call_swc.py',
+        'Ctrl+Shift+A' : 'deselect',
+        'Ctrl+Shift+a' : 'deselect',
+        'Insert'       : 'toggle_hide_nonselected',
+        'Alt+Return'   : 'toggle_fullscreen',
+        'Ctrl+Return'  : 'toggle_stereo_mode',
+        'Shift+Return' : 'toggle_stereo_mode next',
+        'Ctrl+s'       : 'save_scene',
+        'Shift+MouseWheelForward'       : ['scene_object_traverse',  1],
+        'Shift+MouseWheelBackward'      : ['scene_object_traverse', -1],
+    }
+    # For user provided key bindings we need to:
+    # 1. Remove redundant white space.
+    # 2. Sort order of the modifiers.
+    # 3. Add release mappings to mouse button actions.
+    return d
+
+def QuickKeyBindingsHelpDoc():
+    d = """
+    Keyboard shortcuts:
+        '+'/'-': Make the image darker or lighter;
+                 Press also Ctrl to make it more tender;
+        'r'    : Auto rotate the image for a while;
+        'p'    : Take a screenshot and save it to TestScreenshot.png;
+        ' '    : Fly to view the selected volume.
+        '0'    : Fly to view the selected point in the fiber.
+        'Enter': Load the image block (for Lychnis project).
+        '|' or '8' in numpad: use Y as view up.
+        Ctrl+s : Save the scene and view port.
+        'q'    : Exit the program.
+
+    Mouse function:
+        left: drag to view in different angle;
+        middle, left+shift: Move the view point.
+        wheel: zoom;
+        right click: select object, support swc points only currently.
+    """
+    return d
 
 class execSmoothRotation():
     """ Continuously rotate camera. """
@@ -750,87 +835,6 @@ class UIActions():
         #self.gui_ctrl.GetMainRenderer().ResetCameraClippingRange()
         self.iren.GetRenderWindow().Render()
 
-def DefaultKeyBindings():
-    """GUI keyboard and mouse actions."""
-    # See class UIAction for all available actions.
-    # Not that if there are multiple modifiers, i.e. Ctrl, Alt, Shift, they have to appear in
-    # the order Ctrl, Alt and Shift, and it is case sensitive.
-    d = {
-        'q'            : 'exit_program',
-        'h'            : 'toggle_help_message',
-        'p'            : 'screen_shot',
-        'MouseLeftButton'               : 'camera_rotate_around',
-        'MouseLeftButtonRelease'        : 'camera_rotate_around_release',
-        'Shift+MouseLeftButton'         : 'camera_move_translational',
-        'Shift+MouseLeftButtonRelease'  : 'camera_move_translational_release',
-        'MouseMiddleButton'             : 'camera_move_translational',
-        'MouseMiddleButtonRelease'      : 'camera_move_translational_release',
-        'MouseWheelForward'             : ['scene_zooming',  1],
-        'MouseWheelBackward'            : ['scene_zooming', -1],
-        'MouseRightButton'              : 'select_a_point',
-        'Ctrl+MouseRightButton'         : 'select_a_point append',
-        'MouseLeftButtonDoubleClick'    : 'select_and_fly_to',
-        '0'            : 'fly_to_cursor',
-        'KP_0'         : 'fly_to_cursor',
-        'KP_Insert'    : 'fly_to_cursor',         # LEGION
-        ' '            : 'fly_to_selected',
-        'Shift+|'      : 'set_view_up',
-        'Shift+\\'     : 'set_view_up',           # LEGION
-        'Home'         : 'reset_camera_view',
-        'r'            : 'auto_rotate',
-        '+'            : 'inc_brightness +',
-        'KP_Add'       : 'inc_brightness +',      # LEGION
-        '-'            : 'inc_brightness -',
-        'KP_Subtract'  : 'inc_brightness -',      # LEGION
-        'Ctrl++'       : 'inc_brightness C+',
-        'Ctrl+-'       : 'inc_brightness C-',
-        'Return'       : 'load_near_volume',
-        'KP_Enter'     : 'load_near_volume',
-        'x'            : 'remove_selected_object',
-        '`'            : 'toggle_show_local_volume',
-        'i'            : 'show_selected_info',
-        'F2'           : 'embed_interactive_shell',
-        'Ctrl+g'       : 'exec_script',
-        'Ctrl+2'       : 'exec_script test_call_2.py',
-        'Ctrl+5'       : 'exec_script test_call_swc.py',
-        'Ctrl+Shift+A' : 'deselect',
-        'Ctrl+Shift+a' : 'deselect',
-        'Insert'       : 'toggle_hide_nonselected',
-        'Alt+Return'   : 'toggle_fullscreen',
-        'Ctrl+Return'  : 'toggle_stereo_mode',
-        'Shift+Return' : 'toggle_stereo_mode next',
-        'Ctrl+s'       : 'save_scene',
-        'Shift+MouseWheelForward'       : ['scene_object_traverse',  1],
-        'Shift+MouseWheelBackward'      : ['scene_object_traverse', -1],
-    }
-    # For user provided key bindings we need to:
-    # 1. Remove redundant white space.
-    # 2. Sort order of the modifiers.
-    # 3. Add release mappings to mouse button actions.
-    return d
-
-def QuickKeyBindingsHelpDoc():
-    d = """
-    Keyboard shortcuts:
-        '+'/'-': Make the image darker or lighter;
-                 Press also Ctrl to make it more tender;
-        'r'    : Auto rotate the image for a while;
-        'p'    : Take a screenshot and save it to TestScreenshot.png;
-        ' '    : Fly to view the selected volume.
-        '0'    : Fly to view the selected point in the fiber.
-        'Enter': Load the image block (for Lychnis project).
-        '|' or '8' in numpad: use Y as view up.
-        Ctrl+s : Save the scene and view port.
-        'q'    : Exit the program.
-
-    Mouse function:
-        left: drag to view in different angle;
-        middle, left+shift: Move the view point.
-        wheel: zoom;
-        right click: select object, support swc points only currently.
-    """
-    return d
-
 def GenerateKeyBindingDoc(key_binding = DefaultKeyBindings(),
                           action = UIActions('', '', ''), help_mode = ''):
     """Generate the key binding description from code, for help message."""
@@ -915,7 +919,8 @@ class MouseDoubleClickHelper:
         clickPos = iren.GetEventPosition()
         return self.ClickedAt(clickPos[0], clickPos[1])
     
-class MyInteractorStyle(vtkInteractorStyleTerrain):
+# TODO use vtkInteractorStyleUser at some point
+class MyInteractorStyle(vtkInteractorStyleTerrain):  
     """
     Deal with keyboard and mouse interactions.
 

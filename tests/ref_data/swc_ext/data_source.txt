@@ -1,0 +1,6 @@
+Downloaded from:
+https://neuromorpho.org/neuron_info.jsp?neuron_name=AA0530
+https://neuromorpho.org/neuron_info.jsp?neuron_name=AA0434
+
+Credit: MouseLight
+Reconstruction of 1000 Projection Neurons Reveals New Cell Types and Organization of Long-Range Connectivity in the Mouse Brain

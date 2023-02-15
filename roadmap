@@ -79,10 +79,12 @@ Done:
 * allow loading obj file.
   - vtkOBJReader  read .obj
 * Avoid selection to non-visible object.
+* better rotation operation.
 
 Under consideration:
-* better rotation operation.
-* range selection.
+* memory problem
+* coloring/cutting by branches
+* range selection. ball range selection
 * Add scale bar.
 * Add timeout of status bar.
 * Adding current picked point to selected set.
