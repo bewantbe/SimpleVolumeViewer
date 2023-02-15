@@ -43,7 +43,7 @@ def read_tiff(tif_path, as_np_array = True):
         for page in tif.pages:
             images.append(page.asarray())
 
-    # TODO: determine oblique_image more correctly
+    # TODO: determine oblique_image more properly
     if ('oblique_image' not in metadata) and len(images) > 0:
         corner_vals = _a([[[images[ii][jj,kk]
                             for ii in [0,-1]]

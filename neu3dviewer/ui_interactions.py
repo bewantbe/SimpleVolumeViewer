@@ -22,6 +22,10 @@ from vtkmodules.vtkInteractionStyle import (
     vtkInteractorStyleTerrain,
     vtkInteractorStyleUser
 )
+from vtkmodules.vtkRenderingCore import (
+    vtkPropPicker,  # TODO: try them
+    vtkPointPicker,
+)
 
 from .utils import (
     dbg_print,
@@ -535,9 +539,10 @@ class UIActions():
             # running in globals() is a bit danger, any better idea?
             exec(open(script_path).read(), globals(), None)
             if 'PluginMain' in globals():
+                ## noinspection PyUnresolvedReferences
+                #PluginMain(ren1, iren, self.gui_ctrl)
                 #exec('PluginMain(ren1, iren, self.gui_ctrl)')
-                # noinspection PyUnresolvedReferences
-                PluginMain(ren1, iren, self.gui_ctrl)
+                globals()['PluginMain'](ren1, iren, self.gui_ctrl)
                 #locals()['PluginMain'](ren1, iren, self.gui_ctrl)
             else:
                 dbg_print(1, 'In the plugin, you must define "PluginMain(ren, iren, gui_ctrl)".')

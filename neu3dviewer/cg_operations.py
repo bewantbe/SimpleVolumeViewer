@@ -24,8 +24,6 @@ from vtkmodules.vtkIOImage import (
 from vtkmodules.vtkCommonTransforms import vtkTransform
 from vtkmodules.vtkRenderingCore import (
     vtkWindowToImageFilter,
-    vtkPropPicker,
-    vtkPointPicker,
     vtkActor,
     vtkPolyDataMapper,
 )

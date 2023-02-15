@@ -19,37 +19,25 @@
 # ./img_block_viewer.py -h
 
 # Program logic:
-#   In a very general sense, this code does the following:
+#   Essentially this code loads images and SWC files, then translate 
+#   the object description (in .json or python dict()) to VTK commands.
+#   i.e.
 #     * Read the window configuration and scene object description.
 #     * Load the image or SWC data according to the description.
 #     * Pass the data to VTK for rendering.
 #     * Let VTK to handle the GUI interaction.
-#   Essentially this code translate the object description to VTK commands
-#   and does the image data loading.
 
 # Code structure:
 #   utils.py            : General utilizer functions,
 #                         and VTK related utilizer functions.
 #   data_loader.py      : Image and SWC loaders.
+#   cg_operations.py    : Procedures related to operating CG objects.
 #   ui_interactions.py  : Keyboard and mouse interaction.
 #   cg_translators.py   : translate json(dict) style object description to 
 #                         vtk commands; also represent high level objects.
 #   img_block_viewer.py : GUI control class
 #                         Loads window settings, object properties, objects.
 #                         Command line related data import function.
-
-# Performance tip:
-# For memory footprint:
-# n_neuron = 1660 (SWC), n_points = 39382068 (0.44 GiB)
-# float32 mode:
-# RAM = 2.4GiB (5.3GiB during pick), 3.2g(after pick),
-# GPU = 1128MiB
-# float64 mode:
-# RAM = 3.3GiB (8.3GiB during pick), 3.6g(after pick),
-# GPU = 1128MiB
-
-# Performance for time:
-# load 6356 neurons: <19m34.236s
 
 import time
 g_t0 = time.time()
@@ -58,25 +46,6 @@ import os.path
 import argparse
 import json
 import copy
-
-#import joblib
-# Use pyinstaller with joblib is not possible due to bug:
-#   https://github.com/joblib/joblib/issues/1002
-# The workaround parallel_backend("multiprocessing") do not work due to 
-#   AttributeError: Can't pickle local object 'GUIControl.AddBatchSWC.<locals>.batch_load'
-# Seems there is solution padding: https://github.com/joblib/loky/pull/375
-# multiprocessing has the same problem
-# https://docs.python.org/3/library/multiprocessing.html#multiprocessing.freeze_support
-## Fix WARNING for nuitka
-# pip install --force-reinstall pywin32
-## Failed Fix for pyinstaller
-##from multiprocessing import freeze_support
-##from joblib import parallel_backend
-##parallel_backend("multiprocessing")
-##if __name__ == '__main__':
-##    # Pyinstaller fix
-##    freeze_support()
-##    main()
 
 from multiprocessing import Pool
 from multiprocessing import cpu_count
@@ -127,7 +96,7 @@ def DefaultGUIConfig():
     d = {
         "window": {
             "size": "auto",
-            "title": "SimpleVolumeViewer",
+            "title": "Neuron3DViewer",
             "number_of_layers": 2,
         },
 
@@ -478,26 +447,29 @@ class GUIControl:
 
         dbg_print(4, 'AddBatchSWC(): loading...')
         # load swc data in parallel
-        #cached_pointsets = [batch_load(j)
-        #                    for j in li_file_path_batch]
-        # TODO: the parallel execution has a large fixed overhead,
-        #       this overhead is not sensitive to batch size,
-        #       which indicate the overhead is probably related to
-        #       large data transfer (RAM IO?).
-        #       The profiler (cProfile) sees
-        #       {method 'acquire' of '_thread.lock' objects} which consumes
-        #       most of the run time.
-        # PS: joblib also has a batch_size, we might use that as well.
         t1 = time.time()
-        if False:
+        parallel_method = 'multiprocessing'
+        if parallel_method == 'joblib':
+            # TODO: the parallel execution has a large fixed overhead,
+            #       this overhead is not sensitive to batch size,
+            #       which indicate the overhead is probably related to
+            #       large data transfer (RAM IO?).
+            #       The profiler (cProfile) sees
+            #       {method 'acquire' of '_thread.lock' objects} which consumes
+            #       most of the run time.
+            # PS: joblib also has a batch_size, we might use that as well.
             cached_pointsets = joblib.Parallel(n_jobs = n_job_cores) \
                     (joblib.delayed(batch_load)(j, utils.debug_level)
                         for j in li_file_path_batch)
-        else:
+        elif parallel_method == 'multiprocessing':
             with Pool(n_job_cores) as p:
                 li_file_path_batch_ext = zip(li_file_path_batch,
                     (utils.debug_level for i in range(len(li_file_path_batch))))
                 cached_pointsets = p.starmap(batch_load, li_file_path_batch_ext)
+        else:
+            # non-parallel version
+            cached_pointsets = [batch_load(j)
+                                for j in li_file_path_batch]
         t2 = time.time()
         dbg_print(4, f'                       done, t = {t2-t1:.3f} sec.')
 
@@ -559,7 +531,6 @@ class GUIControl:
         if (pos is None) or (len(pos) != 3):
             return []
         vol_list = self.volume_loader.LoadVolumeAt(pos, radius)
-        #print(vol_list)
         dbg_print(3, 'LoadVolumeNear(): n_loaded =', len(vol_list))
         get_vol_name = lambda p: os.path.splitext(os.path.basename(p))[0]
         for v in vol_list:
