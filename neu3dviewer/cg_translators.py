@@ -20,7 +20,8 @@ import json
 from vtkmodules.vtkCommonCore import (
     vtkCommand,
     vtkPoints,
-    VTK_CUBIC_INTERPOLATION
+    VTK_CUBIC_INTERPOLATION,
+    vtkLookupTable,
 )
 from vtkmodules.vtkCommonDataModel import (
     vtkPiecewiseFunction,
@@ -34,7 +35,7 @@ from vtkmodules.vtkIOGeometry import (
 )
 from vtkmodules.vtkCommonColor import (
     vtkNamedColors,
-    vtkColorSeries
+    vtkColorSeries,
 )
 from vtkmodules.vtkInteractionWidgets import vtkOrientationMarkerWidget
 from vtkmodules.vtkRenderingCore import (
@@ -56,7 +57,7 @@ from vtkmodules.vtkRenderingVolumeOpenGL2 import vtkOpenGLRayCastImageDisplayHel
 
 from vtkmodules.vtkRenderingVolume import (
     vtkFixedPointVolumeRayCastMapper,
-    vtkGPUVolumeRayCastMapper
+    vtkGPUVolumeRayCastMapper,
 )
 from vtkmodules.vtkFiltersSources import vtkSphereSource
 from vtkmodules.util.numpy_support import numpy_to_vtk
@@ -944,6 +945,34 @@ class ObjTranslator:
             a = self.raw_points.T
             self.raw_points = None    # detach
             return a
+        
+        def TreeDepthColoring(self):
+            """
+            root_branches = color[0]
+            level_1_child_branches = color[1]
+            etc.
+            """
+            # test by random coloring
+            mapper    = self.actor.GetMapper()     # vtkPolyDataMapper
+            poly_data = mapper.GetInput()          # vtkPolyData
+            seg_data  = poly_data.GetCellData()    # vtkCellData
+            n_seg = poly_data.GetNumberOfCells()
+            # give random scalars (color)
+            n_color = 10
+            scalar_color = (np.random.randint(0,n_color, (n_seg,)) + 0.5) / n_color
+            seg_data.SetScalars(numpy_to_vtk(scalar_color, deep=True))
+            # set colormap (lookup table)
+            lut = vtkLookupTable()
+            lut.SetNumberOfTableValues(402)   # 402 (256*pi/2) as suggested by lut.SetRampToSCurve()
+            lut.Build()
+            mapper.SetLookupTable(lut)
+            mapper.SetColorModeToMapScalars()  # use lookup table
+            #mapper.SetColorModeToMapScalars()  # the scalar data is color
+            mapper.Modified()
+        
+        @property
+        def n_segments(self):
+            return self.actor.GetMapper().GetInput().GetNumberOfCells()
 
         @property
         def visible(self):
