@@ -946,11 +946,12 @@ class ObjTranslator:
             self.raw_points = None    # detach
             return a
         
-        def TreeDepthColoring(self):
+        def TreeDepthColoring(self, scalar_color = None):
             """
             root_branches = color[0]
             level_1_child_branches = color[1]
             etc.
+            scalar_color should within range [0,1]
             """
             # test by random coloring
             mapper    = self.actor.GetMapper()     # vtkPolyDataMapper
@@ -958,8 +959,10 @@ class ObjTranslator:
             seg_data  = poly_data.GetCellData()    # vtkCellData
             n_seg = poly_data.GetNumberOfCells()
             # give random scalars (color)
-            n_color = 10
-            scalar_color = (np.random.randint(0,n_color, (n_seg,)) + 0.5) / n_color
+            if scalar_color is None:
+                n_color = 10
+                scalar_color = (np.random.randint(0,n_color, (n_seg,)) + 0.5) / n_color
+            assert len(scalar_color) == n_seg
             seg_data.SetScalars(numpy_to_vtk(scalar_color, deep=True))
             # set colormap (lookup table)
             lut = vtkLookupTable()

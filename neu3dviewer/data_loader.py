@@ -9,6 +9,7 @@ import time
 import numpy as np
 from numpy import sqrt, sin, cos, tan, pi
 from numpy import array as _a
+dtype_id = np.int32
 
 import scipy.sparse
 
@@ -325,7 +326,7 @@ def LoadSWCTree(filepath):
       )
     """
     d = np.loadtxt(filepath)
-    tr = (np.int32(d[:,np.array([0,6,1])]),
+    tr = (dtype_id(d[:,np.array([0,6,1])]),
           np.float64(d[:, 2:6]))
     return tr
 
@@ -347,14 +348,14 @@ def SplitSWCTree(tr):
     max_id = max(tr_idx[:,0])   # max occur node index
     n_id = tr_idx.shape[0]      # number of nodes
     # relabel array (TODO: if max_id >> n_id, we need a different algo.)
-    arr_full = np.zeros(max_id+2, dtype=np.int32)
+    arr_full = np.zeros(max_id+2, dtype=dtype_id)
     arr_full[-1] = -1
-    arr_full[tr_idx[:,0]] = np.arange(n_id, dtype=np.int32)
+    arr_full[tr_idx[:,0]] = np.arange(n_id, dtype=dtype_id)
     tr_idx[:,0:2] = arr_full[tr_idx[:,0:2]]
     # find branch points
     n_child,_ = np.histogram(tr_idx[1:,1],
-                    bins = np.arange(n_id + 1, dtype = np.int32))
-    n_child = np.array(n_child, dtype=np.int32)
+                    bins = np.arange(n_id + 1, dtype = dtype_id))
+    n_child = np.array(n_child, dtype=dtype_id)
     # n_child == 0: leaf
     # n_child == 1: middle of a path or root
     # n_child >= 2: branch point
@@ -372,9 +373,36 @@ def SplitSWCTree(tr):
             filament.append(i)
         elif len(filament) == 1:  # soma
             continue
-        processes.append(np.array(filament[::-1], dtype=np.int32))
+        processes.append(np.array(filament[::-1], dtype=dtype_id))
 
     return processes
+
+def SimplifyTreeWithDepth(processes):
+    """
+    Run SplitSWCTree(tr) first
+    ps = SplitSWCTree(swcs[0].swc_tree)
+    tr_s, depth = SimplifyTreeWithDepth(ps)
+    u = np.hstack((tr_s, depth[:,np.newaxis]))
+    # importlib.reload(sys.modules['neu3dviewer.data_loader'])
+    # from neu3dviewer.data_loader import *
+    # call SimplifyTreeWithDepth
+    """
+    # construct simplified tree
+    # tr_s = [(id, pid), ... ]
+    n_branch = len(processes)
+    tr_s = np.zeros((n_branch + 1, 2), dtype = dtype_id)
+    tr_s[0, :] = (0, -1)
+    for j, p in enumerate(processes):
+        tr_s[j+1, :] = (p[-1], p[0])
+    # map id to index
+    map_idx = dict(zip(tr_s[:,0], np.arange(n_branch + 1)))
+    # compute depth
+    depth = np.zeros(n_branch + 1, dtype = dtype_id)
+    for j in range(1, n_branch + 1):
+        depth[j] = depth[map_idx[tr_s[j,1]]] + 1
+    # [(node_id, parent_id, depth(root=0)), ...]
+    u = np.hstack((tr_s, depth[:,np.newaxis]))
+    return u
 
 def GetUndirectedGraph(tr):
     """ return undirected graph of the tree, root (-1) is stripped. """
@@ -383,9 +411,9 @@ def GetUndirectedGraph(tr):
     max_id = max(tr_idx[:, 0])  # max occur node index
     n_id = tr_idx.shape[0]  # number of nodes
     # relabel array (TODO: if max_id >> n_id, we need a different algo.)
-    arr_full = np.zeros(max_id + 2, dtype=np.int32)
+    arr_full = np.zeros(max_id + 2, dtype=dtype_id)
     arr_full[-1] = -1
-    arr_full[tr_idx[:, 0]] = np.arange(n_id, dtype=np.int32)
+    arr_full[tr_idx[:, 0]] = np.arange(n_id, dtype=dtype_id)
     tr_idx[:, 0:2] = arr_full[tr_idx[:, 0:2]]
     tr_idx = np.array(tr_idx)
 
