@@ -6,6 +6,10 @@ from neu3dviewer.utils import (
     ArrayFunc,
     NamespaceOfSwcUtils,
 )
+from neu3dviewer.data_loader import (
+    SplitSWCTree,
+    SimplifyTreeWithDepth,
+)
 
 def PluginMain(ren, iren, gui_ctrl):
     user_ns = NamespaceOfSwcUtils(gui_ctrl, iren)
@@ -13,11 +17,18 @@ def PluginMain(ren, iren, gui_ctrl):
 
     print('Number of SWC:', len(swcs))
 
+    # swc depth coloring
+    max_depth = 31
+    for s in swcs:
+        print('Processing', s.swc_name)
+        u = SimplifyTreeWithDepth(SplitSWCTree(s.tree_swc))
+        s.TreeDepthColoring(u[1:, 2]/max_depth)
+
     #for i in range(len(swcs)): swcs[i].visible = False
-    swcs.visible = False
-    swcs[['487', '538']].visible = True
-    swcs[['487', '538']].color = [(0.0, 1.0, 0), (1.0, 1.0, 0)]
-    swcs[:10].visible = True
+    #swcs.visible = False
+    #swcs[['487', '538']].visible = True
+    #swcs[['487', '538']].color = [(0.0, 1.0, 0), (1.0, 1.0, 0)]
+    #swcs[:10].visible = True
     #swcs['487'].visible = True
     #swcs['487'].color = (0.0, 1.0, 0)
     #swcs['538'].visible = True

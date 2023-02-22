@@ -1,4 +1,4 @@
-#
+# swc rainbow coloring
 
 import numpy as np
 from numpy import array as _a

@@ -952,6 +952,10 @@ class ObjTranslator:
             level_1_child_branches = color[1]
             etc.
             scalar_color should within range [0,1]
+            e.g.
+            from neu3dviewer.data_loader import *
+            s = swcs[0]
+            s.TreeDepthColoring(SimplifyTreeWithDepth(SplitSWCTree(s.tree_swc))[1:,2]/31.0)
             """
             # test by random coloring
             mapper    = self.actor.GetMapper()     # vtkPolyDataMapper

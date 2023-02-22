@@ -330,6 +330,18 @@ def LoadSWCTree(filepath):
           np.float64(d[:, 2:6]))
     return tr
 
+def SWCNodeRelabel(tr):
+    # re-label index in tr, s.t. root is 0 and all followings continued
+    tr_idx = tr[0].copy()
+    max_id = max(tr_idx[:,0])   # max occur node index
+    n_id = tr_idx.shape[0]      # number of nodes
+    # relabel array (TODO: if max_id >> n_id, we need a different algo.)
+    arr_full = np.zeros(max_id + 2, dtype = dtype_id)
+    arr_full[-1] = -1
+    arr_full[tr_idx[:, 0]] = np.arange(n_id, dtype=dtype_id)
+    tr_idx[:, 0:2] = arr_full[tr_idx[:, 0:2]]
+    return tr_idx
+
 def SplitSWCTree(tr):
     """
     Split the tree in a swc into linear segments, i.e. processes.
@@ -342,16 +354,8 @@ def SplitSWCTree(tr):
         tr = LoadSWCTree(name)
         processes = SplitSWCTree(tr)
     """
-
-    # re-label index in tr, s.t. root is 0 and all followings continued
-    tr_idx = tr[0].copy()
-    max_id = max(tr_idx[:,0])   # max occur node index
+    tr_idx = SWCNodeRelabel(tr)
     n_id = tr_idx.shape[0]      # number of nodes
-    # relabel array (TODO: if max_id >> n_id, we need a different algo.)
-    arr_full = np.zeros(max_id+2, dtype=dtype_id)
-    arr_full[-1] = -1
-    arr_full[tr_idx[:,0]] = np.arange(n_id, dtype=dtype_id)
-    tr_idx[:,0:2] = arr_full[tr_idx[:,0:2]]
     # find branch points
     n_child,_ = np.histogram(tr_idx[1:,1],
                     bins = np.arange(n_id + 1, dtype = dtype_id))
@@ -399,6 +403,8 @@ def SimplifyTreeWithDepth(processes):
     # compute depth
     depth = np.zeros(n_branch + 1, dtype = dtype_id)
     for j in range(1, n_branch + 1):
+        if tr_s[j,1] not in map_idx:
+            raise IndexError('oho j =', j, 'proc =', tr_s[j,:], ' not found')
         depth[j] = depth[map_idx[tr_s[j,1]]] + 1
     # [(node_id, parent_id, depth(root=0)), ...]
     u = np.hstack((tr_s, depth[:,np.newaxis]))
@@ -406,16 +412,9 @@ def SimplifyTreeWithDepth(processes):
 
 def GetUndirectedGraph(tr):
     """ return undirected graph of the tree, root (-1) is stripped. """
-    # re-label index in tr, this part is the same as SplitSWCTree()
-    tr_idx = tr[0].copy()
-    max_id = max(tr_idx[:, 0])  # max occur node index
-    n_id = tr_idx.shape[0]  # number of nodes
-    # relabel array (TODO: if max_id >> n_id, we need a different algo.)
-    arr_full = np.zeros(max_id + 2, dtype=dtype_id)
-    arr_full[-1] = -1
-    arr_full[tr_idx[:, 0]] = np.arange(n_id, dtype=dtype_id)
-    tr_idx[:, 0:2] = arr_full[tr_idx[:, 0:2]]
+    tr_idx = SWCNodeRelabel(tr)
     tr_idx = np.array(tr_idx)
+    n_id = tr_idx.shape[0]      # number of nodes
 
     # remove edge s.t. parent = -1
     negative_parent_idx, = np.nonzero(tr_idx[:, 1] == -1)
@@ -429,7 +428,7 @@ def GetUndirectedGraph(tr):
     ij = np.concatenate([tr_idx[1:, 0:2], tr_idx[1:, 1::-1]], axis=0)
     kk = np.ones(ij.shape[0], dtype = np.int8)
     coo = scipy.sparse.coo_matrix((kk, (ij[:,0], ij[:,1])),
-                                  shape=(n_id,n_id))
+                                  shape=(n_id, n_id))
     graph = scipy.sparse.csr_matrix(coo)
 #    to get edges of node k: graph[k].indices
 
