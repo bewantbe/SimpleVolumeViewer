@@ -2,6 +2,7 @@
 
 # data loader that do not involve too much of VTK
 
+import os.path
 import pprint
 import json
 import time
@@ -19,6 +20,7 @@ import h5py
 from .utils import (
     dbg_print,
     str2array,
+    array2str,
     slice_from_str
 )
 
@@ -328,18 +330,32 @@ def LoadSWCTree(filepath):
     d = np.loadtxt(filepath)
     tr = (dtype_id(d[:,np.array([0,6,1])]),
           np.float64(d[:, 2:6]))
+    # basic checking
+    id_root = np.flatnonzero(tr[0][:,1] == -1)
+    n_tree = len(id_root)
+    if n_tree > 1:
+        swc_file = os.path.basename(filepath)
+        dbg_print(3, 'SplitSWCTree(): Multiple roots detected:', swc_file)
+        for j in range(n_tree):
+            nid = id_root[j]
+            s2 = array2str(tr[1][nid], sep="")
+            dbg_print(3, f'              : root {j+1} : {tr[0][nid]}, {s2}')
+    #if not np.all(tr[0][1:,0] >= tr[0][:-1,0]):
+    #    dbg_print(3, 'SplitSWCTree(): Node id not sorted.')
     return tr
 
 def SWCNodeRelabel(tr):
-    # re-label index in tr, s.t. root is 0 and all followings continued
+    # re-label node id in tr, s.t. node id = index i.e. 0, 1, 2, ...
     tr_idx = tr[0].copy()
     max_id = max(tr_idx[:,0])   # max occur node index
     n_id = tr_idx.shape[0]      # number of nodes
     # relabel array (TODO: if max_id >> n_id, we need a different algo.)
-    arr_full = np.zeros(max_id + 2, dtype = dtype_id)
-    arr_full[-1] = -1
-    arr_full[tr_idx[:, 0]] = np.arange(n_id, dtype=dtype_id)
-    tr_idx[:, 0:2] = arr_full[tr_idx[:, 0:2]]
+    # map: id -> serial index
+    map_id_idx = np.zeros(max_id + 2, dtype = dtype_id)
+    map_id_idx[-1] = -1
+    #map_id_idx = -1 * np.ones(max_id + 2, dtype = dtype_id)
+    map_id_idx[tr_idx[:, 0]] = np.arange(n_id, dtype=dtype_id)
+    tr_idx[:, 0:2] = map_id_idx[tr_idx[:, 0:2]]
     return tr_idx
 
 def SplitSWCTree(tr):
@@ -356,14 +372,16 @@ def SplitSWCTree(tr):
     """
     tr_idx = SWCNodeRelabel(tr)
     n_id = tr_idx.shape[0]      # number of nodes
-    # find branch points
-    n_child,_ = np.histogram(tr_idx[1:,1],
-                    bins = np.arange(n_id + 1, dtype = dtype_id))
-    n_child = np.array(n_child, dtype=dtype_id)
+    # find branch/leaf points
+    n_child,_ = np.histogram(tr_idx[:, 1],
+                    bins = np.arange(-1, n_id + 1, dtype = dtype_id))
+    n_tree = n_child[0]
+    # there is no actual node '-1'
+    n_child = np.array(n_child[1:], dtype=dtype_id)
     # n_child == 0: leaf
     # n_child == 1: middle of a path or root
     # n_child >= 2: branch point
-    id_bounds = np.nonzero(n_child-1)[0]
+    id_bounds = np.nonzero(n_child - 1)[0]
     processes = []
     for eid in id_bounds:
         # travel from leaf to branching point or root
@@ -381,33 +399,40 @@ def SplitSWCTree(tr):
 
     return processes
 
-def SimplifyTreeWithDepth(processes):
+def SimplifyTreeWithDepth(processes, output_mode = 'simple'):
     """
-    Run SplitSWCTree(tr) first
-    ps = SplitSWCTree(swcs[0].swc_tree)
-    tr_s, depth = SimplifyTreeWithDepth(ps)
-    u = np.hstack((tr_s, depth[:,np.newaxis]))
-    # importlib.reload(sys.modules['neu3dviewer.data_loader'])
-    # from neu3dviewer.data_loader import *
-    # call SimplifyTreeWithDepth
+    Construct simplified tree.
+    Usage example:
+        ps = SplitSWCTree(swcs[0].swc_tree)
+        u = SimplifyTreeWithDepth(ps)
+    Reload:
+        importlib.reload(sys.modules['neu3dviewer.data_loader'])
+        from neu3dviewer.data_loader import *
+        call SimplifyTreeWithDepth
     """
-    # construct simplified tree
-    # tr_s = [(id, pid), ... ]
     n_branch = len(processes)
-    tr_s = np.zeros((n_branch + 1, 2), dtype = dtype_id)
-    tr_s[0, :] = (0, -1)
-    for j, p in enumerate(processes):
-        tr_s[j+1, :] = (p[-1], p[0])
+    # Simplified tree nodes: [(branchleaf_id, parent_id), ...]
+    bpids = np.array([(p[-1], p[0]) for p in processes], dtype = dtype_id)
+    # find singliton heads(roots)
+    root_ids = np.setdiff1d(bpids[:,1], bpids[:,0])
+    n_root = len(root_ids)
+    # init a tree: tr_s = [(id, pid), ... ]
+    tr_s = np.zeros((n_branch + n_root, 2), dtype = dtype_id)
+    for j, r in enumerate(root_ids):
+        tr_s[j, :] = (r, -1)
+    # fill the tree
+    tr_s[n_root:, :] = bpids
     # map id to index
     map_idx = dict(zip(tr_s[:,0], np.arange(n_branch + 1)))
     # compute depth
-    depth = np.zeros(n_branch + 1, dtype = dtype_id)
-    for j in range(1, n_branch + 1):
-        if tr_s[j,1] not in map_idx:
-            raise IndexError('oho j =', j, 'proc =', tr_s[j,:], ' not found')
+    depth = np.zeros(n_branch + n_root, dtype = dtype_id)
+    for j in range(n_root, n_branch + n_root):
         depth[j] = depth[map_idx[tr_s[j,1]]] + 1
-    # [(node_id, parent_id, depth(root=0)), ...]
-    u = np.hstack((tr_s, depth[:,np.newaxis]))
+    if output_mode == 'simple':
+        # [(node_id, parent_id, depth(root=0)), ...]
+        u = np.hstack((tr_s, depth[:,np.newaxis]))
+    elif output_mode == 'depth':
+        u = depth[n_root:,np.newaxis]
     return u
 
 def GetUndirectedGraph(tr):

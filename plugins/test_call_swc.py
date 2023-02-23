@@ -21,8 +21,8 @@ def PluginMain(ren, iren, gui_ctrl):
     max_depth = 31
     for s in swcs:
         print('Processing', s.swc_name)
-        u = SimplifyTreeWithDepth(SplitSWCTree(s.tree_swc))
-        s.TreeDepthColoring(u[1:, 2]/max_depth)
+        u = SimplifyTreeWithDepth(SplitSWCTree(s.tree_swc), 'depth')
+        s.TreeDepthColoring(u / max_depth)
 
     #for i in range(len(swcs)): swcs[i].visible = False
     #swcs.visible = False

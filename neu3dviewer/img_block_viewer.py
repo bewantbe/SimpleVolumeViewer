@@ -468,7 +468,7 @@ class GUIControl:
                 cached_pointsets = p.starmap(batch_load, li_file_path_batch_ext)
         else:
             # non-parallel version
-            cached_pointsets = [batch_load(j)
+            cached_pointsets = [batch_load(j, utils.debug_level)
                                 for j in li_file_path_batch]
         t2 = time.time()
         dbg_print(4, f'                       done, t = {t2-t1:.3f} sec.')
