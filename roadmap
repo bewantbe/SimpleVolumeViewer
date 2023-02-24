@@ -80,13 +80,27 @@ Done:
   - vtkOBJReader  read .obj
 * Avoid selection to non-visible object.
 * better rotation operation.
+* memory problem.
+  - no obvious problem found.
+* coloring by branches, in plugin.
 
 Under consideration:
-* memory problem
-* coloring/cutting by branches
+* add: arrayfy more property names, such as swcs.swc_name.
+* adapt the arrayfy for more complex neuron file name.
+* add sugar for [j for j,n in enumerate(swcs) if n.swc_name == 'neuron#515.lyp']
+* better color map, and get the color table outside
+* swc language demands:
+  - op : find common ancestor
+  - api:
+  - op : output node id for given position
+  - api:
+* return to old coloring mode after plugin modificatioin
+* cutting/hiding by branch depth
+  - hide the main branches by colormap (LUT)
 * range selection. ball range selection
 * Add scale bar.
-* Add timeout of status bar.
+* Add color bar.
+* Add status bar message timeout.
 * Adding current picked point to selected set.
 * Solve the window init flash problem, i.e. properly set window size only once.
 * hash + rnd seed file name to determine swc color?
