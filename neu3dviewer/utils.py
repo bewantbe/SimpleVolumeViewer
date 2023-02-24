@@ -313,6 +313,11 @@ def GetRangeTuple(idx, idx_max):
     return idx_range
 
 def bind_property_broadcasting(li, pn, docs):
+    """
+    Make the pn broadcast to all items in li.
+    li: the array-like class to bind to.
+    pn: the property (function) to be bind.
+    """
     # With help of:
     # https://stackoverflow.com/questions/1015307/python-bind-an-unbound-method
     # https://stackoverflow.com/questions/17330160/how-does-the-property-decorator-work-in-python
@@ -405,16 +410,27 @@ class ArrayfyList:
     def _bind_properties(self):
         if len(self.obj_list) == 0:
             return
+        # the items has properties
         s = self.obj_list[0]
         if not hasattr(s, '__dict__'):
             return
         ty_s = type(s)
-        # get property attributes, in the form _prop
-        prop_names = [k[1:] for k in vars(s).keys() \
-                           if k.startswith('_') and \
-                              isinstance(getattr(ty_s, k[1:], None), property)]
+        attribute_names = vars(s).keys()  # might use dir(s) to includes more
+        # list all attributes typed property() and in the form "_prop"
+        prop_names = [k[1:] for k in attribute_names \
+                       if k.startswith('_') and \
+                         not k.startswith('__') and \
+                         isinstance(getattr(ty_s, k[1:], None), property)]
         for pn in prop_names:
             bind_property_broadcasting(self, pn, getattr(ty_s, pn).__doc__)
+
+        # list all attributes of pure data item
+        ditem_names = [k for k in attribute_names \
+                       if not k.startswith('_') and \
+                         not hasattr(getattr(s, k, None), '__call__')]
+        dbg_print(5, '_bind_properties(): converting these:', ditem_names)
+        for pn in ditem_names:
+            bind_property_broadcasting(self, pn, 'broadcasted' + pn)
 
     def __len__(self):
         return self.obj_list.__len__()
