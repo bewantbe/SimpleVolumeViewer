@@ -364,10 +364,11 @@ class ArrayfyList:
     Essentially automatically broadcast the properties of the items.
     Support for objects other than SWC is possible.
     """
-    def __init__(self, obj_list):
+    def __init__(self, obj_list, index_list = None):
         if not isinstance(obj_list, (list, np.ndarray, tuple)):
             raise TypeError('Wrapper for list only.')
         self.obj_list = obj_list
+        self.index_list = index_list
         setattr(self, '__iter__', obj_list.__iter__)
         #setattr(self, '__len__',  obj_list.__len__)  # need to rebind
         self.rebuild_index()
@@ -403,7 +404,12 @@ class ArrayfyList:
             else:
                 raise TypeError(f'Unknown index style "{index_style}".')
         else:
-            fn = lambda j, o: str(j)
+            if self.index_list is not None:
+                if len(self.index_list) != len(self.obj_list):
+                    raise IndexError("Length does not match.")
+                fn = lambda j, o: self.index_list[j]
+            else:
+                fn = lambda j, o: str(j)
 
         self.obj_dict = {fn(j, o): o for j, o in enumerate(self.obj_list)}
     
@@ -455,7 +461,7 @@ class ArrayfyList:
         elif isinstance(idx, slice):
             # indexing by slice or range, like: "[:10]"
             return ArrayfyList(self.obj_list[idx])
-        elif isinstance(idx, (list, np.ndarray)):
+        elif isinstance(idx, (list, np.ndarray, type(self))):
             # array style index, like "[["1", "2", "3"]]"
             return ArrayfyList([self.__getitem__(i) for i in idx])
         else:
@@ -520,7 +526,15 @@ See the help like `help(swcs)`, or reference the plugins directory.
 
 def NamespaceOfSwcUtils(gui_ctrl, iren):
     ns = {}
-    swc_objs = list(gui_ctrl.GetObjectsByType('swc').values())
+    swc_obj_dict = gui_ctrl.GetObjectsByType('swc')
+    swc_objs = list(swc_obj_dict.values())
     ns['swcs'] = ArrayfyList(swc_objs)
+    ns['map_swc_id'] = ArrayfyList(list(range(len(swc_obj_dict))),
+                                   tuple(swc_obj_dict.keys()))
     ns['Render'] = iren.GetRenderWindow().Render
+    
+    # Tips(tricks):
+    # Batch get swc name from internal object id:
+    #     swcs[obj_swc_id[['swc.766', 'swc.452', 'swc.953']]].swc_name
+
     return ns

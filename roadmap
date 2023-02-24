@@ -85,11 +85,10 @@ Done:
 * coloring by branches, in plugin.
 * adapt the class ArrayfyList to accept more complex neuron file name but still has int.
 * add: arrayfy more property names, such as swcs.swc_name.
-
+* add sugar for get swc_name from internal object name
 
 Under consideration:
 * show also node id in information, by using index and tr[].
-* add sugar for [j for j,n in enumerate(swcs) if n.swc_name == 'neuron#515.lyp']
 * better color map, and get the color table outside
 * swc language demands:
   - op : find common ancestor
