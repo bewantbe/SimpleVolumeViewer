@@ -278,6 +278,26 @@ class Struct:
     """somewhat like the struct in matlab"""
     pass
 
+def get_num_in_str(a):
+    # Return what integer part in the string (usually filename)
+    #   a = 'fae#323-23.swc' is invalid
+    #   a = 'fae#323.swc' is valid
+    u = np.array(bytearray(a, encoding='utf-8'))
+    # consist of '0123456789'
+    is_num = (48 <= u) & (u <= 57)
+    start_idx = is_num.argmax()
+    end_idx = len(is_num) - is_num[start_idx:][::-1].argmax()
+    #print('=', a[start_idx:end_idx])
+    return int(a[start_idx:end_idx])
+
+def test_has_int(a):
+    ok = True
+    try:
+        u = get_num_in_str(a)
+    except ValueError:
+        ok = False
+    return ok
+
 def GetRangeTuple(idx, idx_max):
     """Input: slice or range, output: numerical [start, end, step]"""
     # usage example:
@@ -361,10 +381,18 @@ class ArrayfyList:
             self.obj_dict = {}
             return
         
+        f_extract_num = lambda a: a.lstrip()
+        
+        # contruct fn(), which give the index itself.
         s = self.obj_list[0]
         if hasattr(s, 'swc_name'):  # should be a swc file
             if index_style == 'numeric':
-                fn = lambda j, o: o.swc_name.split('#')[1]
+                # try extract the numerical part.
+                if test_has_int(s.swc_name):
+                    fn = lambda j, o: str(get_num_in_str(o.swc_name))
+                else:  # give up
+                    dbg_print(2, 'ArrayfyList::rebuild_index(): Not numeric indexable. Use swc name instead')
+                    fn = lambda j, o: o.swc_name
             elif index_style == 'file_name':
                 fn = lambda j, o: o.swc_name
             else:

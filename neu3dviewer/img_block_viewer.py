@@ -390,8 +390,11 @@ class GUIControl:
         renderer = self.renderers[
             obj_conf.get('renderer', '0')]
 
-        dbg_print(3, 'AddObject: "' + name + '" :', obj_conf)
-        dbg_print(4, 'renderer: ',  obj_conf.get('renderer', '0'))
+        dbg_lv = 3
+        if name.startswith('_'):
+            dbg_lv = 5
+        dbg_print(dbg_lv, 'AddObject: "' + name + '" :', obj_conf)
+        dbg_print(     4, 'renderer: ',  obj_conf.get('renderer', '0'))
 
         scene_object = self.translator \
                        .translate_obj_conf(self, renderer, obj_conf)
@@ -517,7 +520,10 @@ class GUIControl:
         if name not in self.scene_objects:
             dbg_print(2,'RemoveObject(): object non-exist:', name)
             return
-        dbg_print(3, 'Removing object:', name)
+        dbg_lv = 3
+        if name.startswith('_'):
+            dbg_lv = 5
+        dbg_print(dbg_lv, 'Removing object:', name)
         # TODO: Do not remove if it is an active camera
         self.scene_objects[name].remove()
         

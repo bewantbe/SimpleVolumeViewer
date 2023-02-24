@@ -339,7 +339,7 @@ def LoadSWCTree(filepath):
         for j in range(n_tree):
             nid = id_root[j]
             s2 = array2str(tr[1][nid], sep="")
-            dbg_print(3, f'              : root {j+1} : {tr[0][nid]}, {s2}')
+            dbg_print(3, f'    : root {j+1} : {tr[0][nid]}, {s2}')
     #if not np.all(tr[0][1:,0] >= tr[0][:-1,0]):
     #    dbg_print(3, 'SplitSWCTree(): Node id not sorted.')
     return tr
