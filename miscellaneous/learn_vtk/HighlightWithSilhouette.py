@@ -1,4 +1,4 @@
-# !/usr/bin/env python
+#!/usr/bin/env python
 
 # noinspection PyUnresolvedReferences
 import vtkmodules.vtkRenderingOpenGL2
