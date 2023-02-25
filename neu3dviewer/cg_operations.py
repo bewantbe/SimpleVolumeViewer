@@ -64,6 +64,9 @@ def ShotScreen(render_window, filename):
 def UtilizerInit(self):
     colors = vtkNamedColors()
     
+    # Ref. HighlightWithSilhouette
+    # https://kitware.github.io/vtk-examples/site/Python/Picking/HighlightWithSilhouette/
+
     silhouette = vtkPolyDataSilhouette()
     silhouette.SetCamera(self.GetMainRenderer().GetActiveCamera())
 

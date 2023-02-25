@@ -669,13 +669,9 @@ class UIActions():
     def select_a_point(self, select_mode = ''):
         """Select a point on fiber(SWC) near the click point."""
         ren = self.gui_ctrl.GetMainRenderer()
-
         wnd = self.gui_ctrl.render_window
         in_vr_mode = wnd.GetStereoRender() and wnd.GetStereoTypeAsString() == 'SplitViewportHorizontal'
 
-        # select object
-        # Ref. HighlightWithSilhouette
-        # https://kitware.github.io/vtk-examples/site/Python/Picking/HighlightWithSilhouette/
         clickPos = self.iren.GetEventPosition()
         dbg_print(4, 'Clicked at', clickPos)
         if in_vr_mode:
