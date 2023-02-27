@@ -9,7 +9,7 @@ prog='../neu3dviewer.py --window_size 800x600 --no_interaction 1 --off_screen_re
 
 ref_pic_dir='ref_screenshot/'
 test_pic_dir='./tmpdir'
-mkdir -p "$tmpdir"
+mkdir -p "$test_pic_dir"
 
 echo "Test --help"
 $prog --help
@@ -40,3 +40,5 @@ cmp "$ref_pic_dir/4.png" "$test_pic_dir/4.png"
 echo "Test 5"
 $prog --screenshot "$test_pic_dir/5.png" --lychnis_blocks /media/xyy/DATA/RM006_related/big_traced/RM006-004-lychnis/image/blocks.json --colorscale 3.3 --swc /media/xyy/DATA/RM006_related/big_traced/RM006-004-lychnis/F5.json.swc --fibercolor yellow
 cmp "$ref_pic_dir/5.png" "$test_pic_dir/5.png"
+
+echo "Passed all."
