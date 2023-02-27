@@ -126,6 +126,9 @@ Under consideration:
 * try GetPickingManager (), GetPicker()
   - Use a box to select?: https://vtk.org/doc/nightly/html/classvtkBoxWidget.html#details
   - https://stackoverflow.com/questions/60115814/what-kind-of-vtk-vtkcommand-event-i-can-put-as-observer-when-i-select-a-box-in-a
+  - HardwareSelector: https://kitware.github.io/vtk-examples/site/Python/Visualization/HardwareSelector/
+  - https://kitware.github.io/vtk-js/examples/HardwareSelector.html
+  - code exampe: https://discourse.vtk.org/t/how-to-pick-edge/10719/8
 * SetInteractorStyle() switching
 * large render: vtkUnstructuredGrid  https://discourse.vtk.org/t/how-to-draw-10000-object/8438/15
 * why GetTimerEventId (), GetVTKTimerId () not work??  See here https://vtk.org/doc/nightly/html/classvtkRenderWindowInteractor.html#a7ef06e3e7c8cff5767c3b0d328934f55

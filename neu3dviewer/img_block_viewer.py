@@ -776,6 +776,8 @@ class GUIControl:
 
     def Start(self):
         self.interactor.Initialize()
+        self.GetMainRenderer().ResetCamera()   # bird's-eye view
+        #self.GetMainRenderer().ResetCameraClippingRange()
         self.render_window.Render()
         # self.UtilizerInit()
         self.focusController.SetGUIController(self)
@@ -785,8 +787,6 @@ class GUIControl:
                                       'animation_', cg_conf)
         
         if not self.do_not_start_interaction:
-            self.GetMainRenderer().ResetCamera()
-            #self.GetMainRenderer().ResetCameraClippingRange()
             self.interactor.Start()
 
 def get_program_parameters():
