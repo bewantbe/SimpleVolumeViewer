@@ -8,6 +8,7 @@ import pprint
 import numpy as np
 from numpy import sqrt, sin, cos, tan, pi
 from numpy import array as _a
+import numbers
 
 from vtkmodules.vtkCommonCore import (
     vtkCommand,
@@ -594,7 +595,8 @@ class UIActions():
     def scene_object_traverse(self, direction):
         """Select next/previous scene object, usually a point on swc."""
         if self.gui_ctrl.selected_pid:
-            self.gui_ctrl.SetSelectedPID(self.gui_ctrl.selected_pid + direction)
+            #self.gui_ctrl.SetSelectedPID(self.gui_ctrl.selected_pid + direction)
+            self.mark_swc_point(self.gui_ctrl.selected_pid + direction)
 
     def camera_rotate_around(self):
         """Rotate view angle around the focus point."""
@@ -737,10 +739,20 @@ class UIActions():
             self.gui_ctrl.InfoBar('')
             return
 
-        obj_name = pick_info[0]
-        lid      = pick_info[1]
-        pid      = pick_info[2]
-        pxyz     = pick_info[3]
+        if isinstance(pick_info, numbers.Integral):
+            psh = self.gui_ctrl.point_set_holder
+            if (pick_info >= psh().shape[1]) or (pick_info < 0):
+                dbg_print(4, 'PickAt(): out-of-point set bound:', pick_info)
+                return
+            pid = pick_info
+            obj_name, lid = psh.GetNameLocalPidByPointId(pid)
+            swc_obj  = self.gui_ctrl.scene_objects[obj_name]
+            pxyz = psh()[:, pid]
+        else:
+            obj_name = pick_info[0]
+            lid      = pick_info[1]
+            pid      = pick_info[2]
+            pxyz     = pick_info[3]
         swc_obj  = self.gui_ctrl.scene_objects[obj_name]
         swc_name = swc_obj.swc_name
         swc_id   = swc_obj.tree_swc[0][lid, 0]
