@@ -206,30 +206,40 @@ class PointPicker():
         point ID, point coordinate
     """
     def __init__(self, points, renderer):
-        ren_win = renderer.GetRenderWindow()
-        cam = renderer.GetActiveCamera()
-        self.InitViewParam(cam, ren_win.GetSize())
+        self.InitViewParam(renderer)
         self.p = np.array(points, dtype=_point_set_dtype_)
 
-    def InitViewParam(self, camera, screen_dims):
+    def InitViewParam(self, renderer):
+        ren_win = renderer.GetRenderWindow()
+        win_size = ren_win.GetSize()
+        self.in_stereo_mode = ren_win.GetStereoRender() and \
+            ren_win.GetStereoTypeAsString() == 'SplitViewportHorizontal'
+        
+        camera = renderer.GetActiveCamera()
+
         # The matrix from cam to world
         # vec_cam = cam_m * vec_world
         # for cam_m =[[u v], inverse of it is:[[u.T  -u.T*v]
         #             [0 1]]                   [0     1    ]]
         self.cam_m = vtkMatrix2array(camera.GetModelViewTransformMatrix())
-        self.screen_dims = _a(screen_dims)
+        self.win_size = _a(win_size)
         # https://vtk.org/doc/nightly/html/classvtkCamera.html#a2aec83f16c1c492fe87336a5018ad531
         view_angle = camera.GetViewAngle() / (180/pi)
         view_length = 2 * tan(view_angle/2)
         # aspect = width/height
-        aspect_ratio = screen_dims[0] / screen_dims[1]
+        aspect_ratio = win_size[0] / win_size[1]
         if camera.GetUseHorizontalViewAngle():
             unit_view_window = _a([view_length, view_length/aspect_ratio])
         else:  # this is the default
             unit_view_window = _a([view_length*aspect_ratio, view_length])
-        self.pixel_scale = unit_view_window / _a(screen_dims)
+        self.pixel_scale = unit_view_window / _a(win_size)
 
     def PickAt(self, posxy, ret_all = False):
+        if self.in_stereo_mode:
+            wx2 = self.win_size[0]/2
+            dx = wx2 if posxy[0] > wx2 else 0
+            posxy = (2*(posxy[0]-dx), posxy[0])
+    
         cam_min_view_distance = 0
         selection_angle_tol = 0.01
         dbg_print(5, 'PickAt(): number of points:', self.p.shape[1])
@@ -237,7 +247,7 @@ class PointPicker():
         o = - self.cam_m[0:3,0:3].T @ self.cam_m[0:3, 3:4]  # cam pos in world
         o = o.astype(_point_set_dtype_)
         #   click pos in cam
-        posxy_cam = (_a(posxy) - self.screen_dims / 2) * self.pixel_scale
+        posxy_cam = (_a(posxy) - self.win_size / 2) * self.pixel_scale
         v = self.cam_m[0:3,0:3].T @ _a([[posxy_cam[0], posxy_cam[1], -1]]).T
         v = v.astype(_point_set_dtype_)
         # compute distance from p to the line r
@@ -252,9 +262,10 @@ class PointPicker():
         angle_dist_selected = angle_dist[0, ID_selected]
 
         if ret_all:
-            # sort by angle
+            # return all candidates, sort by angle
             ind = np.argsort(angle_dist_selected)
             ID_selected = ID_selected[ind]
+            # index(s) in point set, point position(s)
             return ID_selected, self.p[:, ID_selected]
 
         if ID_selected.size > 0:
@@ -299,6 +310,12 @@ class PointSetHolder():
         return point_id - self._point_set_boundaries[
                                    self.GetSetidByPointId(point_id)]
     
+    def GetNameLocalPidByPointId(self, point_id):
+        idx = self.GetSetidByPointId(point_id)
+        name = self.name_list[idx]
+        lid = point_id - self._point_set_boundaries[idx]
+        return name, lid
+    
     def __len__(self):
         return self._len
     
@@ -324,7 +341,7 @@ class PointSetHolder():
 
         if allowable_object_list is None:
             # select only the first object
-            pidid = 0
+            idx_choosen = 0
             pid = point_id_array[0]
         else:
             if len(allowable_object_list) == 0:
@@ -338,12 +355,12 @@ class PointSetHolder():
             dbg_print(4, 'FindFirstObject: found:', idx_hit)
             if len(idx_hit) == 0:
                 return none
-            pidid = idx_hit[0]
-            pid = point_id_array[pidid]
+            idx_choosen = idx_hit[0]
+            pid = point_id_array[idx_choosen]
         
         #obj_name = self.GetNameByPointId(pid)
         #return obj_name
-        return pid, pidid
+        return pid, idx_choosen
 
 class UIActions():
     """
@@ -669,44 +686,34 @@ class UIActions():
     def select_a_point(self, select_mode = ''):
         """Select a point on fiber(SWC) near the click point."""
         ren = self.gui_ctrl.GetMainRenderer()
-        wnd = self.gui_ctrl.render_window
-        in_vr_mode = wnd.GetStereoRender() and wnd.GetStereoTypeAsString() == 'SplitViewportHorizontal'
 
         clickPos = self.iren.GetEventPosition()
         dbg_print(4, 'Clicked at', clickPos)
-        if in_vr_mode:
-            win_size = wnd.GetSize()
-            wx2 = win_size[0]/2
-            dx = wx2 if clickPos[0] > wx2 else 0
-            clickPos = (2*(clickPos[0]-dx), clickPos[0])
 
         obj_swc = self.gui_ctrl.GetObjectsByType('swc')
         selectable_names = [
-            n
-            for n,o in obj_swc.items()
-            if o.visible == True
+            name for name, obj in obj_swc.items()
+            if obj.visible == True
         ]
+        pick_visible_only_mode = len(selectable_names) != len(obj_swc)
 
-        pointsh = self.gui_ctrl.point_set_holder
+        points_holder = self.gui_ctrl.point_set_holder
+        point_picker = PointPicker(points_holder(), ren)
+        pid, pxyz = point_picker.PickAt(clickPos, pick_visible_only_mode)
 
-        ppicker = PointPicker(pointsh(), ren)
-        
-        if len(selectable_names) == len(obj_swc):
-            pid, pxyz = ppicker.PickAt(clickPos)
-        else:
-            pid, pxyz = ppicker.PickAt(clickPos, True)
-            pid, pidid = pointsh.FindFirstObject(pid, selectable_names)
+        if pick_visible_only_mode:
+            pid, idx_choosen = points_holder.FindFirstObject(pid, selectable_names)
             dbg_print(4, 'PickAt(): Multi-pick: pid =', pid)
-            pxyz = pxyz[:, pidid]
+            pxyz = pxyz[:, idx_choosen]
         
-        if pxyz.size > 0:
-            dbg_print(4, f'PickAt(): point id = {pid}, xyz = {pxyz}')
-            obj_name = pointsh.GetNameByPointId(pid)
-            swc_name = self.gui_ctrl.scene_objects[obj_name].swc_name
-            dbg_print(4, f'PickAt(): object: {obj_name} ({swc_name})')
-            info = f'picked point: \nxyz = {pxyz} '
-            self.gui_ctrl.InfoBar({'type':'swc', 'obj_name':obj_name, 'header':info})
-            self.gui_ctrl.SetSelectedPID(pid)
+        if pxyz.size == 0:
+            ret = None
+        else:
+            obj_name, lid = points_holder.GetNameLocalPidByPointId(pid)
+            ret = (obj_name, lid, pid, pxyz)
+            swc_obj  = self.gui_ctrl.scene_objects[obj_name]
+            assert np.sum(np.abs(pxyz - \
+                     _point_set_dtype_(swc_obj.tree_swc[1][lid,:3]))) == 0
             if select_mode == 'append':
                 if obj_name in self.gui_ctrl.selected_objects:
                     # remove
@@ -715,11 +722,34 @@ class UIActions():
                     # add
                     self.gui_ctrl.selected_objects.append(obj_name)
             dbg_print(4, 'Selected obj:', self.gui_ctrl.selected_objects)
-            return True
-        else:
-            dbg_print(4, 'PickAt(): picked no point', pid, pxyz)
+
+        self.mark_swc_point(ret)
+        return ret
+
+    def mark_swc_point(self, pick_info):
+        # pick_info = (obj_name, lid, pid, pxyz)
+        if pick_info is None:
+            dbg_print(4, 'PickAt(): picked no point.')
             self.gui_ctrl.InfoBar('')
-            return False
+            return
+
+        obj_name = pick_info[0]
+        lid      = pick_info[1]
+        pid      = pick_info[2]
+        pxyz     = pick_info[3]
+        swc_obj  = self.gui_ctrl.scene_objects[obj_name]
+        swc_name = swc_obj.swc_name
+        swc_id   = swc_obj.tree_swc[0][lid, 0]
+        s_info = 'Picked:\n' \
+                f' obj: "{obj_name}"\n' \
+                f' file: "{swc_name}"\n' \
+                f' swc node[{lid}]: {swc_id}\n' \
+                f' xyz: {pxyz}'
+        dbg_print(4, s_info)
+        #h = f'picked point: \nxyz = {pxyz} '
+        #self.gui_ctrl.InfoBar({'type':'swc', 'obj_name':obj_name, 'header':h})
+        self.gui_ctrl.InfoBar(s_info)
+        self.gui_ctrl.SetSelectedPID(pid)
     
     def select_and_fly_to(self):
         """Pick the point at cursor and fly to it."""

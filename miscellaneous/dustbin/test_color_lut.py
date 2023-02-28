@@ -12,7 +12,7 @@ from vtkmodules.vtkCommonCore import vtkLookupTable
 
 lut = vtkLookupTable()
 print(lut.GetNumberOfTableValues())
-lut.SetNumberOfTableValues(5)   # 402 (256*pi/2) as suggested by SetRampToSCurve()
+lut.SetNumberOfTableValues(402)   # 402 (256*pi/2) as suggested by SetRampToSCurve()
 #lut.SetNumberOfTableValues(402)   # 402 (256*pi/2) as suggested by SetRampToSCurve()
 #lut.SetHueRange(0.0, 0.66667)      # H
 #lut.SetSaturationRange(1.0, 1.0)   # S
@@ -29,7 +29,7 @@ lut.Build()
 # or set the table ourself
 #lut.SetTableValue(i, r, g, b, a)
 
-n_c = 100
+n_c = 32
 v = np.zeros((n_c, 3))
 vals = np.zeros(n_c)
 a = [0,0,0]
@@ -40,7 +40,7 @@ for i in range(n_c):
     vals[i] = lut.GetIndex(val)
     print(a)
 
-n_h = 100
+n_h = 10
 v_img = repmat(v.reshape(n_c*3), n_h, 1).reshape(n_h, n_c, 3)
 
 plt.figure(1)
