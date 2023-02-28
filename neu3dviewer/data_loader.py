@@ -445,6 +445,35 @@ def SWCDFSSort(tr, processes):
     processes = [idx_rev[p] for p in processes]
     return tr, processes
 
+def TreeNodeInfo(tr, node_idx):
+    # assume no loop
+    tr_rel = SWCNodeRelabel(tr)
+    i = node_idx
+    dist = 0
+    ancestors = []
+    while i != -1:
+        ancestors.append(i)
+        p = tr_rel[i,1]
+        if p != -1:
+            dist += np.linalg.norm(tr[1][p] - tr[1][i])
+        i = p
+
+    ancestors = np.array(ancestors, dtype = dtype_id)
+
+    n_id = tr_rel.shape[0]      # number of nodes
+    n_child,_ = np.histogram(tr_rel[:, 1],
+                    bins = np.arange(-1, n_id + 1, dtype = dtype_id))
+    n_child = np.array(n_child[1:], dtype=dtype_id)
+    n_child[tr_rel[:, 1] == -1] = 2
+
+    info = {
+        #'ancestors': ancestors,
+        'node_depth': len(ancestors) - 1,
+        'branch_depth': np.sum(n_child[ancestors[1:]] - 1 > 0),
+        'root_distance': dist
+    }
+    return info
+
 def SimplifyTreeWithDepth(processes, output_mode = 'simple'):
     """
     Construct simplified tree.

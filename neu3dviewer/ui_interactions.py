@@ -34,6 +34,9 @@ from .utils import (
     vtkMatrix2array,
     inject_swc_utils,
 )
+from .data_loader import (
+    TreeNodeInfo,
+)
 
 ## Pollute the namespace with Events, prabably bad for IDE.
 #_events = filter(lambda o: o[0].endswith('Event'), vars(vtkCommand).items())
@@ -741,10 +744,14 @@ class UIActions():
         swc_obj  = self.gui_ctrl.scene_objects[obj_name]
         swc_name = swc_obj.swc_name
         swc_id   = swc_obj.tree_swc[0][lid, 0]
+        l_info = TreeNodeInfo(swc_obj.tree_swc, lid)
         s_info = f'Picked: obj: "{obj_name}"\n' \
                  f' file: "{swc_name}"\n' \
                  f' swc node[{lid}]: {swc_id}\n' \
-                 f' xyz: {pxyz}'
+                 f' xyz: {pxyz}\n' \
+                 f' branch depth = {l_info["branch_depth"]}\n' \
+                 f' node depth = {l_info["node_depth"]}\n' \
+                 f' root distance = {l_info["root_distance"]:.1f}'
         dbg_print(4, s_info)
         #h = f'picked point: \nxyz = {pxyz} '
         #self.gui_ctrl.InfoBar({'type':'swc', 'obj_name':obj_name, 'header':h})
