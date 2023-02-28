@@ -15,7 +15,9 @@
 import os            # for os.path
 import numpy as np
 from numpy import array as _a
+from numpy.random import randint
 import json
+import numbers
 
 from vtkmodules.vtkCommonCore import (
     vtkCommand,
@@ -553,6 +555,48 @@ class ObjTranslator:
                     ctf_s = ctf_conf['trans_scale']
                     UpdatePropertyCTFScale(obj_prop, ctf_s)
 
+    class prop_lut(TranslatorUnit):
+        """
+        {
+            "type": "lut",
+            "lut": "default"
+        }
+        """
+        def __init__(self):
+            pass
+
+        def parse(self, prop_conf = None):
+            if prop_conf is None:
+                e_lut = 'default'
+            else:
+                e_lut = prop_ref['lut']
+
+            lut = vtkLookupTable()
+            if isinstance(e_lut, str) and (e_lut == 'default'):
+                # default color lookup table (colormap)
+                # the number 402 (~256*pi/2) as suggested by lut.SetRampToSCurve()
+                lut.SetNumberOfTableValues(402)
+                lut.Build()
+                return lut
+            elif isinstance(e_lut, (list, np.ndarray)):
+                # assume e_lut are colors:
+                #   [(r,g,b), ...]
+                #   [(r,g,b,a), ...]
+                #  r,g,b,a are in 0~1
+                n_color = len(e_lut)
+                if len(e_lut[0]) == 3:
+                    # convert to RGBA
+                    e_lut = np.hstack((e_lut, np.ones((n_color,1))))
+                lut.SetNumberOfTableValues(n_color)
+                for j, c in enumerate(e_lut):
+                    lut.SetTableValue(j, e_lut[j])
+                lut.SetNanColor(0.5, 0.0, 0.0, 1.0)
+                lut.SetBelowRangeColor(e_lut[0])
+                lut.SetAboveRangeColor(e_lut[-1])
+                lut.SetTableRange(0.0, 1.0)
+                lut.SetRampToLinear()
+                lut.SetScaleToLinear()
+
     class obj_volume(TranslatorUnit):
         """
         prototype:
@@ -859,6 +903,7 @@ class ObjTranslator:
             self._color     = None
             self._opacity   = None
             self._line_width = None
+            self._color_lut = None
         
         def parse(self, obj_conf):
             t0 = time.time()
@@ -876,6 +921,7 @@ class ObjTranslator:
             self.file_path  = obj_conf['file_path']
             self.swc_name   = os.path.splitext(os.path.basename(self.file_path))[0]
             self.tree_swc   = ntree
+            self.processes = processes
 
             # ref: 
             # https://kitware.github.io/vtk-examples/site/Python/GeometricObjects/PolyLine/
@@ -946,36 +992,64 @@ class ObjTranslator:
             self.raw_points = None    # detach
             return a
         
-        def TreeDepthColoring(self, scalar_color = None):
+        def ProcessColoring(self, scalar_color = None, max_depth = None, lut = None):
             """
-            root_branches = color[0]
-            level_1_child_branches = color[1]
-            etc.
-            scalar_color should within range [0,1]
+            Color each neuronal process by scalar_color (real number in 0~1).
+              s.ProcessColoring([0.1, 0.3, ...])
+            Alternatively color the neuron by depth:
+              s.ProcessColoring(max_depth = 31)
+
             e.g.
-            from neu3dviewer.data_loader import *
-            s = swcs[0]
-            s.TreeDepthColoring(SimplifyTreeWithDepth(SplitSWCTree(s.tree_swc))[1:,2]/31.0)
+              from neu3dviewer.data_loader import *
+              s = swcs[0]
+              s.ProcessColoring(SimplifyTreeWithDepth(SplitSWCTree(s.tree_swc))[1:,2]/31.0)
             """
-            # test by random coloring
             mapper    = self.actor.GetMapper()     # vtkPolyDataMapper
             poly_data = mapper.GetInput()          # vtkPolyData
             seg_data  = poly_data.GetCellData()    # vtkCellData
             n_seg = poly_data.GetNumberOfCells()
-            # give random scalars (color)
-            if scalar_color is None:
-                n_color = 10
-                scalar_color = (np.random.randint(0,n_color, (n_seg,)) + 0.5) / n_color
+
+            # case of removing colorings
+            if (scalar_color is None) and (max_depth is None) \
+                    and (lut is None):
+                #mapper.SetScalarVisibility(False)
+                seg_data.SetScalars(None)
+                return
+
+            # set LUT
+            if (lut is None) and (self._color_lut is None):
+                # use default LUT
+                self.color_lut = self.gui_ctrl.GetDefaultSWCLUT()
+            elif lut is not None:
+                self.color_lut = lut
+
+            # auto set scalar_color
+            if isinstance(scalar_color, str) and (scalar_color == 'random'):
+                # set random coloring
+                n_color = 30
+                scalar_color = (randint(0,n_color, (n_seg,)) + 0.5) / n_color
+            elif isinstance(max_depth, numbers.Real):
+                # coloring by depth, ignore scalar_color
+                #ps = SplitSWCTree(self.tree_swc)
+                ps = self.processes
+                scalar_color = SimplifyTreeWithDepth(ps, 'depth') / max_depth
+
             assert len(scalar_color) == n_seg
             seg_data.SetScalars(numpy_to_vtk(scalar_color, deep=True))
-            # set colormap (lookup table)
-            lut = vtkLookupTable()
-            lut.SetNumberOfTableValues(402)   # 402 (256*pi/2) as suggested by lut.SetRampToSCurve()
-            lut.Build()
-            mapper.SetLookupTable(lut)
-            mapper.SetColorModeToMapScalars()  # use lookup table
-            #mapper.SetColorModeToMapScalars()  # the scalar data is color
+            #mapper.SetScalarVisibility(True)
+
+        @property
+        def color_lut(self):
+            return self._color_lut
+
+        @color_lut.setter
+        def color_lut(self, lut):
+            mapper = self.actor.GetMapper()     # vtkPolyDataMapper
+            mapper.SetLookupTable(lut)          # lut can be None (default?)
+            mapper.SetColorModeToMapScalars()   # use lookup table
+            #mapper.SetScalarModeToUseCellData()  # the scalar data is color
             mapper.Modified()
+            self._color_lut = lut
         
         @property
         def n_segments(self):

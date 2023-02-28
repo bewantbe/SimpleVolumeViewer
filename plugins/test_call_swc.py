@@ -18,11 +18,11 @@ def PluginMain(ren, iren, gui_ctrl):
     print('Number of SWC:', len(swcs))
 
     # swc depth coloring
-    max_depth = 31
+    max_depth = 32
     for s in swcs:
         print('Processing', s.swc_name)
-        u = SimplifyTreeWithDepth(SplitSWCTree(s.tree_swc), 'depth')
-        s.TreeDepthColoring(u / max_depth)
+        s.ProcessColoring(max_depth = max_depth)
+        #s.ProcessColoring()
 
     #for i in range(len(swcs)): swcs[i].visible = False
     #swcs.visible = False

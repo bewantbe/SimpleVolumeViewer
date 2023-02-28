@@ -226,6 +226,7 @@ class GUIControl:
         self.main_renderer_name = None
         self.do_not_start_interaction = False
         self.li_cg_conf = []
+        self.color_lut = {}
         
         self.utility_objects = {}
         self.volume_loader = OnDemandVolumeLoader()
@@ -295,6 +296,13 @@ class GUIControl:
                 if n_find == 0:
                     break
         return li_obj
+
+    def GetDefaultSWCLUT(self):
+        if 'default_swc' not in self.color_lut:
+            lut = self.translator.prop_lut().parse()
+            self.color_lut['default_swc'] = lut
+
+        return self.color_lut['default_swc']
 
     def Get3DCursor(self):
         cursor = self.scene_objects.get('3d_cursor', None)

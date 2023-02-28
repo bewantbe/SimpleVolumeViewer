@@ -350,7 +350,7 @@ def LoadSWCTree(filepath):
         swc_file = os.path.basename(filepath)
         dbg_print(2, 'LoadSWCTree(): repeated node id detected:', swc_file)
         for j, idx_r in enumerate(idx_repeat):
-            dbg_print(3, f'    : {j+1}-th repeated id: {q[idx_r]}')
+            dbg_print(2, f'    : {j+1}. repeated id: {q[idx_r]}')
 
     #if not np.all(tr[0][1:,0] >= tr[0][:-1,0]):
     #    dbg_print(3, 'SplitSWCTree(): Node id not sorted.')
