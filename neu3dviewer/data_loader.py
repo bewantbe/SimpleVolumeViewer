@@ -330,16 +330,28 @@ def LoadSWCTree(filepath):
     d = np.loadtxt(filepath)
     tr = (dtype_id(d[:,np.array([0,6,1])]),
           np.float64(d[:, 2:6]))
-    # basic checking
-    id_root = np.flatnonzero(tr[0][:,1] == -1)
+
+    # checking number of roots
+    id_root = np.flatnonzero(tr[0][:,1] <= -1)
     n_tree = len(id_root)
     if n_tree > 1:
         swc_file = os.path.basename(filepath)
-        dbg_print(3, 'SplitSWCTree(): Multiple roots detected:', swc_file)
+        dbg_print(3, 'LoadSWCTree(): Multiple roots detected:', swc_file)
         for j in range(n_tree):
+            # output each root node
             nid = id_root[j]
             s2 = array2str(tr[1][nid], sep="")
             dbg_print(3, f'    : root {j+1} : {tr[0][nid]}, {s2}')
+
+    # check uniqueness of node ID
+    q, cnt = np.unique(tr[0][:,0], return_counts=True)
+    idx_repeat = np.flatnonzero(cnt > 1)
+    if len(idx_repeat) > 0:
+        swc_file = os.path.basename(filepath)
+        dbg_print(2, 'LoadSWCTree(): repeated node id detected:', swc_file)
+        for j, idx_r in enumerate(idx_repeat):
+            dbg_print(3, f'    : {j+1}-th repeated id: {q[idx_r]}')
+
     #if not np.all(tr[0][1:,0] >= tr[0][:-1,0]):
     #    dbg_print(3, 'SplitSWCTree(): Node id not sorted.')
     return tr
@@ -411,26 +423,27 @@ def SimplifyTreeWithDepth(processes, output_mode = 'simple'):
         call SimplifyTreeWithDepth
     """
     n_branch = len(processes)
-    # Simplified tree nodes: [(branchleaf_id, parent_id), ...]
-    bpids = np.array([(p[-1], p[0]) for p in processes], dtype = dtype_id)
-    # find singliton heads(roots)
-    root_ids = np.setdiff1d(bpids[:,1], bpids[:,0])
+    # Get simplified tree nodes: [(branchleaf_id, parent_id), ...]
+    tr_branch = np.array([(p[-1], p[0]) for p in processes], dtype = dtype_id)
+    # find roots, i.e. nodes with non-exist parents
+    root_ids = np.setdiff1d(tr_branch[:,1], tr_branch[:,0])
     n_root = len(root_ids)
-    # init a tree: tr_s = [(id, pid), ... ]
-    tr_s = np.zeros((n_branch + n_root, 2), dtype = dtype_id)
-    for j, r in enumerate(root_ids):
-        tr_s[j, :] = (r, -1)
-    # fill the tree
-    tr_s[n_root:, :] = bpids
-    # map id to index
-    map_idx = dict(zip(tr_s[:,0], np.arange(n_branch + 1)))
-    # compute depth
+    # init a tree: tr_simple = [(id, pid), ... ]
+    # fill roots and branches
+    tr_simple = np.zeros((n_branch + n_root, 2), dtype = dtype_id)
+    tr_simple[:n_root, 0] = root_ids
+    tr_simple[:n_root, 1] = -1
+    tr_simple[n_root:, :] = tr_branch
+    # map of id to index
+    map_idx = dict(zip(tr_simple[:,0], range(n_branch + 1)))
+    # compute depth by traverse
     depth = np.zeros(n_branch + n_root, dtype = dtype_id)
     for j in range(n_root, n_branch + n_root):
-        depth[j] = depth[map_idx[tr_s[j,1]]] + 1
+        depth[j] = depth[map_idx[tr_simple[j,1]]] + 1
+    
     if output_mode == 'simple':
         # [(node_id, parent_id, depth(root=0)), ...]
-        u = np.hstack((tr_s, depth[:,np.newaxis]))
+        u = np.hstack((tr_simple, depth[:,np.newaxis]))
     elif output_mode == 'depth':
         u = depth[n_root:,np.newaxis]
     return u
