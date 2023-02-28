@@ -490,6 +490,8 @@ def ArrayFunc(func):
       # for y = func(x)
       y_list = ArrayFunc(func)(x_list)
     Could be used as a decorator.
+
+    See also: np.vectorize
     """
     def broadcasted_func(x_list):
         if isinstance(x_list, np.ndarray):

@@ -569,7 +569,7 @@ class ObjTranslator:
             if prop_conf is None:
                 e_lut = 'default'
             else:
-                e_lut = prop_ref['lut']
+                e_lut = prop_conf['lut']
 
             lut = vtkLookupTable()
             if isinstance(e_lut, str) and (e_lut == 'default'):
@@ -577,13 +577,13 @@ class ObjTranslator:
                 # the number 402 (~256*pi/2) as suggested by lut.SetRampToSCurve()
                 lut.SetNumberOfTableValues(402)
                 lut.Build()
-                return lut
             elif isinstance(e_lut, (list, np.ndarray)):
                 # assume e_lut are colors:
                 #   [(r,g,b), ...]
                 #   [(r,g,b,a), ...]
                 #  r,g,b,a are in 0~1
                 n_color = len(e_lut)
+                dbg_print(4, 'prop_lut::custom lut n =', n_color)
                 if len(e_lut[0]) == 3:
                     # convert to RGBA
                     e_lut = np.hstack((e_lut, np.ones((n_color,1))))
@@ -596,6 +596,7 @@ class ObjTranslator:
                 lut.SetTableRange(0.0, 1.0)
                 lut.SetRampToLinear()
                 lut.SetScaleToLinear()
+            return lut
 
     class obj_volume(TranslatorUnit):
         """
@@ -1032,7 +1033,8 @@ class ObjTranslator:
                 # coloring by depth, ignore scalar_color
                 #ps = SplitSWCTree(self.tree_swc)
                 ps = self.processes
-                scalar_color = SimplifyTreeWithDepth(ps, 'depth') / max_depth
+                d  = SimplifyTreeWithDepth(ps, 'depth')
+                scalar_color = (d - 0.5) / max_depth
 
             assert len(scalar_color) == n_seg
             seg_data.SetScalars(numpy_to_vtk(scalar_color, deep=True))
