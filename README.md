@@ -8,13 +8,17 @@ Supported data format:
 Typical use cases:
 
 * Viewing the data with you favorite angle or perspective.
+* Inspect SWC files, relevant information will be shown for clicked node.
 * Run custom scripts (plugin) to analyze or alter the data, then seeing the result right away.
+* Press F2 to go to command line mode for prototyping, i.e. type `swcs.line_width = 2` to set line width of all SWCs.
 * Work with the source code for your own craft.
 
 Features
 
 * Thanks to VTK, we can also view in stereo modes (binocular 3D), such as split the view port horizontal, red blue or interlaced.
-* Support scene file, which specifies the scene objects, make it easier for scripting.
+* Parallel loading of SWC files for speeding up work flow.
+* Plugin of coloring SWC files according to node depth.
+* Facilities for easier work with SWCs, such as batch read / assignment.
 * Save the current scene (including view angle) to a file.
 * The plugin system can essentially let you do almost any modification to the program.
 
