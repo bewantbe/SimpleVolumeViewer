@@ -238,7 +238,8 @@ class PointPicker():
         if self.in_stereo_mode:
             wx2 = self.win_size[0]/2
             dx = wx2 if posxy[0] > wx2 else 0
-            posxy = (2*(posxy[0]-dx), posxy[0])
+            posxy = (2*(posxy[0]-dx), posxy[1])
+            dbg_print(4, 'PickAt()::stereo mode corrected point:', posxy)
     
         cam_min_view_distance = 0
         selection_angle_tol = 0.01

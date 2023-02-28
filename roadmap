@@ -87,17 +87,17 @@ Done:
 * add: arrayfy more property names, such as swcs.swc_name.
 * add sugar for get swc_name from internal object name
 * show also node id in information, by using index and tr[].
+* better color map, and get the color table outside
+* return to old coloring mode after plugin modification
+* cutting/hiding by branch depth
+  - hide the main branches by colormap (LUT)
 
 Under consideration:
-* better color map, and get the color table outside
 * swc language demands:
   - op : find common ancestor
   - api:
   - op : output node id for given position
   - api:
-* return to old coloring mode after plugin modificatioin
-* cutting/hiding by branch depth
-  - hide the main branches by colormap (LUT)
 * range selection. ball range selection
 * Add scale bar.
 * Add color bar.
