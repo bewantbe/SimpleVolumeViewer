@@ -411,6 +411,40 @@ def SplitSWCTree(tr):
 
     return processes
 
+def SWCDFSOrder(processes):
+    """
+    Used with 
+        SplitSWCTree()
+        s.processes
+    # test:
+    s = swcs['201']
+    processes = s.processes
+    """
+    # Get simplified tree nodes: [(branchleaf_id, parent_id), ...]
+    tr_branch = np.array([(p[-1], p[0]) for p in processes], dtype = dtype_id)
+    # find roots, i.e. nodes with non-exist parents
+    root_ids = np.setdiff1d(tr_branch[:,1], tr_branch[:,0])
+
+    # find index of root
+    sid = np.argsort(tr_branch[:,1])
+    id_p = np.searchsorted(np.sort(tr_branch[:,1]), root_ids)
+    id_p = sid[id_p]
+    idx_start = np.ones(len(processes), dtype = dtype_id)
+    idx_start[id_p] = 0
+    #assert s.tree_swc[0][processes[id_p[-1]][0], 1] == -1
+
+    od_idx = np.hstack([p[idx_start[j]:] for j, p in enumerate(processes)])
+    #assert len(np.unique(od_idx)) == len(od_idx)
+    return od_idx
+
+def SWCDFSSort(tr, processes):
+    idx = SWCDFSOrder(processes)
+    idx_rev = np.zeros(idx.shape, dtype=idx.dtype)
+    idx_rev[idx] = np.arange(len(idx))
+    tr = (tr[0][idx], tr[1][idx])
+    processes = [idx_rev[p] for p in processes]
+    return tr, processes
+
 def SimplifyTreeWithDepth(processes, output_mode = 'simple'):
     """
     Construct simplified tree.

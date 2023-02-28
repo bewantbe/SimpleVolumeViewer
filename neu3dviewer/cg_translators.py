@@ -964,6 +964,7 @@ class ObjTranslator:
         def LoadRawSwc(file_path):
             ntree = LoadSWCTree(file_path)
             processes = SplitSWCTree(ntree)
+            ntree, processes = SWCDFSSort(ntree, processes)
             
             raw_points = ntree[1][:,0:3]
 

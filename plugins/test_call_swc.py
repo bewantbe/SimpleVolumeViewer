@@ -23,9 +23,15 @@ def PluginMain(ren, iren, gui_ctrl):
     # swc depth coloring
     max_depth = 32
 
-    n_depth_not_shown = 2
-    cm_table = mpl.cm.get_cmap('viridis', max_depth - n_depth_not_shown).colors
+    n_depth_not_shown = 0
+    if 0:
+        f_cm = mpl.cm.get_cmap('viridis', max_depth - n_depth_not_shown)
+        cm_table = f_cm.colors
+    else:
+        f_cm = mpl.cm.get_cmap('rainbow').reversed()
+        cm_table = f_cm(np.linspace(0,1,max_depth - n_depth_not_shown))
     cm_table = np.vstack((np.zeros((n_depth_not_shown, 4)), cm_table))
+    #cm_table[:,3] = 0.3
     lut = gui_ctrl.translator.prop_lut().parse({'lut':cm_table})
 
     for s in swcs:
