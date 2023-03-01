@@ -99,11 +99,10 @@ Done:
 
 Under consideration:
 * swc language project: draft it then discuss.
+  - op : find axon branch
   - op : find common ancestor
-  - api:
   - op : output node id for given position
-  - api:
-* show by svd expanse.
+* Traverse with fly-to, and SVD angle adjust.
 * Add scale bar.
 * Add color bar.
 * Add status bar message timeout.

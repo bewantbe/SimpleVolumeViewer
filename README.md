@@ -18,9 +18,15 @@ Features
 * Thanks to VTK, we can also view in stereo modes (binocular 3D), such as split the view port horizontal, red blue or interlaced.
 * Parallel loading of SWC files for speeding up work flow.
 * Plugin of coloring SWC files according to node depth.
+* Measure distance between selected points.
 * Facilities for easier work with SWCs, such as batch read / assignment.
 * Save the current scene (including view angle) to a file.
 * The plugin system can essentially let you do almost any modification to the program.
+
+Demo
+
+![Rendering Mouselight data](/examples/screenshot_mouse_light.png)
+
 
 # Installation
 
