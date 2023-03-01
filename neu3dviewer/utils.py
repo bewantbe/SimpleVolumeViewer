@@ -471,8 +471,17 @@ class ArrayfyList:
             # indexing by slice or range, like: "[:10]"
             return ArrayfyList(self.obj_list[idx])
         elif isinstance(idx, (list, np.ndarray, type(self))):
-            # array style index, like "[["1", "2", "3"]]"
-            return ArrayfyList([self.__getitem__(i) for i in idx])
+            if hasattr(idx, 'dtype') and (idx.dtype == bool):
+                # '[[True, False, ...]]'
+                assert len(self) == len(idx)
+                return ArrayfyList([
+                    self.__getitem__(i) 
+                    for i in range(len(self))
+                    if idx[i]
+                ])
+            else:
+                # array style index, like '[["1", "2", "3"]]'
+                return ArrayfyList([self.__getitem__(i) for i in idx])
         else:
             # index by order in the list, like "[123]"
             return self.obj_list[idx]
@@ -484,9 +493,18 @@ class ArrayfyList:
             # indexing by slice or range, like: "[:10]"
             self.obj_list[idx] = val
         elif isinstance(idx, (list, np.ndarray)):
-            # array style index, like "[[1, 2, 3]]"
-            for j, i in enumerate(idx):
-                self.obj_list[i] = val[j]
+            if hasattr(idx, 'dtype') and (idx.dtype == bool):
+                # '[[True, False, ...]]'
+                idx_t = np.flatnonzeros(idx)
+                if not hasattr(val, '__len__'):
+                    val = [val] * len(idx_t)
+                assert len(idx_t) == len(val)
+                for j, i in enumerate(idx_t):
+                    self.obj_list[i] = val[j]
+            else:
+                # array style index, like "[[1, 2, 3]]"
+                for j, i in enumerate(idx):
+                    self.obj_list[i] = val[j]
         else:
             # index by order in the list, like "[123]"
             self.obj_list[idx] = val
@@ -511,9 +529,12 @@ def ArrayFunc(func):
             # not a list, assume scalar
             return func(x_list)
         # TODO: maybe use parallel here
+        out = False
         for j, x in enumerate(x_list):
             y_list[j] = func(x)
-        return y_list
+            out |= y_list[j] is not None
+        if out:
+            return y_list
     return broadcasted_func
 
 def inject_swc_utils(ns, oracle = None):

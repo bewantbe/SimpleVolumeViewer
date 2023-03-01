@@ -58,7 +58,7 @@ def GetValueByAnchorPoints(color_anchor_points, swc_objs):
     n_swc = len(swc_objs)
     s_v = np.zeros(n_swc)
     for k, o in enumerate(swc_objs):
-        v = int(o.swc_name.split('#')[1]) / n_swc
+        #v = int(o.swc_name.split('#')[1]) / n_swc
         
         r_xyz = o.tree_swc[1][:,0:3]
         
@@ -79,7 +79,7 @@ def PluginMain(ren, iren, gui_ctrl):
     cmap_f = GetColorMapFunction('plasma')
     #cmap_f = GetColorMapFunction('gray')
     
-    color_anchor_points = _a([[5008.4, 2742.5, 4912.], [5229.2, 3079.6, 5099.6], [5070., 3148.8, 4702.8]])
+    color_anchor_points = _a([[5008.4, 2742.5, 4912.], [5229.2, 3079.6, 5099.6], [5070., 3148.8, 4702.8]]) * 10
     s_v = GetValueByAnchorPoints(color_anchor_points, swc_objs)
     s_v = value_normalize(s_v)
     

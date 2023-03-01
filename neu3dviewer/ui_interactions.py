@@ -9,6 +9,7 @@ import numpy as np
 from numpy import sqrt, sin, cos, tan, pi
 from numpy import array as _a
 import numbers
+import traceback
 
 from vtkmodules.vtkCommonCore import (
     vtkCommand,
@@ -88,7 +89,8 @@ def DefaultKeyBindings():
         'F2'           : 'embed_interactive_shell',
         'Ctrl+g'       : 'exec_script',
         'Ctrl+2'       : 'exec_script test_call_2.py',
-        'Ctrl+5'       : 'exec_script test_call_swc.py',
+        'Ctrl+3'       : 'exec_script test_call_3.py',
+        'Ctrl+4'       : 'exec_script test_call_4.py',
         'Ctrl+Shift+A' : 'deselect',
         'Ctrl+Shift+a' : 'deselect',
         'Insert'       : 'toggle_hide_nonselected',
@@ -616,6 +618,7 @@ class UIActions():
             dbg_print(1, 'Failed to run due to exception:')
             dbg_print(1, type(inst))
             dbg_print(1, inst)
+            traceback.print_exc()
         self.gui_ctrl.StatusBar(None)
         self.gui_ctrl.Render()
 
