@@ -169,7 +169,10 @@ class RepeatingTimerHandler():
         self.fps = fps
         self.b_fixed_clock_rate = b_fixed_clock_rate
 
-    def callback(self, obj, event):
+    @calldata_type(VTK_INT)
+    def callback(self, obj, event, timer_id):
+        if timer_id != self.timerId:
+            return
         if self.b_fixed_clock_rate:
             self.tick += 1
             t_now = self.tick * 1/self.fps + self.time_start
@@ -187,7 +190,7 @@ class RepeatingTimerHandler():
         self.ob_id = self.interactor.AddObserver('TimerEvent', self.callback)
         self.time_start = time.time()
         self.exec_obj.startat(self.time_start)
-        self.timerId = self.interactor.CreateRepeatingTimer(int(1/self.fps))
+        self.timerId = self.interactor.CreateRepeatingTimer(int(1000/self.fps))
         self.tick = 0
     
     def stop(self):
@@ -195,6 +198,7 @@ class RepeatingTimerHandler():
             self.interactor.DestroyTimer(self.timerId)
             self.timerId = None
             self.interactor.RemoveObserver(self.ob_id)
+            self.ob_id = None
 
     def __del__(self):
         self.stop()
@@ -208,12 +212,13 @@ class TimerHandler():
     @calldata_type(VTK_INT)
     def callback(self, obj, event, timer_id):
         #assert event == 'TimerEvent'
+        if timer_id not in self.timer_callbacks:
+            return
         dbg_print(5, 'TimerHandler::callback:', event, timer_id)
-        if timer_id in self.timer_callbacks:
-            timer = self.timer_callbacks[timer_id]
-            timer.callback(obj)
-            timer.finished = True
-            del self.timer_callbacks[timer_id]
+        timer = self.timer_callbacks[timer_id]
+        timer.callback(obj)
+        timer.finished = True
+        del self.timer_callbacks[timer_id]
 
     def Initialize(self, iren):
         self.interactor = iren
@@ -466,7 +471,7 @@ class UIActions():
         cam1 = ren1.GetActiveCamera()
         cam2 = ren2.GetActiveCamera()
         rotator = execSmoothRotation(cam1, 60.0)
-        RepeatingTimerHandler(self.iren, 6.0, rotator, 100, True).start()
+        RepeatingTimerHandler(self.iren, 6.0, rotator, 60, True).start()
 
     def inc_brightness(self, cmd):
         """Make the selected image darker or lighter."""

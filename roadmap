@@ -92,14 +92,17 @@ Done:
 * cutting/hiding by branch depth
   - hide the main branches by colormap (LUT)
 * distance measurement for recent two points, show on status bar?
+* why GetTimerEventId (), GetVTKTimerId () not work??  See here https://vtk.org/doc/nightly/html/classvtkRenderWindowInteractor.html#a7ef06e3e7c8cff5767c3b0d328934f55
+  - Use @calldata_type(VTK_INT) for callback to get timer ID.
+
 
 Under consideration:
+* range selection. ball range selection, i.e. 3D pick (x,y,z,r).
 * swc language project: draft it then discuss.
   - op : find common ancestor
   - api:
   - op : output node id for given position
   - api:
-* range selection. ball range selection, i.e. 3D pick (x,y,z,r).
 * show by svd expanse.
 * Add scale bar.
 * Add color bar.
@@ -133,5 +136,4 @@ Under consideration:
   - code exampe: https://discourse.vtk.org/t/how-to-pick-edge/10719/8
 * SetInteractorStyle() switching
 * large render: vtkUnstructuredGrid  https://discourse.vtk.org/t/how-to-draw-10000-object/8438/15
-* why GetTimerEventId (), GetVTKTimerId () not work??  See here https://vtk.org/doc/nightly/html/classvtkRenderWindowInteractor.html#a7ef06e3e7c8cff5767c3b0d328934f55
 * seems usefull: AddRepresentation()  see https://vtk.org/wp-content/uploads/2021/08/VTKUsersGuide.pdf
