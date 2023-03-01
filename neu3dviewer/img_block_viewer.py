@@ -646,17 +646,17 @@ class GUIControl:
 
         if not self._timer_lazy_render.finished:
             # just wait the scheduled render event
-            dbg_print(5, 'LazyRender(): rejected a Render():')
+            #dbg_print(5, 'LazyRender(): rejected a Render():')
             return
 
         def render_if_not_yet(o):
             m_time_cast = self.render_window.GetMTime()
             m_time_ren  = self.GetMainRenderer().GetMTime()
-            dbg_print(5, 'LazyRender(): t_ren =', m_time_ren, ', t_cast =', m_time_cast)
+            #dbg_print(5, 'LazyRender(): t_ren =', m_time_ren, ', t_cast =', m_time_cast)
             if m_time_ren <= m_time_cast:
                 # no rendering is done, do it now
                 self.render_window.Render()
-                dbg_print(5, 'LazyRender(): Render()')
+                #dbg_print(5, 'LazyRender(): Render()')
 
         self._timer_lazy_render = \
             self.timer_handler.schedule(

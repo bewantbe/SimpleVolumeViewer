@@ -84,6 +84,7 @@ def DefaultKeyBindings():
         'Return'       : 'load_near_volume',
         'KP_Enter'     : 'load_near_volume',
         'x'            : 'remove_selected_object',
+        'w'            : ['select_near_3d_cursor', 100],
         '`'            : 'toggle_show_local_volume',
         'i'            : 'show_selected_info',
         'F2'           : 'embed_interactive_shell',
@@ -216,7 +217,7 @@ class TimerHandler():
         #assert event == 'TimerEvent'
         if timer_id not in self.timer_callbacks:
             return
-        dbg_print(5, 'TimerHandler::callback:', event, timer_id)
+        #dbg_print(5, 'TimerHandler::callback:', event, timer_id)
         timer = self.timer_callbacks[timer_id]
         timer.callback(obj)
         timer.finished = True
@@ -860,20 +861,42 @@ class UIActions():
                 f' = {dist:.1f}'
             self.gui_ctrl.StatusBar(s)
 
-    def select_in_3d(self, r, radius):
+    def select_in_3d(self, r, radius, selection_mode = 'add'):
         """
         pick points and swcs in ball of center r and radius.
         r = np.array([53051.2, 27876.6, 52150.6])
         radius = 100
         """
+        # get object names within range
         points_holder = self.gui_ctrl.point_set_holder
         points = points_holder().T
         id_sel = np.flatnonzero(np.linalg.norm(points - r, axis=1) <= radius)
         name_sel = points_holder.GetNameByPointId(id_sel, True)
+
+        # ignore transparent objects
+        obj_dict = self.gui_ctrl.scene_objects
+        name_sel = [n for n in name_sel
+                    if getattr(obj_dict[n], 'visible', False)]
+
+        # adjust selection set
         so = self.gui_ctrl.selected_objects
+        if selection_mode == 'add':
+            so_new = set(so) | set(name_sel)
+        elif selection_mode == 'subtract':
+            so_new = set(so) - set(name_sel)
+        elif selection_mode == 'xor':
+            so_new = set(so) ^ set(name_sel)
         so.clear()
-        so.extend(name_sel)
+        so.extend(list(so_new))
         dbg_print(4, 'Selected obj:', self.gui_ctrl.selected_objects)
+
+    def select_near_3d_cursor(self, radius):
+        """Select SWCs near the cursor within a radius."""
+        r = self.gui_ctrl.Get3DCursor()
+        if r is None:
+            return
+        r = _a(r)
+        self.select_in_3d(r, radius, 'add')
     
     def select_and_fly_to(self):
         """Pick the point at cursor and fly to it."""
@@ -884,7 +907,7 @@ class UIActions():
     def deselect(self, select_mode = ''):
         """Deselect all selected objects."""
         # select_mode = all, reverse
-        self.gui_ctrl.selected_objects = []
+        self.gui_ctrl.selected_objects.clear()
         dbg_print(4, 'selected obj:', self.gui_ctrl.selected_objects)
 
     def toggle_help_message(self):
