@@ -34,11 +34,19 @@ GPU = 1128MiB
 
 6357 swcs
 ```
+# xle Linux, python 3.9
 t_load = 136.121 sec
 t_vtk_take = 54.435 sec
 RAM  usage: 43.5GB
 after a pick 47.9GB
 GRAM usage: 6453MB
+
+# xle Win11, python 3.9.11 + numpy 1.24.1 + vtk 9.2.5
+t_load = 89.892 sec
+t_vtk_take = 68.341 sec
+RAM  usage: 31.0GB(1/1.024)
+after a pick 34.95GB(1/1.024)
+GRAM usage: 6.4GB
 ```
 
 ## Generate a standalone executable application
