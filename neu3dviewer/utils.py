@@ -495,7 +495,7 @@ class ArrayfyList:
         elif isinstance(idx, (list, np.ndarray)):
             if hasattr(idx, 'dtype') and (idx.dtype == bool):
                 # '[[True, False, ...]]'
-                idx_t = np.flatnonzeros(idx)
+                idx_t = np.flatnonzero(idx)
                 if not hasattr(val, '__len__'):
                     val = [val] * len(idx_t)
                 assert len(idx_t) == len(val)

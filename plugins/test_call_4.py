@@ -33,13 +33,13 @@ def PluginMain(ren, iren, gui_ctrl):
         distr_branch = _ai(nts_stat['n_branches'])
         # seems  0.0 ~ 0.3 of branches do not contain much axon
         v1_branch = np.quantile(distr_branch, 0.3)
-        v2_branch = np.quantile(distr_branch, 0.99)
+        v2_branch = np.quantile(distr_branch, 1.0)
 
         swcs.visible = False
         swcs[(distr_branch > v1_branch) & (distr_branch < v2_branch)].visible = True
     else:
         distr = _ai(nts_stat['geo_len'])
-        # seems  0.0 ~ 0.3 of branches do not contain much axon
+        # seems  0.0 ~ 0.25 of length do not contain much axon
         v1 = np.quantile(distr, 0.2)
         v2 = np.quantile(distr, 0.3)
 

@@ -354,12 +354,23 @@ class PointSetHolder():
                                  point_id, side='right') - 1
         return set_id
 
-    def GetNameByPointId(self, point_id):
-        return self.name_list[self.GetSetidByPointId(point_id)]
+    def GetNameByPointId(self, point_id, unique = False):
+        sid = self.GetSetidByPointId(point_id)
+        if hasattr(point_id, '__len__'):
+            if unique:
+                return [self.name_list[i] for i in np.unique(sid)]
+            else:
+                return [self.name_list[i] for i in sid]
+        else:
+            return self.name_list[sid]
     
     def GetLocalPid(self, point_id):
-        return point_id - self._point_set_boundaries[
-                                   self.GetSetidByPointId(point_id)]
+        sid = self.GetSetidByPointId(point_id)
+        if hasattr(point_id, '__len__'):
+            return [point_id[j] - self._point_set_boundaries[i]
+                    for j, i in enumerate(sid)]
+        else:
+            return point_id - self._point_set_boundaries[sid]
     
     def GetNameLocalPidByPointId(self, point_id):
         idx = self.GetSetidByPointId(point_id)
@@ -848,6 +859,21 @@ class UIActions():
             s = f'dist({swc_name0}:{que[0][1]}, {swc_name1}:{que[1][1]})' \
                 f' = {dist:.1f}'
             self.gui_ctrl.StatusBar(s)
+
+    def select_in_3d(self, r, radius):
+        """
+        pick points and swcs in ball of center r and radius.
+        r = np.array([53051.2, 27876.6, 52150.6])
+        radius = 100
+        """
+        points_holder = self.gui_ctrl.point_set_holder
+        points = points_holder().T
+        id_sel = np.flatnonzero(np.linalg.norm(points - r, axis=1) <= radius)
+        name_sel = points_holder.GetNameByPointId(id_sel, True)
+        so = self.gui_ctrl.selected_objects
+        so.clear()
+        so.extend(name_sel)
+        dbg_print(4, 'Selected obj:', self.gui_ctrl.selected_objects)
     
     def select_and_fly_to(self):
         """Pick the point at cursor and fly to it."""
