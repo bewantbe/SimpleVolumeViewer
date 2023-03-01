@@ -32,8 +32,14 @@ float64 mode:
 RAM = 3.3GiB (8.3GiB during pick), 3.6g(after pick),
 GPU = 1128MiB
 
-Performance for time:
-load 6356 neurons: <19m34.236s
+6357 swcs
+```
+t_load = 136.121 sec
+t_vtk_take = 54.435 sec
+RAM  usage: 43.5GB
+after a pick 47.9GB
+GRAM usage: 6453MB
+```
 
 ## Generate a standalone executable application
 
