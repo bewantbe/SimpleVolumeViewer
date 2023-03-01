@@ -253,6 +253,7 @@ class GUIControl:
         self.loading_default_config = False
         self.n_max_cpu_cores_default = 8
         self.swc_loading_batch_size = 2
+        self.parallel_lib = 'multiprocessing'
 
     def GetNonconflitName(self, name_prefix, name_book = 'scene'):
         if name_book == 'scene':
@@ -463,8 +464,7 @@ class GUIControl:
         dbg_print(4, 'AddBatchSWC(): loading...')
         # load swc data in parallel
         t1 = time.time()
-        parallel_method = 'multiprocessing'
-        if parallel_method == 'joblib':
+        if self.parallel_lib == 'joblib':
             # TODO: the parallel execution has a large fixed overhead,
             #       this overhead is not sensitive to batch size,
             #       which indicate the overhead is probably related to
@@ -476,7 +476,7 @@ class GUIControl:
             cached_pointsets = joblib.Parallel(n_jobs = n_job_cores) \
                     (joblib.delayed(batch_load)(j, utils.debug_level)
                         for j in li_file_path_batch)
-        elif parallel_method == 'multiprocessing':
+        elif self.parallel_lib == 'multiprocessing':
             with Pool(n_job_cores) as p:
                 li_file_path_batch_ext = zip(li_file_path_batch,
                     (utils.debug_level for i in range(len(li_file_path_batch))))

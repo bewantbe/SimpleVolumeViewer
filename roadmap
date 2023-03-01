@@ -94,10 +94,10 @@ Done:
 * distance measurement for recent two points, show on status bar?
 * why GetTimerEventId (), GetVTKTimerId () not work??  See here https://vtk.org/doc/nightly/html/classvtkRenderWindowInteractor.html#a7ef06e3e7c8cff5767c3b0d328934f55
   - Use @calldata_type(VTK_INT) for callback to get timer ID.
+* range selection. ball range selection, i.e. 3D pick (x,y,z,r).
 
 
 Under consideration:
-* range selection. ball range selection, i.e. 3D pick (x,y,z,r).
 * swc language project: draft it then discuss.
   - op : find common ancestor
   - api:

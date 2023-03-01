@@ -259,6 +259,9 @@ class ObjTranslator:
                             Currently only for loading SWC.""")
             group.add_argument('--swc_loading_batch_size', type=int, metavar='SIZE',
                     help='The batch size for each CPU when loading SWC files, default: 2.')
+            group.add_argument('--parallel_lib', type=str, metavar='LIB',
+                    choices=['multiprocessing', 'joblib', 'none'],
+                    help='Which multi-process parallel library to use.')
             group.add_argument('--plugin_dir',
                     help=f'Set directory of plugins. Default: ./plugins/')
 
@@ -269,6 +272,7 @@ class ObjTranslator:
                 'off_screen_rendering':'', 'no_interaction':'',
                 'full_screen':'', 'stereo_type':'',
                 'max_cpu':'', 'swc_loading_batch_size':'',
+                'parallel_lib':'',
                 'plugin_dir':'',
                 'window_size':'size',
             }
@@ -342,6 +346,8 @@ class ObjTranslator:
                 self.gui_ctrl.n_max_cpu_cores_default = win_conf['max_cpu']
             if 'swc_loading_batch_size' in win_conf:
                 self.gui_ctrl.swc_loading_batch_size = win_conf['swc_loading_batch_size']
+            if 'parallel_lib' in win_conf:
+                self.gui_ctrl.parallel_lib = win_conf['parallel_lib']
             self.gui_ctrl.plugin_dir = win_conf.get('plugin_dir', './plugins/')
             # The get DPI function in VTK is very unusable.
             #if render_window.DetectDPI():

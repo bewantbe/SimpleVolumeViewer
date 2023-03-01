@@ -435,6 +435,13 @@ def SWCDFSOrder(processes):
 
     od_idx = np.hstack([p[idx_start[j]:] for j, p in enumerate(processes)])
     #assert len(np.unique(od_idx)) == len(od_idx)
+    #assert max(od_idx)+1 == len(od_idx)
+
+    # occationally, there is root point of no branches at all,
+    # thus cannot captured by processes
+    singleton = np.setdiff1d(np.arange(max(od_idx)+1), od_idx, True)
+    od_idx = np.hstack((singleton, od_idx))
+
     return od_idx
 
 def SWCDFSSort(tr, processes):
