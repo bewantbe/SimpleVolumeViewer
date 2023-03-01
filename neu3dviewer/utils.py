@@ -276,7 +276,16 @@ def RotationMat(theta, axis :int):
 
 class Struct:
     """somewhat like the struct in matlab"""
-    pass
+    def __init__(self, **kv):
+        for k, v in kv.items():
+            setattr(self, k, v)
+
+    def __repr__(self):
+        s = '\n'.join([
+            f'.{k} = ' + v.__repr__()
+            for k, v in vars(self).items()
+        ])
+        return s
 
 def get_num_in_str(a):
     # Return what integer part in the string (usually filename)

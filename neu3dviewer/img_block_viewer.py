@@ -75,6 +75,7 @@ from .utils import (
     GetNonconflitName,
     WindowsFriendlyDateTime,
     MergeFullDict,
+    Struct,
 )
 utils.debug_level = 5
 
@@ -88,6 +89,7 @@ from .cg_operations import (
 from .ui_interactions import (
     GenerateKeyBindingDoc,
     PointSetHolder,
+    TimerHandler,
 )
 from .cg_translators import ObjTranslator
 
@@ -241,6 +243,8 @@ class GUIControl:
         self.volume_observers = []
         self.selected_pid = None
         self.focusController = FocusModeController()
+        self.timer_handler = TimerHandler()
+        self._timer_lazy_render = Struct(finished = True)
 
         # load default settings
         self.loading_default_config = True
@@ -274,7 +278,7 @@ class GUIControl:
         dbg_print(4, 'Set 3D cursor to', xyz)
         cursor = self.scene_objects['3d_cursor']
         cursor.position = xyz
-        self.render_window.Render()
+        self.LazyRender()
 
     def SetSelectedPID(self, pid):
         if pid < len(self.point_set_holder):
@@ -613,7 +617,7 @@ class GUIControl:
         """Message shown on the button."""
         if (msg is None) and ("_status_bar" in self.scene_objects):
             self.RemoveObject("_status_bar")
-            self.render_window.Render()
+            self.LazyRender()
             return
         if "_status_bar" not in self.scene_objects:
             # show help
@@ -631,7 +635,33 @@ class GUIControl:
             # update message
             self.scene_objects['_status_bar'].text = msg
         # TODO: up to the caller (usually interactor) to update, or lazy update?
+        self.LazyRender()
+
+    def Render(self):
+        self.GetMainRenderer().Modified()
         self.render_window.Render()
+
+    def LazyRender(self, frame_duration = 1/30):
+        self.render_window.Modified()
+
+        if not self._timer_lazy_render.finished:
+            # just wait the scheduled render event
+            dbg_print(5, 'LazyRender(): rejected a Render():')
+            return
+
+        def render_if_not_yet(o):
+            m_time_cast = self.render_window.GetMTime()
+            m_time_ren  = self.GetMainRenderer().GetMTime()
+            dbg_print(5, 'LazyRender(): t_ren =', m_time_ren, ', t_cast =', m_time_cast)
+            if m_time_ren <= m_time_cast:
+                # no rendering is done, do it now
+                self.render_window.Render()
+                dbg_print(5, 'LazyRender(): Render()')
+
+        self._timer_lazy_render = \
+            self.timer_handler.schedule(
+                render_if_not_yet,
+                frame_duration)
 
     def InfoBar(self, msg):
         # prepare obj message
@@ -665,7 +695,7 @@ class GUIControl:
             self.AddObject("_info_bar", conf)
         else:
             self.scene_objects["_info_bar"].text = msg
-        self.render_window.Render()
+        self.LazyRender()
 
     def ShowWelcomeMessage(self, show = True):
         dbg_print(4, 'ShowWelcomeMessage(): show =', show)
@@ -757,7 +787,7 @@ class GUIControl:
             self.EasyObjectImporter({'img_path': img_path})
         # see it
         self.GetMainRenderer().ResetCamera()
-        self.render_window.Render()
+        self.LazyRender()
 
     def ShotScreen(self, filename = ''):
         if filename == '':
@@ -785,12 +815,13 @@ class GUIControl:
             json.dump(self.scene_saved, f, indent=4, ensure_ascii = False)
 
     def Start(self):
-        self.interactor.Initialize()
+        self.interactor.Initialize()  # must be called prior to creating timer
         self.GetMainRenderer().ResetCamera()   # bird's-eye view
         #self.GetMainRenderer().ResetCameraClippingRange()
         self.render_window.Render()
         # self.UtilizerInit()
         self.focusController.SetGUIController(self)
+        self.timer_handler.Initialize(self.interactor)
 
         for cg_conf in self.li_cg_conf:
             self.translator.translate(self, self.GetMainRenderer(),

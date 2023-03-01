@@ -15,6 +15,7 @@ from vtkmodules.vtkCommonCore import (
     vtkStringArray,
     VTK_STRING,
     VTK_OBJECT,
+    VTK_INT,
 )
 from vtkmodules.util.misc import calldata_type
 from vtkmodules.vtkInteractionStyle import (
@@ -197,6 +198,44 @@ class RepeatingTimerHandler():
 
     def __del__(self):
         self.stop()
+
+class TimerHandler():
+    def __init__(self):
+        self.interactor = None
+        self.ob_id    = None
+        self.timer_callbacks = {}  # timer_id: (callback, t_rel, t_scheduled)
+
+    @calldata_type(VTK_INT)
+    def callback(self, obj, event, timer_id):
+        #assert event == 'TimerEvent'
+        dbg_print(5, 'TimerHandler::callback:', event, timer_id)
+        if timer_id in self.timer_callbacks:
+            timer = self.timer_callbacks[timer_id]
+            timer.callback(obj)
+            timer.finished = True
+            del self.timer_callbacks[timer_id]
+
+    def Initialize(self, iren):
+        self.interactor = iren
+        self.ob_id = self.interactor.AddObserver('TimerEvent', self.callback)
+
+    def schedule(self, cb, t_rel):
+        timer = Struct(callback=cb, finished = False, \
+                       t_rel = t_rel, t_scheduled = time.time())
+        timer_id = self.interactor.CreateOneShotTimer(int(1000.0*t_rel))
+        self.timer_callbacks[timer_id] = timer
+        return timer
+
+    def __del__(self):
+        if self.interactor is None:
+            return
+        # destroy timers
+        for i in self.timer_callbacks.keys():
+            if self.interactor.IsOneShotTimer(i):
+                self.interactor.DestroyTimer(i)
+        del self.timer_callbacks
+        # remove callback
+        self.interactor.RemoveObserver(self.ob_id)
 
 class PointPicker():
     """
@@ -441,7 +480,7 @@ class UIActions():
         if cmd.endswith('+'):
             k = 1.0 / k
         self.gui_ctrl.scene_objects[vol_name].set_color_scale_mul_by(k)
-        self.iren.GetRenderWindow().Render()         # TODO inform a refresh in a smart way
+        self.gui_ctrl.Render()
     
     def screen_shot(self):
         """Save a screenshot in current directory."""
@@ -474,7 +513,7 @@ class UIActions():
         """Load volume near cursor."""
         center = self.gui_ctrl.Get3DCursor()
         self.gui_ctrl.LoadVolumeNear(center)
-        self.iren.GetRenderWindow().Render()
+        self.gui_ctrl.Render()
 
     def set_view_up(self):
         """Reset camera up direction to default."""
@@ -482,7 +521,7 @@ class UIActions():
         ren1 = self.GetRenderers(1)
         cam1 = ren1.GetActiveCamera()
         cam1.SetViewUp(0,1,0)
-        self.iren.GetRenderWindow().Render()
+        self.gui_ctrl.Render()
 
     def remove_selected_object(self):
         """Remove the selected object."""
@@ -491,7 +530,7 @@ class UIActions():
         else:
             obj_name = self.gui_ctrl.selected_objects[0]
             self.gui_ctrl.RemoveObject(obj_name)
-            self.iren.GetRenderWindow().Render()
+            self.gui_ctrl.Render()
 
     def toggle_show_local_volume(self):
         """Toggle showing of local volume."""
@@ -512,7 +551,7 @@ class UIActions():
         # commands from the shell through a queue.
         #from IPython import embed
         self.gui_ctrl.StatusBar(' To return to this GUI, exit the interactive shell (CMD).')
-        self.iren.GetRenderWindow().Render()
+        self.gui_ctrl.Render()
         from IPython.terminal.embed import InteractiveShellEmbed
         from IPython import start_ipython
         if not hasattr(self, '_shell_mode'):
@@ -547,7 +586,7 @@ class UIActions():
         else:
             dbg_print(1, "embed_interactive_shell: No such shell.")
         self.gui_ctrl.StatusBar(None)
-        self.iren.GetRenderWindow().Render()
+        self.gui_ctrl.Render()
 
     def exec_script(self, script_name = 'test_call.py'):
         """Run a specific script."""
@@ -555,7 +594,7 @@ class UIActions():
         iren = self.iren
         script_path = self.gui_ctrl.plugin_dir + script_name
         self.gui_ctrl.StatusBar(f' Running script: {script_name}')
-        self.iren.GetRenderWindow().Render()
+        self.gui_ctrl.Render()
         dbg_print(3, 'Running script:', script_name)
         try:
             # running in globals() is a bit danger, any better idea?
@@ -573,7 +612,7 @@ class UIActions():
             dbg_print(1, type(inst))
             dbg_print(1, inst)
         self.gui_ctrl.StatusBar(None)
-        self.iren.GetRenderWindow().Render()
+        self.gui_ctrl.Render()
 
     def scene_zooming(self, direction, zooming_factor = 1.2):
         """Zoom in or out."""
@@ -590,7 +629,7 @@ class UIActions():
         # automatically reset clipping range after changing camera view
         # angle. Then the clipping range can be wrong for zooming.
         ren1.ResetCameraClippingRange()
-        self.iren.GetRenderWindow().Render()
+        self.gui_ctrl.Render()
 
     def scene_object_traverse(self, direction):
         """Select next/previous scene object, usually a point on swc."""
@@ -902,7 +941,7 @@ class UIActions():
             for name, obj in self.gui_ctrl.scene_objects.items():
                 if hasattr(obj, 'visible'):
                     obj.visible = True
-        self.iren.GetRenderWindow().Render()
+        self.gui_ctrl.Render()
 
     def show_selected_info(self):
         """Show info about selected object(s)."""
@@ -915,7 +954,7 @@ class UIActions():
         """Reset camera to view all objects."""
         self.gui_ctrl.GetMainRenderer().ResetCamera()
         #self.gui_ctrl.GetMainRenderer().ResetCameraClippingRange()
-        self.iren.GetRenderWindow().Render()
+        self.gui_ctrl.Render()
 
 def GenerateKeyBindingDoc(key_binding = DefaultKeyBindings(),
                           action = UIActions('', '', ''), help_mode = ''):
