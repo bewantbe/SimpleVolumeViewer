@@ -730,9 +730,13 @@ class UIActions():
             dbg_print(4, 'Selected obj:', self.gui_ctrl.selected_objects)
 
         self.mark_swc_point(ret)
+        self.measure_pick_distance(ret)
         return ret
 
     def mark_swc_point(self, pick_info):
+        """
+        Give information of the picked point and place the cursor on it.
+        """
         # pick_info = (obj_name, lid, pid, pxyz)
         if pick_info is None:
             dbg_print(4, 'PickAt(): picked no point.')
@@ -769,6 +773,34 @@ class UIActions():
         #self.gui_ctrl.InfoBar({'type':'swc', 'obj_name':obj_name, 'header':h})
         self.gui_ctrl.InfoBar(s_info)
         self.gui_ctrl.SetSelectedPID(pid)
+
+    def measure_pick_distance(self, pick_info):
+        """
+        Measure distance between two recently picked points.
+
+        pick_info = (obj_name, lid, pid, pxyz)
+        """
+        if not hasattr(self, 'measure_point_queue'):
+            self.measure_point_queue = []
+            self.measure_point_queue_max_len = 10
+        que = self.measure_point_queue
+        if pick_info is None:
+            que.clear()
+            self.gui_ctrl.StatusBar(None)
+            return
+        # insert to queue and trim
+        que.insert(0, pick_info)
+        del que[self.measure_point_queue_max_len:]
+        # give measurement
+        if len(que) >= 2:
+            dist = np.linalg.norm(que[0][3] - que[1][3])
+            swc_obj0  = self.gui_ctrl.scene_objects[que[0][0]]
+            swc_obj1  = self.gui_ctrl.scene_objects[que[1][0]]
+            swc_name0 = swc_obj0.swc_name
+            swc_name1 = swc_obj1.swc_name
+            s = f'dist({swc_name0}:{que[0][1]}, {swc_name1}:{que[1][1]})' \
+                f' = {dist:.1f}'
+            self.gui_ctrl.StatusBar(s)
     
     def select_and_fly_to(self):
         """Pick the point at cursor and fly to it."""

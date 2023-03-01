@@ -613,6 +613,7 @@ class GUIControl:
         """Message shown on the button."""
         if (msg is None) and ("_status_bar" in self.scene_objects):
             self.RemoveObject("_status_bar")
+            self.render_window.Render()
             return
         if "_status_bar" not in self.scene_objects:
             # show help
@@ -629,6 +630,7 @@ class GUIControl:
         else:
             # update message
             self.scene_objects['_status_bar'].text = msg
+        # TODO: up to the caller (usually interactor) to update, or lazy update?
         self.render_window.Render()
 
     def InfoBar(self, msg):

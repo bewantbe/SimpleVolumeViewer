@@ -91,14 +91,16 @@ Done:
 * return to old coloring mode after plugin modification
 * cutting/hiding by branch depth
   - hide the main branches by colormap (LUT)
+* distance measurement for recent two points, show on status bar?
 
 Under consideration:
-* swc language demands:
+* swc language project: draft it then discuss.
   - op : find common ancestor
   - api:
   - op : output node id for given position
   - api:
-* range selection. ball range selection
+* range selection. ball range selection, i.e. 3D pick (x,y,z,r).
+* show by svd expanse.
 * Add scale bar.
 * Add color bar.
 * Add status bar message timeout.
