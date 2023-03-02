@@ -328,6 +328,10 @@ def LoadSWCTree(filepath):
       )
     """
     d = np.loadtxt(filepath)
+    if len(d) == 0:
+        raise IndexError('Empty SWC file?')
+    elif len(d.shape) == 1:
+        d = d[np.newaxis, :]
     tr = (dtype_id(d[:,np.array([0,6,1])]),
           np.float64(d[:, 2:6]))
 
@@ -420,6 +424,8 @@ def SWCDFSOrder(processes):
     s = swcs['201']
     processes = s.processes
     """
+    if len(processes) == 0:
+        return np.zeros((0,), dtype = dtype_id)
     # Get simplified tree nodes: [(branchleaf_id, parent_id), ...]
     tr_branch = np.array([(p[-1], p[0]) for p in processes], dtype = dtype_id)
     # find roots, i.e. nodes with non-exist parents
