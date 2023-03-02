@@ -124,6 +124,8 @@ Under consideration:
     And PRISM: An open source framework for the interactive design of GPU volume rendering shaders
   - better raycast?: vtkVolumeRayCastCompositeFunction 
 * Support VR.
+* note that there is a bug associate with vtkOpenGLGPUVolumeRayCastMapper, i.e. not stereo, need to use vtkFixedPointVolumeRayCastMapper.
+  - See https://discourse.vtk.org/t/stereo-problem-with-gpu-volume-mappers/7512
 * Support touch screen (StartPinchEvent, PinchEvent, EndPinchEvent), (SwipeEvent, StartSwipeEvent, EndSwipeEvent)
   - Try touch screen interaction, such as PinchEvent. See https://vtk.org/doc/nightly/html/classvtkRenderWindowInteractor.html#details
 * use off-screen rendering for auto unit test
