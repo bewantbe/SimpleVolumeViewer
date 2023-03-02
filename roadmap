@@ -98,6 +98,7 @@ Done:
 
 
 Under consideration:
+* Number of nodes could exceed 2^31, we need int64 for indexing.
 * swc language project: draft it then discuss.
   - op : find axon branch
   - op : find common ancestor

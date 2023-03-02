@@ -34,8 +34,8 @@ GPU = 1128MiB
 
 6357 swcs
 ```
-# xle Linux, python 3.9
-t_load = 136.121 sec
+# xle Linux, python 3.9.2 + numpy 1.24.2 + vtk 9.2.2
+t_load = 136.121~150 sec
 t_vtk_take = 54.435 sec
 RAM  usage: 43.5GB
 after a pick 47.9GB
