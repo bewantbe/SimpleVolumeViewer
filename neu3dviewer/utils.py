@@ -541,11 +541,9 @@ def ArrayFunc(func):
     return broadcasted_func
 
 def inject_swc_utils(ns, oracle = None):
-    """
-The following variables are prepared:
-    gui_ctrl, iren, interactor, ren, swcs
-See the help like `help(swcs)`, or reference the plugins directory.
-    """
+    """The following variables are prepared:\n""" \
+    """    swcs, gui_ctrl, iren, interactor, ren\n""" \
+    """See the help like `help(swcs)`, or reference the plugins directory."""
     if oracle is None:
         # e.g. when used in UIActions and passing ns = locals()
         oracle = ns['self']

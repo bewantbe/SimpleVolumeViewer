@@ -1,0 +1,5 @@
+{
+  "shortcuts":{
+    "Ctrl+0"  : "exec_script ex_bind_key.py"
+  }
+}

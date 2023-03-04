@@ -565,6 +565,7 @@ class UIActions():
     def embed_interactive_shell(self):
         """Start an ipython session in command line with context, see %whos."""
         # Ref. IPython.terminal.embed.InteractiveShellEmbed
+        # https://ipython.readthedocs.io/en/stable/interactive/reference.html#embedding-ipython
         # https://ipython.readthedocs.io/en/stable/api/generated/IPython.terminal.embed.html
         # old tutorial
         # https://ipython.org/ipython-doc/stable/interactive/reference.html#embedding-ipython
@@ -576,39 +577,53 @@ class UIActions():
         self.gui_ctrl.StatusBar(' To return to this GUI, exit the interactive shell (CMD).')
         self.gui_ctrl.Render()
         from IPython.terminal.embed import InteractiveShellEmbed
-        from IPython import start_ipython
+        import IPython
+        banner1 = "IPython interactive shell. " \
+                  "Type 'exit' or press Ctrl+D to exit.\n"
+        banner2 = inject_swc_utils.__doc__
+
         if not hasattr(self, '_shell_mode'):
-            self._shell_mode = 'full'
-            # Note: there is a limitation, in the cmd, we can't call complex list comprehensions.
-            # Ref. https://stackoverflow.com/questions/35161324/how-to-make-imports-closures-work-from-ipythons-embed
-            # such as:
-            #     swc_objs = gui_ctrl.GetObjectsByType('swc')
-            #     s = swc_objs[0]
-            #     ty_s = type(s)
-            #     prop_names = [ty_s for k in vars(s).keys()]
-            banner = "IPython interactive shell. Type 'exit' or press Ctrl+D to exit.\n" \
-                     + inject_swc_utils.__doc__
+            self._shell_mode = 'embed'
             # or simpler: from IPython import embed then call embed()
             # See https://ipython.org/ipython-doc/stable/config/options/terminal.html
             # for possible parameters and configurations
             self.embed_shell = InteractiveShellEmbed(
-                banner1 = banner,
+                banner1 = banner1 + banner2,
                 confirm_exit = False)
 
         if self._shell_mode == 'embed':
+            # Note: IPython.embed has a limitation, in the cmd, we can't \
+            # call complex list comprehensions.
+            # Ref. https://stackoverflow.com/questions/35161324/how-to-make-imports-closures-work-from-ipythons-embed
+            # such as:
+            #     swc_objs = gui_ctrl.GetObjectsByType('swc')
+            #     s = next(iter(swc_objs.values()))
+            #     ty_s = type(s)
+            #     prop_names = [ty_s for k in vars(s).keys()]
+            # A workaround is to regist the variables first: \
+            #    globals().update({'ty_s':ty_s})
             ns = locals()
             inject_swc_utils(ns, self)
+            IPython.embed(colors="Neutral", # colors="Neutral" or "Linux"
+                          header=banner2, confirm_exit = False)
+        elif self._shell_mode == 'InteractiveShellEmbed':
+            ns = locals()
+            inject_swc_utils(ns, self)
+            # in new version of IPython (e.g. 8.11.0), direct use of 
+            # InteractiveShellEmbed is broken.
             self.embed_shell(user_ns = ns)
-        elif self._shell_mode == 'full':
+        elif self._shell_mode == 'start_ipython':
+            from IPython import start_ipython
             # we might try user_ns = locals() | globals()
             # start_ipython(argv=[], user_ns = locals())
-            # a clean environment
-            #ns = {}
-            # with all variables, can easily mess up ipython and the terminal
-            ns = globals() | locals()
+            # The problem is, the second time we enter it, it will bug.
+            # More precisely, after finishing the first start_ipython(),
+            # the environemnt is already a mess.
+            ns = {}
             inject_swc_utils(ns, self)
-            print(inject_swc_utils.__doc__)
-            start_ipython(argv=['--no-confirm-exit', '--no-banner'], user_ns = ns)
+            print(banner2)
+            start_ipython( \
+                argv=['--no-confirm-exit', '--no-banner'], user_ns = ns)
         else:
             dbg_print(1, "embed_interactive_shell: No such shell.")
         self.gui_ctrl.StatusBar(None)

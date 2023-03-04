@@ -1,23 +1,20 @@
-#
+# Plugin demo
+# Color the SWC by depth.
 
 import numpy as np
 import matplotlib as mpl
-import matplotlib.pyplot as plt
+import matplotlib.pyplot as plt  # must import for mpl.cm to work
 
 from neu3dviewer.utils import (
     ArrayfyList,
     ArrayFunc,
     NamespaceOfSwcUtils,
 )
-from neu3dviewer.data_loader import (
-    SplitSWCTree,
-    SimplifyTreeWithDepth,
-)
-import neu3dviewer.ui_interactions
 
-if 'show_depth' not in vars(neu3dviewer.ui_interactions):
-    neu3dviewer.ui_interactions.show_depth = False
-neu3dviewer.ui_interactions.show_depth ^= True
+# for remembering the state
+if 'show_depth' not in locals():
+    show_depth = False
+show_depth ^= True       # switch the state
 
 def PluginMain(ren, iren, gui_ctrl):
     user_ns = NamespaceOfSwcUtils(gui_ctrl, iren)
@@ -42,7 +39,7 @@ def PluginMain(ren, iren, gui_ctrl):
 
     # Color the SWC
     for s in swcs:
-        if neu3dviewer.ui_interactions.show_depth:
+        if show_depth:
             s.ProcessColoring(max_depth = max_depth, lut = lut)
         else:
             s.ProcessColoring()
@@ -64,11 +61,9 @@ def PluginMain(ren, iren, gui_ctrl):
 #    print(np.min(swcs['538'].tree_swc[0], axis=0))
 #    print(np.min(swcs['538'].tree_swc[1], axis=0))
 
-#    for o in swc_objs:
-#        o.visible = np.random.rand() < 0.1
+#    swcs.visible = np.random.rand(len(swcs)) < 0.1
 
-#    for o in swc_objs:
-#        o.visible = True
+#    swcs.visible = True
 
 #    for o in swc_objs:
 #        o.color = np.random.rand(3)
