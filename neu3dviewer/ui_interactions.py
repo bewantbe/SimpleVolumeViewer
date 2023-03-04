@@ -312,20 +312,20 @@ class PointPicker():
         
         # find nearest point
         in_view_tol = (t > cam_min_view_distance) & (angle_dist < selection_angle_tol)
-        ID_selected = np.flatnonzero(in_view_tol)
-        angle_dist_selected = angle_dist[0, ID_selected]
+        ID_picked = np.flatnonzero(in_view_tol)
+        angle_dist_picked = angle_dist[0, ID_picked]
 
         if ret_all:
             # return all candidates, sort by angle
-            ind = np.argsort(angle_dist_selected)
-            ID_selected = ID_selected[ind]
+            ind = np.argsort(angle_dist_picked)
+            ID_picked = ID_picked[ind]
             # index(s) in point set, point position(s)
-            return ID_selected, self.p[:, ID_selected]
+            return ID_picked, self.p[:, ID_picked]
 
-        if ID_selected.size > 0:
-            ID_selected = ID_selected[np.argmin(angle_dist_selected)]
+        if ID_picked.size > 0:
+            ID_picked = ID_picked[np.argmin(angle_dist_picked)]
 
-        return ID_selected, self.p[:, ID_selected]
+        return ID_picked, self.p[:, ID_picked]
 
 class PointSetHolder():
     def __init__(self):
@@ -400,7 +400,7 @@ class PointSetHolder():
         * the object is in allowable_object_list;
         * it is the first appeared object corresponds to points in point_id_array.
         """
-        none = None, np.array([], dtype=np.int32)
+        none = None, np.array([], dtype = point_id_array.dtype)
         if point_id_array.size == 0:
             return none
 
@@ -759,28 +759,28 @@ class UIActions():
 
         # selectable objects
         obj_swc = self.gui_ctrl.GetObjectsByType('swc')
-        selectable_names = [
+        names_visible = [
             name for name, obj in obj_swc.items()
             if obj.visible == True
         ]
-        pick_visible_only_mode = len(selectable_names) != len(obj_swc)
+        pick_visible_mode = len(names_visible) != len(obj_swc)
 
         # "ray cone cast" select points
         points_holder = self.gui_ctrl.point_set_holder
         point_picker = PointPicker(points_holder(), ren)
-        pid, pxyz = point_picker.PickAt(clickPos, pick_visible_only_mode)
+        ppid, pxyz = point_picker.PickAt(clickPos, pick_visible_mode)
 
-        if pick_visible_only_mode:
+        if pick_visible_mode:
             # limit to selectable objects
-            pid, idx_choosen = points_holder.FindFirstObject(pid, selectable_names)
-            dbg_print(4, 'PickAt(): Multi-pick: pid =', pid)
+            ppid, idx_choosen = points_holder.FindFirstObject(ppid, names_visible)
+            dbg_print(4, 'PickAt(): Multi-pick: ppid =', ppid)
             pxyz = pxyz[:, idx_choosen]
         
         if pxyz.size == 0:
             ret = None
         else:
-            obj_name, lid = points_holder.GetNameLocalPidByPointId(pid)
-            ret = (obj_name, lid, pid, pxyz)
+            obj_name, lid = points_holder.GetNameLocalPidByPointId(ppid)
+            ret = (obj_name, lid, ppid, pxyz)
             swc_obj  = self.gui_ctrl.scene_objects[obj_name]
             assert np.sum(np.abs(pxyz - \
                      _point_set_dtype_(swc_obj.tree_swc[1][lid,:3]))) == 0
@@ -801,7 +801,7 @@ class UIActions():
         """
         Give information of the picked point and place the cursor on it.
         """
-        # pick_info = (obj_name, lid, pid, pxyz)
+        # pick_info = (obj_name, lid, ppid, pxyz)
         if pick_info is None:
             dbg_print(4, 'PickAt(): picked no point.')
             self.gui_ctrl.InfoBar('')
@@ -812,14 +812,14 @@ class UIActions():
             if (pick_info >= psh().shape[1]) or (pick_info < 0):
                 dbg_print(4, 'PickAt(): out-of-point set bound:', pick_info)
                 return
-            pid = pick_info
-            obj_name, lid = psh.GetNameLocalPidByPointId(pid)
+            ppid = pick_info
+            obj_name, lid = psh.GetNameLocalPidByPointId(ppid)
             swc_obj  = self.gui_ctrl.scene_objects[obj_name]
-            pxyz = psh()[:, pid]
+            pxyz = psh()[:, ppid]
         else:
             obj_name = pick_info[0]
             lid      = pick_info[1]
-            pid      = pick_info[2]
+            ppid     = pick_info[2]
             pxyz     = pick_info[3]
         swc_obj  = self.gui_ctrl.scene_objects[obj_name]
         swc_name = swc_obj.swc_name
@@ -836,13 +836,13 @@ class UIActions():
         #h = f'picked point: \nxyz = {pxyz} '
         #self.gui_ctrl.InfoBar({'type':'swc', 'obj_name':obj_name, 'header':h})
         self.gui_ctrl.InfoBar(s_info)
-        self.gui_ctrl.SetSelectedPID(pid)
+        self.gui_ctrl.SetSelectedPID(ppid)
 
     def measure_pick_distance(self, pick_info):
         """
         Measure distance between two recently picked points.
 
-        pick_info = (obj_name, lid, pid, pxyz)
+        pick_info = (obj_name, lid, ppid, pxyz)
         """
         if not hasattr(self, 'measure_point_queue'):
             self.measure_point_queue = []

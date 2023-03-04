@@ -97,10 +97,10 @@ Done:
 * range selection. ball range selection, i.e. 3D pick (x,y,z,r).
 * reduce memory footprint.
   - double -> float. still Render() cost so much memory.
+* Number of nodes could exceed 2^31, we need int64 for indexing, checked picker.
 
 Under consideration:
 * auto cursor size
-* Number of nodes could exceed 2^31, we need int64 for indexing.
 * swc language project: draft it then discuss.
   - op : find axon branch
   - op : find common ancestor
