@@ -1,5 +1,4 @@
-# Plugin demo
-# Color the SWC by depth.
+# Color the SWC by branch depth.
 
 import numpy as np
 import matplotlib as mpl

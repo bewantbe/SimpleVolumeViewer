@@ -1,4 +1,5 @@
-#
+# swc: work with external lib fiber-inspector
+# Show only completed (integrate) fibers.
 
 import sys
 import numpy as np

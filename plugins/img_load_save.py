@@ -1,4 +1,4 @@
-#
+# load test image volume, save it, show it.
 
 import numpy as np
 import tifffile

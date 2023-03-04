@@ -69,6 +69,8 @@ def DefaultKeyBindings():
         'MouseRightButton'              : 'select_a_point',
         'Ctrl+MouseRightButton'         : 'select_a_point append',
         'MouseLeftButtonDoubleClick'    : 'select_and_fly_to',
+        'Shift+MouseWheelForward'       : ['scene_object_traverse',  1],
+        'Shift+MouseWheelBackward'      : ['scene_object_traverse', -1],
         '0'            : 'fly_to_cursor',
         'KP_0'         : 'fly_to_cursor',
         'KP_Insert'    : 'fly_to_cursor',         # LEGION
@@ -89,12 +91,6 @@ def DefaultKeyBindings():
         'w'            : ['select_near_3d_cursor', 100],
         '`'            : 'toggle_show_local_volume',
         'i'            : 'show_selected_info',
-        'F2'           : 'embed_interactive_shell',
-        'Ctrl+g'       : 'exec_script',
-        'Ctrl+2'       : 'exec_script test_call_2.py',
-        'Ctrl+3'       : 'exec_script test_call_3.py',
-        'Ctrl+4'       : 'exec_script test_call_4.py',
-        'F5'           : 'refresh_plugin_key_bindings',
         'Ctrl+Shift+A' : 'deselect',
         'Ctrl+Shift+a' : 'deselect',
         'Insert'       : 'toggle_hide_nonselected',
@@ -102,8 +98,8 @@ def DefaultKeyBindings():
         'Ctrl+Return'  : 'toggle_stereo_mode',
         'Shift+Return' : 'toggle_stereo_mode next',
         'Ctrl+s'       : 'save_scene',
-        'Shift+MouseWheelForward'       : ['scene_object_traverse',  1],
-        'Shift+MouseWheelBackward'      : ['scene_object_traverse', -1],
+        'F2'           : 'embed_interactive_shell',
+        'F5'           : 'refresh_plugin_key_bindings',
     }
     # For user provided key bindings we need to:
     # 1. Remove redundant white space.
@@ -1219,8 +1215,15 @@ class MyInteractorStyle(vtkInteractorStyleTerrain):
             setattr(UIActions, uiact_func.__name__, uiact_func)
             self.key_bindings[keystoke] = uiact_func.__name__
         else:
-            delattr(UIActions, self.key_bindings[keystoke])
-            self.key_bindings.pop[keystoke]
+            if keystoke not in self.key_bindings:
+                return
+            name_fn = self.key_bindings[keystoke]
+            if isinstance(name_fn, str):
+                name_fn = [name_fn]
+            name_fn = name_fn[0].split(' ')[0]
+            if hasattr(UIActions, name_fn):
+                delattr(UIActions, name_fn)
+            self.key_bindings.pop(keystoke)
 
     def execute_key_cmd(self, key_combo, attr_name = None):
         if key_combo in self.key_bindings:

@@ -1,5 +1,9 @@
 {
   "shortcuts":{
-    "Ctrl+0"  : "exec_script ex_bind_key.py"
+    "Ctrl+0"   : "exec_script ex_bind_key.py",
+    "Ctrl+2"   : "exec_script swc_rainbow.py",
+    "Ctrl+3"   : "exec_script swc_branch_depth.py",
+    "Ctrl+4"   : "exec_script swc_filtering.py",
+    "Ctrl+9"   : "exec_script img_load_save.py"
   }
 }
