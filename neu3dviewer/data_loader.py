@@ -11,6 +11,7 @@ import numpy as np
 from numpy import sqrt, sin, cos, tan, pi
 from numpy import array as _a
 dtype_id = np.int32
+dtype_coor = np.float32
 
 import scipy.sparse
 
@@ -333,7 +334,7 @@ def LoadSWCTree(filepath):
     elif len(d.shape) == 1:
         d = d[np.newaxis, :]
     tr = (dtype_id(d[:,np.array([0,6,1])]),
-          np.float64(d[:, 2:6]))
+          dtype_coor(d[:, 2:6]))
 
     # checking number of roots
     id_root = np.flatnonzero(tr[0][:,1] <= -1)
@@ -402,6 +403,8 @@ def SplitSWCTree(tr):
     for eid in id_bounds:
         # travel from leaf to branching point or root
         i = eid
+        # TODO: filament use array.array('l')
+        # https://docs.python.org/3/library/array.html
         filament = [i]
         i = tr_idx[i, 1]  # parent
         while n_child[i] == 1 and i != -1:

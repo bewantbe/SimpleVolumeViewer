@@ -274,6 +274,9 @@ def RotationMat(theta, axis :int):
     m[ay,ax] = s
     return m
 
+def VecNorm(x, axis=0):
+    return np.sqrt(np.sum(x*x, axis=axis))
+
 class Struct:
     """somewhat like the struct in matlab"""
     def __init__(self, **kv):

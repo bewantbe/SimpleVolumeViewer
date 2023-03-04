@@ -34,6 +34,7 @@ from .utils import (
     dbg_print,
     Struct,
     RotationMat,
+    VecNorm,
     vtkMatrix2array,
     inject_swc_utils,
 )
@@ -258,7 +259,8 @@ class PointPicker():
     """
     def __init__(self, points, renderer):
         self.InitViewParam(renderer)
-        self.p = np.array(points, dtype=_point_set_dtype_)
+        # if the same type avoid a copy
+        self.p = points.astype(_point_set_dtype_, copy=False)
 
     def InitViewParam(self, renderer):
         ren_win = renderer.GetRenderWindow()
@@ -297,15 +299,15 @@ class PointPicker():
         dbg_print(5, 'PickAt(): number of points:', self.p.shape[1])
         # constructing picker line: r = v * t + o
         o = - self.cam_m[0:3,0:3].T @ self.cam_m[0:3, 3:4]  # cam pos in world
-        o = o.astype(_point_set_dtype_)
+        o = o.astype(_point_set_dtype_, copy=False)
         #   click pos in cam
         posxy_cam = (_a(posxy) - self.win_size / 2) * self.pixel_scale
         v = self.cam_m[0:3,0:3].T @ _a([[posxy_cam[0], posxy_cam[1], -1]]).T
-        v = v.astype(_point_set_dtype_)
+        v = v.astype(_point_set_dtype_, copy=False)
         # compute distance from p to the line r
         u = self.p - o
         t = (v.T @ u) / (v.T @ v)
-        dist = np.linalg.norm(u - v * t, axis=0)   # slow for large data set
+        dist = VecNorm(u - v * t, axis=0)   # slow for large data set
         angle_dist = dist / t
         
         # find nearest point
@@ -335,7 +337,7 @@ class PointSetHolder():
     
     def AddPoints(self, points, name):
         # points shape should be space_dim x index_dim
-        self._points_list.append(points.astype(_point_set_dtype_))
+        self._points_list.append(points.astype(_point_set_dtype_, copy=False))
         self._len += points.shape[1]
         self._point_set_boundaries.append(self._len)
         self.name_list.append(name)
@@ -574,7 +576,7 @@ class UIActions():
         from IPython.terminal.embed import InteractiveShellEmbed
         from IPython import start_ipython
         if not hasattr(self, '_shell_mode'):
-            self._shell_mode = 'embed'
+            self._shell_mode = 'full'
             # Note: there is a limitation, in the cmd, we can't call complex list comprehensions.
             # Ref. https://stackoverflow.com/questions/35161324/how-to-make-imports-closures-work-from-ipythons-embed
             # such as:
@@ -755,6 +757,7 @@ class UIActions():
         clickPos = self.iren.GetEventPosition()
         dbg_print(4, 'Clicked at', clickPos)
 
+        # selectable objects
         obj_swc = self.gui_ctrl.GetObjectsByType('swc')
         selectable_names = [
             name for name, obj in obj_swc.items()
@@ -762,11 +765,13 @@ class UIActions():
         ]
         pick_visible_only_mode = len(selectable_names) != len(obj_swc)
 
+        # "ray cone cast" select points
         points_holder = self.gui_ctrl.point_set_holder
         point_picker = PointPicker(points_holder(), ren)
         pid, pxyz = point_picker.PickAt(clickPos, pick_visible_only_mode)
 
         if pick_visible_only_mode:
+            # limit to selectable objects
             pid, idx_choosen = points_holder.FindFirstObject(pid, selectable_names)
             dbg_print(4, 'PickAt(): Multi-pick: pid =', pid)
             pxyz = pxyz[:, idx_choosen]

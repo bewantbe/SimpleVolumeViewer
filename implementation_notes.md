@@ -34,6 +34,7 @@ GPU = 1128MiB
 
 6357 swcs
 ```
+# rev <= b1fadf1237 (03/02/2023)
 # xle Linux, python 3.9.2 + numpy 1.24.2 + vtk 9.2.2
 t_load = 136.121~150 sec
 t_vtk_take = 54.435 sec
@@ -47,6 +48,13 @@ t_vtk_take = 68.341 sec
 RAM  usage: 31.0GB(1/1.024)
 after a pick 34.95GB(1/1.024)
 GRAM usage: 6.4GB
+
+# rev > deb5f1553 (03/03/2023)
+t_load = 137.784
+t_vtk_take = 52.121 sec
+RAM    usage: 25.8G
+after a pick: 29.1G
+GRAM usage: 6499MB (6034MB)
 ```
 
 ## Generate a standalone executable application

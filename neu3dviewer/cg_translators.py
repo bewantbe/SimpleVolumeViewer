@@ -972,19 +972,27 @@ class ObjTranslator:
             processes = SplitSWCTree(ntree)
             ntree, processes = SWCDFSSort(ntree, processes)
             
-            raw_points = ntree[1][:,0:3]
+            raw_points = ntree[1][:,0:3].astype(dtype_coor, copy=False)
 
             return processes, raw_points, ntree
 
         @staticmethod
         def ConstructPolyData(raw_points, processes):
             points = vtkPoints()
-            points.SetData( numpy_to_vtk(raw_points, deep=True) )
+            #points.SetData( numpy_to_vtk(raw_points, deep=True) )
+            # A tricky (dangerous) part:
+            # 1. if raw_points is not continuous (raw_points.flags.contiguous)
+            #    numpy_to_vtk() will create a continuous copy of it.
+            # 2. the resulting vtk array will have a reference to the
+            #    newly continued array or original array if it continuous.
+            points.SetData( numpy_to_vtk(raw_points) )
             
             cells = vtkCellArray()
+            # TODO: may try pre-allocate
             for proc in processes:
                 polyLine = vtkPolyLine()
                 lpid = polyLine.GetPointIds()
+                # TODO: may try lpid.SetArray(proc.data, len(proc), false)
                 lpid.SetNumberOfIds(len(proc))
                 for i in range(0, len(proc)):
                     lpid.SetId(i, proc[i])

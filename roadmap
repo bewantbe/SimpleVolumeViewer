@@ -95,7 +95,8 @@ Done:
 * why GetTimerEventId (), GetVTKTimerId () not work??  See here https://vtk.org/doc/nightly/html/classvtkRenderWindowInteractor.html#a7ef06e3e7c8cff5767c3b0d328934f55
   - Use @calldata_type(VTK_INT) for callback to get timer ID.
 * range selection. ball range selection, i.e. 3D pick (x,y,z,r).
-
+* reduce memory footprint.
+  - double -> float. still Render() cost so much memory.
 
 Under consideration:
 * auto cursor size
@@ -104,9 +105,11 @@ Under consideration:
   - op : find axon branch
   - op : find common ancestor
   - op : output node id for given position
+  - op : swc.nearest_point(a point)
 * Traverse with fly-to, and SVD angle adjust.
 * Add scale bar.
 * Add color bar.
+* create cutting plane according to cursor.
 * Add status bar message timeout.
 * Adding current picked point to selected set.
 * Solve the window init flash problem, i.e. properly set window size only once.
