@@ -5,6 +5,7 @@
 
 import time
 import pprint
+import json
 import numpy as np
 from numpy import sqrt, sin, cos, tan, pi
 from numpy import array as _a
@@ -93,6 +94,7 @@ def DefaultKeyBindings():
         'Ctrl+2'       : 'exec_script test_call_2.py',
         'Ctrl+3'       : 'exec_script test_call_3.py',
         'Ctrl+4'       : 'exec_script test_call_4.py',
+        'F5'           : 'refresh_plugin_key_bindings',
         'Ctrl+Shift+A' : 'deselect',
         'Ctrl+Shift+a' : 'deselect',
         'Insert'       : 'toggle_hide_nonselected',
@@ -600,7 +602,10 @@ class UIActions():
         elif self._shell_mode == 'full':
             # we might try user_ns = locals() | globals()
             # start_ipython(argv=[], user_ns = locals())
-            ns = {}
+            # a clean environment
+            #ns = {}
+            # with all variables, can easily mess up ipython and the terminal
+            ns = globals() | locals()
             inject_swc_utils(ns, self)
             print(inject_swc_utils.__doc__)
             start_ipython(argv=['--no-confirm-exit', '--no-banner'], user_ns = ns)
@@ -627,7 +632,7 @@ class UIActions():
                 globals()['PluginMain'](ren1, iren, self.gui_ctrl)
                 #locals()['PluginMain'](ren1, iren, self.gui_ctrl)
             else:
-                dbg_print(1, 'In the plugin, you must define "PluginMain(ren, iren, gui_ctrl)".')
+                dbg_print(2, 'Not defined "PluginMain(ren, iren, gui_ctrl)", assume script.')
         except Exception as inst:
             dbg_print(1, 'Failed to run due to exception:')
             dbg_print(1, type(inst))
@@ -1018,6 +1023,10 @@ class UIActions():
         #self.gui_ctrl.GetMainRenderer().ResetCameraClippingRange()
         self.gui_ctrl.Render()
 
+    def refresh_plugin_key_bindings(self):
+        """Refresh key bindings according to plugin/plugin.conf.json."""
+        self.interactor.refresh_key_bindings()
+
 def GenerateKeyBindingDoc(key_binding = DefaultKeyBindings(),
                           action = UIActions('', '', ''), help_mode = ''):
     """Generate the key binding description from code, for help message."""
@@ -1172,6 +1181,31 @@ class MyInteractorStyle(vtkInteractorStyleTerrain):
 
         self.ui_action = UIActions(self, iren, gui_ctrl)
         self.key_bindings = DefaultKeyBindings()
+        self.refresh_key_bindings()
+
+    def refresh_key_bindings(self):
+        """Refresh key bindings according to plugin/plugin.conf.json."""
+        # try open the plugin.conf
+        path = self.gui_ctrl.plugin_dir + '/plugin.conf.json'
+        try:
+            plugin_conf = json.loads(open(path).read())
+        except Exception as inst:
+            dbg_print(2, 'Failed to read:', path)
+            dbg_print(1, inst)
+            traceback.print_exc()
+            return
+        shortcuts = plugin_conf['shortcuts']
+        # insert the bindings
+        self.key_bindings.update(shortcuts)
+        dbg_print(3, 'Key bindings refreshed.')
+
+    def bind_key_to_function(self, keystoke, uiact_func):
+        if uiact_func is not None:
+            setattr(UIActions, uiact_func.__name__, uiact_func)
+            self.key_bindings[keystoke] = uiact_func.__name__
+        else:
+            delattr(UIActions, self.key_bindings[keystoke])
+            self.key_bindings.pop[keystoke]
 
     def execute_key_cmd(self, key_combo, attr_name = None):
         if key_combo in self.key_bindings:

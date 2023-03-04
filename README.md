@@ -22,6 +22,7 @@ Features
 * Facilities for easier work with SWCs, such as batch read / assignment.
 * Save the current scene (including view angle) to a file.
 * The plugin system can essentially let you do almost any modification to the program.
+* Customizable key bindings, through plugins/plugin.conf.json.
 
 Demo
 

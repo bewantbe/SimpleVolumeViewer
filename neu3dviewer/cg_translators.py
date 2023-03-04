@@ -445,11 +445,12 @@ class ObjTranslator:
                 return self.gui_ctrl.interactor
             # Create the interactor (for keyboard and mouse)
             interactor = vtkRenderWindowInteractor()
-            interactor.SetInteractorStyle(
-                    MyInteractorStyle(interactor, self.gui_ctrl))
+            style = MyInteractorStyle(interactor, self.gui_ctrl)
+            interactor.SetInteractorStyle(style)
         #    interactor.AddObserver('ModifiedEvent', ModifiedCallbackFunction)
             interactor.SetRenderWindow(self.gui_ctrl.render_window)
             #interactor.SetDesiredUpdateRate(30.0)
+            interactor.style = style
             return interactor
 
     class init_scene(TranslatorUnit):

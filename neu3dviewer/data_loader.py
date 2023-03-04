@@ -370,7 +370,7 @@ def SWCNodeRelabel(tr):
     max_id = max(tr_idx[:,0])   # max occur node index
     n_id = tr_idx.shape[0]      # number of nodes
     # relabel array (TODO: if max_id >> n_id, we need a different algo.)
-    # map: id -> serial index
+    # map: id -> consecutive numbers (index)
     map_id_idx = np.zeros(max_id + 2, dtype = dtype_id)
     map_id_idx[-1] = -1
     #map_id_idx = -1 * np.ones(max_id + 2, dtype = dtype_id)

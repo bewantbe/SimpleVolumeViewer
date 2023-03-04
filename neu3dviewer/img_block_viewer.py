@@ -545,6 +545,10 @@ class GUIControl:
         if name in self.scene_saved['objects']:
             del self.scene_saved['objects'][name]
 
+    def BindKeyToFunction(self, keystoke, uiact_func):
+        kbind = self.interactor.style.bind_key_to_function( \
+            keystoke, uiact_func)
+
     def LoadVolumeNear(self, pos, radius=20):
         if (pos is None) or (len(pos) != 3):
             return []
@@ -598,7 +602,8 @@ class GUIControl:
             # show help
             conf = {
                 "type": "TextBox",
-                "text": GenerateKeyBindingDoc(),
+                "text": GenerateKeyBindingDoc( \
+                            self.interactor.style.key_bindings),
                 "font_size": "auto",                   # auto or a number
                 "font_family": "mono",                 # optional
                 "color": [1.0, 1.0, 0.1],
