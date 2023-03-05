@@ -446,7 +446,7 @@ class ArrayfyList:
         ditem_names = [k for k in attribute_names \
                        if not k.startswith('_') and \
                          not hasattr(getattr(s, k, None), '__call__')]
-        dbg_print(5, '_bind_properties(): converting these:', ditem_names)
+        #dbg_print(5, '_bind_properties(): converting these:', ditem_names)
         for pn in ditem_names:
             bind_property_broadcasting(self, pn, 'broadcasted' + pn)
 
@@ -568,6 +568,7 @@ def NamespaceOfSwcUtils(gui_ctrl, iren):
     
     # Tips(tricks):
     # Batch get swc name from internal object id:
-    #     swcs[obj_swc_id[['swc.766', 'swc.452', 'swc.953']]].swc_name
+    #     swcs[map_swc_id[['swc.766', 'swc.452', 'swc.953']]].swc_name
+    # swcs[map_swc_id[gui_ctrl.selected_objects]].swc_name
 
     return ns
