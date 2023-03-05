@@ -94,6 +94,7 @@ def DefaultKeyBindings():
         'Ctrl+a'       : 'select_all_visible swc',
         'Ctrl+Shift+A' : 'deselect',
         'Ctrl+Shift+a' : 'deselect',
+        'Ctrl+i'       : 'inverse_select swc',
         'Insert'       : 'toggle_hide_nonselected',
         'Alt+Return'   : 'toggle_fullscreen',
         'Ctrl+Return'  : 'toggle_stereo_mode',
@@ -973,6 +974,13 @@ class UIActions():
         obj_swc = self.gui_ctrl.GetObjectsByType(obj_type, visible_only=True)
         self.gui_ctrl.selected_objects.clear()
         self.gui_ctrl.selected_objects.extend(obj_swc.keys())
+
+    def inverse_select(self, obj_type):
+        """Inverse select."""
+        # full set
+        obj_swc = self.gui_ctrl.GetObjectsByType(obj_type, visible_only=True)
+        self.gui_ctrl.selected_objects = list(
+                obj_swc.keys() - set(self.gui_ctrl.selected_objects))
 
     def toggle_help_message(self):
         """Toggle on screen key/mouse help."""
