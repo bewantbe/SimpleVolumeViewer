@@ -350,6 +350,36 @@ class PointSetHolder():
         else:
             return np.array([[],[],[]], dtype=_point_set_dtype_)
     
+    def RemovePointsByName(self, name):
+        # `name` can also be a name list
+        if self._len == 0:
+            return
+        if isinstance(name, str):
+            name = [name]
+        name_idx_rm = [self.name_idx_map.get(nm, None) for nm in name]
+        name_idx_rm = list(filter(lambda m: m is not None, name_idx_rm))
+        name_idx_rm = np.unique(name_idx_rm)
+        if len(name_idx_rm) == 0:
+            return
+        # Merge then remove
+        a = self.ConstructMergedArray()
+        psb = self._point_set_boundaries
+        p_sieve = np.ones(a.shape[1], dtype=bool)
+        for k in name_idx_rm:
+            p_sieve[psb[k]:psb[k+1]] = False
+        self._points_list[0] = a[:, p_sieve]
+        # fix _point_set_boundaries
+        nm_sieve = np.ones((len(self.name_list), ), dtype=bool)
+        nm_sieve[name_idx_rm] = False
+        blk_sz = np.diff(psb)
+        blk_sz = blk_sz[nm_sieve]
+        self._point_set_boundaries = [0] + list(np.cumsum(blk_sz))
+        # fix _len
+        self._len = self._point_set_boundaries[-1]
+        # fix name_list
+        self.name_list = [n for j, n in enumerate(self.name_list) \
+                          if nm_sieve[j]]
+    
     def GetSetidByPointId(self, point_id):
         set_id = np.searchsorted(self._point_set_boundaries,
                                  point_id, side='right') - 1
@@ -547,8 +577,7 @@ class UIActions():
         if len(self.gui_ctrl.selected_objects) == 0:
             dbg_print(3, 'Nothing to remove.')
         else:
-            obj_name = self.gui_ctrl.selected_objects[0]
-            self.gui_ctrl.RemoveObject(obj_name)
+            self.gui_ctrl.RemoveSelectedObjs()
             self.gui_ctrl.Render()
 
     def toggle_show_local_volume(self):
@@ -868,6 +897,13 @@ class UIActions():
             que.clear()
             self.gui_ctrl.StatusBar(None)
             return
+        # remove non-exist nodes
+        while (len(que) > 0) and \
+            (que[0][0] not in self.gui_ctrl.scene_objects):
+                del que[0]
+        while (len(que) > 1) and \
+            (que[1][0] not in self.gui_ctrl.scene_objects):
+                del que[1]
         # insert to queue and trim
         que.insert(0, pick_info)
         del que[self.measure_point_queue_max_len:]

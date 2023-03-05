@@ -541,9 +541,20 @@ class GUIControl:
         
         if name in self.selected_objects:
             self.selected_objects.remove(name)
+        if name in self.point_set_holder.name_idx_map:
+            self.point_set_holder.RemovePointsByName(name)
         del self.scene_objects[name]
         if name in self.scene_saved['objects']:
             del self.scene_saved['objects'][name]
+
+    def RemoveBatchObj(self, names):
+        self.point_set_holder.RemovePointsByName(names)
+        # .copy to avoid on-the-fly for-loop modification of .selected_objects
+        for obj_name in names.copy():   
+            self.RemoveObject(obj_name)
+
+    def RemoveSelectedObjs(self):
+        self.RemoveBatchObj(self.selected_objects)
 
     def BindKeyToFunction(self, keystoke, uiact_func):
         kbind = self.interactor.style.bind_key_to_function( \
