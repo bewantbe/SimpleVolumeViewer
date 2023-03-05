@@ -291,15 +291,19 @@ class GUIControl:
             dbg_print(3, 'SetSelectedPID(): pid=%d out of range, len=%d' \
                       %(pid, len(self.point_set_holder)))
 
-    def GetObjectsByType(self, str_type, n_find = -1):
+    def GetObjectsByType(self, str_type, n_find = -1, visible_only = False):
         """ Find all (at most n_find) objects with the type str_type. """
         li_obj = {}
         for k, conf in self.scene_saved['objects'].items():
-            if conf['type'] == str_type:
-                li_obj[k] = self.scene_objects[k]
-                n_find -= 1
-                if n_find == 0:
-                    break
+            if (str_type is not None) and (conf['type'] != str_type):
+                continue
+            obj = self.scene_objects[k]
+            if visible_only and getattr(obj, 'visible', True) == False:
+                continue
+            li_obj[k] = obj
+            n_find -= 1
+            if n_find == 0:
+                break
         return li_obj
 
     def GetDefaultSWCLUT(self):

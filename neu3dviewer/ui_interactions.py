@@ -91,6 +91,7 @@ def DefaultKeyBindings():
         'w'            : ['select_near_3d_cursor', 100],
         '`'            : 'toggle_show_local_volume',
         'i'            : 'show_selected_info',
+        'Ctrl+a'       : 'select_all_visible swc',
         'Ctrl+Shift+A' : 'deselect',
         'Ctrl+Shift+a' : 'deselect',
         'Insert'       : 'toggle_hide_nonselected',
@@ -966,6 +967,12 @@ class UIActions():
         # select_mode = all, reverse
         self.gui_ctrl.selected_objects.clear()
         dbg_print(4, 'selected obj:', self.gui_ctrl.selected_objects)
+
+    def select_all_visible(self, obj_type):
+        """Select all visible objects."""
+        obj_swc = self.gui_ctrl.GetObjectsByType(obj_type, visible_only=True)
+        self.gui_ctrl.selected_objects.clear()
+        self.gui_ctrl.selected_objects.extend(obj_swc.keys())
 
     def toggle_help_message(self):
         """Toggle on screen key/mouse help."""
