@@ -434,9 +434,11 @@ class ObjTranslator:
                     renderer.SetLayer(ren_conf['layer'])
                 if 'view_port' in ren_conf:
                     renderer.SetViewport(ren_conf['view_port'])
+                #renderer.UseFXAAOn()  # fast
                 renderers[key] = renderer
                 # add new renderer to window
                 render_window.AddRenderer(renderer)
+                #render_window.SetMultiSamples(8)  # high quality, default?
 
     class init_interactor(TranslatorUnit):
         def parse(self, ui_conf):
