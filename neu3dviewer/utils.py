@@ -6,6 +6,12 @@ import datetime
 import numpy as np
 from numpy import eye, sin, cos
 
+# for array function
+from multiprocessing import Pool
+from multiprocessing import cpu_count
+
+import joblib
+
 from vtkmodules.vtkCommonDataModel import (
     vtkColor3ub,
     vtkColor3d,
@@ -302,7 +308,7 @@ def get_num_in_str(a):
     #print('=', a[start_idx:end_idx])
     return int(a[start_idx:end_idx])
 
-def test_has_int(a):
+def contain_int(a):
     ok = True
     try:
         u = get_num_in_str(a)
@@ -323,6 +329,20 @@ def GetRangeTuple(idx, idx_max):
     if idx.step is not None:
         idx_range[2] = idx.step
     return idx_range
+
+def ShowTidyArrayRepr(list_type, obj_list, cr = '\n'):
+    show_li = lambda idxs, sep: sep.join([f'{obj_list[j]}' for j in idxs])
+    n = len(obj_list)
+    n_head = 5
+    n_tail = 3
+    s = list_type
+    if n > n_head + n_tail:
+        head = show_li(range(n_head), ','+cr)
+        tail = show_li(range(n-n_tail,n), ','+cr)
+        s += '['+cr + head + ','+cr+' ... ,'+cr + tail + cr+']'
+    else:
+        s += '[' + show_li(range(n), ', ') + ']'
+    return s
 
 def bind_property_broadcasting(li, pn, docs):
     """
@@ -406,7 +426,7 @@ class ArrayfyList:
         if hasattr(s, 'swc_name'):  # should be a swc file
             if index_style == 'numeric':
                 # try extract the numerical part.
-                if test_has_int(s.swc_name):
+                if contain_int(s.swc_name):
                     fn = lambda j, o: str(get_num_in_str(o.swc_name))
                 else:  # give up
                     dbg_print(2, 'ArrayfyList::rebuild_index(): Not numeric indexable. Use swc name instead')
@@ -460,11 +480,15 @@ class ArrayfyList:
         return self.obj_dict.items()
 
     def __repr__(self):
-        return self.obj_list.__repr__()
+        return ShowTidyArrayRepr(
+            self.__class__.__name__,
+            self.obj_list)
 
     def __str__(self):
-        s = '[' + ', '.join([f'"{k}"' for k in self.obj_dict.keys()]) + ']'
-        return s
+        return ShowTidyArrayRepr(
+            self.__class__.__name__,
+            list(self.obj_dict.keys()),
+            chr(10))
 
     def __getitem__(self, idx):
         if isinstance(idx, str):
@@ -513,31 +537,70 @@ class ArrayfyList:
             self.obj_list[idx] = val
         self.rebuild_index()
 
-def ArrayFunc(func):
+def ArrayFunc(func, n_parallel = 1, progress = False):
     """
     Arrayfy the func such that it accept array(list) input, i.e. broadcasting.
+
+    Tips for n_parallel:
+        For very simple function, e.g. x**2, use n_parallel>1 will make
+        things 10x times slower, and larger n_parallel will make it worse.
+        Set n_parallel = -1 to use all CPUs.
+
     Usage:
       # for y = func(x)
       y_list = ArrayFunc(func)(x_list)
     Could be used as a decorator.
 
-    See also: np.vectorize
+    See also: np.vectorize, map
     """
-    def broadcasted_func(x_list):
-        if isinstance(x_list, np.ndarray):
-            y_list = np.zeros(x_list.shape)
-        elif isinstance(x_list, (list, ArrayfyList)):
-            y_list = [None] * len(x_list)
-        else:
-            # not a list, assume scalar
-            return func(x_list)
-        # TODO: maybe use parallel here
-        out = False
-        for j, x in enumerate(x_list):
-            y_list[j] = func(x)
-            out |= y_list[j] is not None
-        if out:
-            return y_list
+    if progress:
+        def func_idx(x, j):
+            print('job =', j)
+            return func(x)
+    else:
+        func_idx = lambda x, j: func(x)
+    
+    if n_parallel == 1:
+        def broadcasted_func(x_list):
+            if isinstance(x_list, np.ndarray):
+                y_list = np.zeros(x_list.shape)
+            elif isinstance(x_list, (list, ArrayfyList)):
+                y_list = [None] * len(x_list)
+            else:
+                # not a list, assume scalar
+                return func(x_list)
+            out = False  # it is a function, not command
+            for j, x in enumerate(x_list):
+                y_list[j] = func_idx(x, j)
+                out |= y_list[j] is not None
+            if out:
+                return y_list
+    elif isinstance(n_parallel, str) and \
+         n_parallel.startswith('multiprocessing'):
+        # e.g. n_parallel = 'multiprocessing:4'
+        n_parallel = int(n_parallel.split(':')[1])
+        def broadcasted_func(x_list):
+            with Pool(n_parallel) as p:
+                # TODO: Bug: Error: PicklingError: Can't pickle
+                y_list = p.starmap(func_idx, zip(x_list, range(len(x_list))))
+            out = False
+            for y in y_list:
+                out |= y is not None
+            if out:
+                return y_list
+    else:
+        def broadcasted_func(x_list):
+            y_list = joblib.Parallel(n_jobs = n_parallel) \
+                (joblib.delayed(func_idx)(x, j)
+                    for x, j in zip(x_list, range(len(x_list))))
+            out = False
+            for y in y_list:
+                if y is not None:
+                    out = True
+                    break
+            if out:
+                return y_list
+
     return broadcasted_func
 
 def inject_swc_utils(ns, oracle = None):

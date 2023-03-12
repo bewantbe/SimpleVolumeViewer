@@ -111,3 +111,18 @@ Demo
     `python3 -m neu3dviewer --help`
 
     Or, press h key in the GUI.
+
+# Developer notes
+
+## Reload a modified module during running
+
+Example:
+
+```python
+    import sys
+    import importlib
+    importlib.reload(sys.modules['neu3dviewer.data_loader'])
+    from neu3dviewer.data_loader import *
+    #call SimplifyTreeWithDepth
+```
+

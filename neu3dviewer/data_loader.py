@@ -502,10 +502,6 @@ def SimplifyTreeWithDepth(processes, output_mode = 'simple'):
         ps = SplitSWCTree(swcs[0].swc_tree)
         u = SimplifyTreeWithDepth(ps)
     Causion: singleton node will not be repesented in the final results.
-    Reload:
-        importlib.reload(sys.modules['neu3dviewer.data_loader'])
-        from neu3dviewer.data_loader import *
-        call SimplifyTreeWithDepth
     """
     n_branch = len(processes)
     # Get simplified tree nodes: [(branchleaf_id, parent_id), ...]
