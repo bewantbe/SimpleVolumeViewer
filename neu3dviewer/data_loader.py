@@ -365,7 +365,9 @@ def LoadSWCTree(filepath):
     return tr
 
 def SWCNodeRelabel(tr):
-    # re-label node id in tr, s.t. node id = index i.e. 0, 1, 2, ...
+    """
+    Re-label node id in tr, s.t. node id = index i.e. 0, 1, 2, ...
+    """
     tr_idx = tr[0].copy()
     max_id = max(tr_idx[:,0])   # max occur node index
     n_id = tr_idx.shape[0]      # number of nodes
@@ -380,12 +382,14 @@ def SWCNodeRelabel(tr):
 
 def SplitSWCTree(tr):
     """
-    Split the tree in a swc into linear segments, i.e. processes.
+    Split the tree(s) `tr` into linear segments, i.e. processes.
     Input : a swc tree ([(id0, pid0, ..), (id1, pid1, ..), ...], [..])
             not modified.
     Return: processes in index of tr. [[p0_idx0, p0_idx1, ...], [p1...]]
-            Note that idx# is the index of tr, not the index in tr.
-    Assume tr is well and sorted and contains only one tree.
+            Note that idx# is the index of tr, not the index(id) in tr.
+    (No more: Assume tr is well and sorted and contains only one tree.)
+    Assume root node id is '-1'.
+    Multiple trees allowed.
     Usage example:
         tr = LoadSWCTree(name)
         processes = SplitSWCTree(tr)
@@ -396,7 +400,7 @@ def SplitSWCTree(tr):
     n_child,_ = np.histogram(tr_idx[:, 1],
                     bins = np.arange(-1, n_id + 1, dtype = dtype_id))
     n_tree = n_child[0]
-    # there is no actual node '-1'
+    # leave out the node '-1'
     n_child = np.array(n_child[1:], dtype=dtype_id)
     # n_child == 0: leaf
     # n_child == 1: middle of a path or root
@@ -493,10 +497,11 @@ def TreeNodeInfo(tr, node_idx):
 
 def SimplifyTreeWithDepth(processes, output_mode = 'simple'):
     """
-    Construct simplified tree.
+    Construct simplified tree from neuronal processes.
     Usage example:
         ps = SplitSWCTree(swcs[0].swc_tree)
         u = SimplifyTreeWithDepth(ps)
+    Causion: singleton node will not be repesented in the final results.
     Reload:
         importlib.reload(sys.modules['neu3dviewer.data_loader'])
         from neu3dviewer.data_loader import *
@@ -514,8 +519,8 @@ def SimplifyTreeWithDepth(processes, output_mode = 'simple'):
     tr_simple[:n_root, 0] = root_ids
     tr_simple[:n_root, 1] = -1
     tr_simple[n_root:, :] = tr_branch
-    # map of id to index
-    map_idx = dict(zip(tr_simple[:,0], range(n_branch + 1)))
+    # map from id to index
+    map_idx = dict(zip(tr_simple[:,0], range(tr_simple.shape[0])))
     # compute depth by traverse
     depth = np.zeros(n_branch + n_root, dtype = dtype_id)
     for j in range(n_root, n_branch + n_root):
