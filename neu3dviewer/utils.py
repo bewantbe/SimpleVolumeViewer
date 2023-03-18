@@ -284,16 +284,25 @@ def VecNorm(x, axis=0):
     return np.sqrt(np.sum(x*x, axis=axis))
 
 class Struct:
-    """somewhat like the struct in matlab"""
+    """
+    Somewhat like the struct in matlab.
+    
+    Usage example:
+      s = Struct(a=1, b=2)
+      s.c = 3
+      print(s)
+    """
     def __init__(self, **kv):
         for k, v in kv.items():
             setattr(self, k, v)
 
     def __repr__(self):
-        s = '\n'.join([
-            f'.{k} = ' + v.__repr__()
-            for k, v in vars(self).items()
-        ])
+        s = '<Struct>(\n' \
+          + '\n'.join([
+              f'  .{k} = ' + v.__repr__()
+              for k, v in vars(self).items()
+            ]) \
+          + '\n)'
         return s
 
 def get_num_in_str(a):

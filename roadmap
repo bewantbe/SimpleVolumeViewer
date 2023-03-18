@@ -100,6 +100,8 @@ Done:
 * Number of nodes could exceed 2^31, we need int64 for indexing, checked picker.
 
 Under consideration:
+* Set auto reload modules in ipython: https://ipython.readthedocs.io/en/stable/config/extensions/autoreload.html
+* implement the mouse translation (camera_move_translational), so that remove 
 * auto cursor size
 * swc language project: draft it then discuss.
   - op : find axon branch

@@ -45,7 +45,7 @@ Demo
 
 * Use pip
 
-    `pip install vtk tifffile h5py scipy IPython`
+    `pip install vtk tifffile h5py scipy IPython joblib`
 
     Or
 
@@ -116,13 +116,28 @@ Demo
 
 ## Reload a modified module during running
 
-Example:
+Method 1 example:
 
 ```python
     import sys
     import importlib
     importlib.reload(sys.modules['neu3dviewer.data_loader'])
     from neu3dviewer.data_loader import *
-    #call SimplifyTreeWithDepth
+    #now neu3dviewer.data_loader get refreshed
+```
+
+Method 2 example (need to run in ipython):
+
+```python
+    # Ref. https://ipython.readthedocs.io/en/stable/config/extensions/autoreload.html
+    # at the start of a working session.
+    %reload_ext autoreload
+    %autoreload 2
+
+    # now work as usual, the imported objects will be updated
+    from neu3dviewer.data_loader import *
+    help(Struct)
+    # modify class Struct
+    help(Struct)
 ```
 

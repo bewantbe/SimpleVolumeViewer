@@ -208,10 +208,24 @@ class RepeatingTimerHandler():
         self.stop()
 
 class TimerHandler():
+    """
+    For quickly create a delayed action.
+    
+    Usually you need only one instance of `TimerHandler`,
+    when needed you just insert the action by TimerHandler.schedule().
+    
+    Usage:
+        timer_handler = TimerHandler()
+        # interactor = vtkRenderWindowInteractor()
+        timer_handler.Initialize(interactor)
+        ...
+        timer_handler.schedule(action, t_delay)
+    """
     def __init__(self):
         self.interactor = None
-        self.ob_id    = None
-        self.timer_callbacks = {}  # timer_id: (callback, t_rel, t_scheduled)
+        self._ob_id    = None
+        # {timer_id: Struct(callback, finished, t_delay, t_inserted), ...}
+        self.timer_callbacks = {}
 
     @calldata_type(VTK_INT)
     def callback(self, obj, event, timer_id):
@@ -226,12 +240,12 @@ class TimerHandler():
 
     def Initialize(self, iren):
         self.interactor = iren
-        self.ob_id = self.interactor.AddObserver('TimerEvent', self.callback)
+        self._ob_id = self.interactor.AddObserver('TimerEvent', self.callback)
 
-    def schedule(self, cb, t_rel):
+    def schedule(self, cb, t_delay):
         timer = Struct(callback=cb, finished = False, \
-                       t_rel = t_rel, t_scheduled = time.time())
-        timer_id = self.interactor.CreateOneShotTimer(int(1000.0*t_rel))
+                       t_delay = t_delay, t_inserted = time.time())
+        timer_id = self.interactor.CreateOneShotTimer(int(1000.0*t_delay))
         self.timer_callbacks[timer_id] = timer
         return timer
 
@@ -244,7 +258,7 @@ class TimerHandler():
                 self.interactor.DestroyTimer(i)
         del self.timer_callbacks
         # remove callback
-        self.interactor.RemoveObserver(self.ob_id)
+        self.interactor.RemoveObserver(self._ob_id)
 
 class PointPicker():
     """
