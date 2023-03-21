@@ -98,16 +98,18 @@ Done:
 * reduce memory footprint.
   - double -> float. still Render() cost so much memory.
 * Number of nodes could exceed 2^31, we need int64 for indexing, checked picker.
+* Set auto reload modules in ipython: https://ipython.readthedocs.io/en/stable/config/extensions/autoreload.html
+  - done in the hard way.
+
 
 Under consideration:
-* Set auto reload modules in ipython: https://ipython.readthedocs.io/en/stable/config/extensions/autoreload.html
-* implement the mouse translation (camera_move_translational), so that remove 
-* auto cursor size
 * swc language project: draft it then discuss.
   - op : find axon branch
   - op : find common ancestor
   - op : output node id for given position
   - op : swc.nearest_point(a point)
+* implement the mouse translation (camera_move_translational), so that we can remove inherit from vtkInteractorStyleUser instead of vtkInteractorStyleTerrain.
+* auto cursor size
 * Traverse with fly-to, and SVD angle adjust.
 * Add scale bar.
 * Add color bar.

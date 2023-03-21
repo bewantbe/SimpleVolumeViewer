@@ -7,8 +7,8 @@ Supported data format:
 
 Typical use cases:
 
-* Viewing the data with you favorite angle or perspective.
-* Inspect SWC files, relevant information will be shown for clicked node.
+* Viewing the data with your favorite angle or perspective.
+* Load and inspect SWC files, relevant information will be shown for clicked node.
 * Run custom scripts (plugin) to analyze or alter the data, then seeing the result right away.
 * Press F2 to go to command line mode for prototyping, i.e. type `swcs.line_width = 2` to set line width of all SWCs.
 * Work with the source code for your own craft.
@@ -17,7 +17,7 @@ Features
 
 * Thanks to VTK, we can also view in stereo modes (binocular 3D), such as split the view port horizontal, red blue or interlaced.
 * Parallel loading of SWC files for speeding up work flow.
-* Plugin of coloring SWC files according to node depth.
+* Example plugins for coloring SWC files, e.g. color by node depth.
 * Measure distance between selected points.
 * Facilities for easier work with SWCs, such as batch read / assignment.
 * Save the current scene (including view angle) to a file.
@@ -130,14 +130,14 @@ Method 2 example (need to run in ipython):
 
 ```python
     # Ref. https://ipython.readthedocs.io/en/stable/config/extensions/autoreload.html
-    # at the start of a working session.
+    # at the start of a working session. (now this step is automatically done when pressed F2)
     %reload_ext autoreload
     %autoreload 2
 
-    # now work as usual, the imported objects will be updated
+    # then work as usual, the imported objects will be updated
     from neu3dviewer.data_loader import *
     help(Struct)
-    # modify class Struct
+    # modify class Struct, then it is different
     help(Struct)
 ```
 

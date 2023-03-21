@@ -909,12 +909,12 @@ class UIActions():
         swc_id   = swc_obj.tree_swc[0][lid, 0]
         l_info = TreeNodeInfo(swc_obj.tree_swc, lid)
         s_info = f'Picked: obj: "{obj_name}"\n' \
-                 f' file: "{swc_name}"\n' \
-                 f' swc node[{lid}]: {swc_id}\n' \
+                 f' File: "{swc_name}"\n' \
+                 f' SWC node: idx={lid}, id={swc_id}\n' \
                  f' xyz: {pxyz}\n' \
-                 f' branch depth = {l_info["branch_depth"]}\n' \
-                 f' node depth = {l_info["node_depth"]}\n' \
-                 f' root distance = {l_info["root_distance"]:.1f}'
+                 f' Branch depth: {l_info["branch_depth"]}\n' \
+                 f' Node depth: {l_info["node_depth"]}\n' \
+                 f' Path length to root: {l_info["root_distance"]:.1f}'
         dbg_print(4, s_info)
         #h = f'picked point: \nxyz = {pxyz} '
         #self.gui_ctrl.InfoBar({'type':'swc', 'obj_name':obj_name, 'header':h})
@@ -1208,9 +1208,9 @@ class MouseDoubleClickHelper:
     def Clicked(self, iren):
         clickPos = iren.GetEventPosition()
         return self.ClickedAt(clickPos[0], clickPos[1])
-    
+
 # TODO use vtkInteractorStyleUser at some point
-class MyInteractorStyle(vtkInteractorStyleTerrain):  
+class MyInteractorStyle(vtkInteractorStyleTerrain):
     """
     Deal with keyboard and mouse interactions.
 
