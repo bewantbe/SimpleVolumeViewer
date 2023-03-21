@@ -2,6 +2,7 @@
 
 # Small utility functions
 
+import sys
 import datetime
 import numpy as np
 from numpy import eye, sin, cos
@@ -644,3 +645,73 @@ def NamespaceOfSwcUtils(gui_ctrl, iren):
     # swcs[map_swc_id[gui_ctrl.selected_objects]].swc_name
 
     return ns
+
+def IPython_embed(*, header="", compile_flags=None, **kwargs):
+    """
+    Adapted from IPython/terminal/embed.py version 8.11.0.
+    License: BSD License (BSD-3-Clause)
+    
+    See `help(IPython.embed)` for original help.
+
+    Modification: Add line magic "autoreload" for convenience.
+    
+    It is adapted here to bypass the InteractiveShellEmbed bug in 
+    IPython v8.11 and also to add autoreload magic.
+    """
+    from IPython.core.interactiveshell import InteractiveShell
+    from IPython.terminal.ipapp import load_default_config
+    from IPython.terminal.embed import InteractiveShellEmbed
+    from IPython.terminal.interactiveshell import TerminalInteractiveShell
+    
+    config = kwargs.get('config')
+    if config is None:
+        config = load_default_config()
+        # this config won't work as usual, thus we use run_line_magic
+        #config.InteractiveShellApp.exec_lines = [
+        #    '%reload_ext autoreload',
+        #    '%autoreload 2'
+        #]
+        config.InteractiveShellEmbed = config.TerminalInteractiveShell
+        kwargs['config'] = config
+    using = kwargs.get('using', 'sync')
+    if using :
+        kwargs['config'].update({
+            'TerminalInteractiveShell':{
+                'loop_runner' : using,
+                'colors' : 'NoColor',
+                'autoawait': using!='sync'
+            }
+        })
+    #save ps1/ps2 if defined
+    ps1 = None
+    ps2 = None
+    try:
+        ps1 = sys.ps1
+        ps2 = sys.ps2
+    except AttributeError:
+        pass
+    #save previous instance
+    saved_shell_instance = InteractiveShell._instance
+    if saved_shell_instance is not None:
+        cls = type(saved_shell_instance)
+        cls.clear_instance()
+    frame = sys._getframe(1)
+    shell = InteractiveShellEmbed.instance(_init_location_id='%s:%s' % (
+        frame.f_code.co_filename, frame.f_lineno), **kwargs)
+
+    shell.run_line_magic('reload_ext', 'autoreload')
+    shell.run_line_magic('autoreload', '2')
+
+    shell(header=header, stack_depth=2, compile_flags=compile_flags,
+        _call_location_id='%s:%s' % (frame.f_code.co_filename, frame.f_lineno))
+    InteractiveShellEmbed.clear_instance()
+    #restore previous instance
+    if saved_shell_instance is not None:
+        cls = type(saved_shell_instance)
+        cls.clear_instance()
+        for subclass in cls._walk_mro():
+            subclass._instance = saved_shell_instance
+    if ps1 is not None:
+        sys.ps1 = ps1
+        sys.ps2 = ps2
+

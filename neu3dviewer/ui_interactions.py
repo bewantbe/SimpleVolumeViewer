@@ -38,6 +38,7 @@ from .utils import (
     VecNorm,
     vtkMatrix2array,
     inject_swc_utils,
+    IPython_embed,
 )
 from .data_loader import (
     TreeNodeInfo,
@@ -625,16 +626,16 @@ class UIActions():
 
         if not hasattr(self, '_shell_mode'):
             self._shell_mode = 'embed'
-            # or simpler: from IPython import embed then call embed()
-            # See https://ipython.org/ipython-doc/stable/config/options/terminal.html
-            # for possible parameters and configurations
-            self.embed_shell = InteractiveShellEmbed(
-                banner1 = banner1 + banner2,
-                confirm_exit = False)
 
         if self._shell_mode == 'embed':
-            # Note: IPython.embed has a limitation, in the cmd, we can't \
-            # call complex list comprehensions.
+            # Simple usage:
+            #     from IPython import embed
+            #     embed()
+            # See https://ipython.org/ipython-doc/stable/config/options/terminal.html
+            # for possible parameters and configurations
+            #
+            # Note: IPython.embed has a limitation:
+            # Inside the shell, we can't call complex list comprehensions.
             # Ref. https://stackoverflow.com/questions/35161324/how-to-make-imports-closures-work-from-ipythons-embed
             # such as:
             #     swc_objs = gui_ctrl.GetObjectsByType('swc')
@@ -645,14 +646,25 @@ class UIActions():
             #    globals().update({'ty_s':ty_s})
             ns = locals()
             inject_swc_utils(ns, self)
-            IPython.embed(colors="Neutral", # colors="Neutral" or "Linux"
+            IPython_embed(colors="Neutral", # colors="Neutral" or "Linux"
                           header=banner2, confirm_exit = False)
         elif self._shell_mode == 'InteractiveShellEmbed':
+            if not hasattr(self, 'embed_shell'):
+                self.embed_shell = InteractiveShellEmbed(
+                    banner1 = banner1,
+                    banner2 = banner2,
+                    confirm_exit = False)
+                # auto reload module in IPython mode
+                self.embed_shell.run_line_magic('reload_ext', 'autoreload')
+                self.embed_shell.run_line_magic('autoreload', '2')
+
             ns = locals()
             inject_swc_utils(ns, self)
-            # in new version of IPython (e.g. 8.11.0), direct use of 
-            # InteractiveShellEmbed is broken.
-            self.embed_shell(user_ns = ns)
+            # In new version of IPython (e.g. 8.11.0), direct use of 
+            #   InteractiveShellEmbed could be broken:
+            #   "Exception 'NoneType' object has no attribute 'check_complete'"
+            #self.embed_shell(user_ns = ns)
+            self.embed_shell(header = '', stack_depth=1, user_ns = ns)
         elif self._shell_mode == 'start_ipython':
             from IPython import start_ipython
             # we might try user_ns = locals() | globals()
@@ -660,13 +672,23 @@ class UIActions():
             # The problem is, the second time we enter it, it will bug.
             # More precisely, after finishing the first start_ipython(),
             # the environemnt is already a mess.
+            # Probably the only valid usage is to put start_ipython in a 
+            # seperate thread.
+            from traitlets.config import Config
+            c = Config()
+            c.InteractiveShellApp.exec_lines = [
+                '%reload_ext autoreload',
+                '%autoreload 2',
+            ]
             ns = {}
             inject_swc_utils(ns, self)
             print(banner2)
             start_ipython( \
-                argv=['--no-confirm-exit', '--no-banner'], user_ns = ns)
+                argv=['--no-confirm-exit', '--no-banner'],
+                config = c,
+                user_ns = ns)
         else:
-            dbg_print(1, "embed_interactive_shell: No such shell.")
+            dbg_print(1, "embed_interactive_shell: No such type of shell.")
         self.gui_ctrl.StatusBar(None)
         self.gui_ctrl.Render()
 
