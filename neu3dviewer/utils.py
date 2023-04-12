@@ -407,6 +407,12 @@ class ArrayfyList:
     Support for objects other than SWC is possible.
     """
     def __init__(self, obj_list, index_list = None):
+        self.index_style = 'numeric'
+        if isinstance(obj_list, dict):
+            e_obj_list = obj_list
+            obj_list = list(e_obj_list.values())
+            index_list = list(e_obj_list.keys())
+            self.index_style = 'dict'
         if not isinstance(obj_list, (list, np.ndarray, tuple)):
             raise TypeError('Wrapper for list only.')
         self.obj_list = obj_list
@@ -419,11 +425,12 @@ class ArrayfyList:
     def list(self):
         return self.obj_list
 
-    def rebuild_index(self, index_style = 'numeric'):
+    def rebuild_index(self):
         """
         Rebuild indexing string according style.
         index_style can be 'numeric'
         """
+        index_style = self.index_style
         # guess the type
         if self.__len__() == 0:
             self.obj_dict = {}
@@ -433,7 +440,8 @@ class ArrayfyList:
         
         # contruct fn(), which give the index itself.
         s = self.obj_list[0]
-        if hasattr(s, 'swc_name'):  # should be a swc file
+        if hasattr(s, 'swc_name') and  index_style != 'dict':
+            # should be a swc file
             if index_style == 'numeric':
                 # try extract the numerical part.
                 if contain_int(s.swc_name):
@@ -625,6 +633,7 @@ def inject_swc_utils(ns, oracle = None):
     ns['iren']       = oracle.iren
     ns['interactor'] = oracle.interactor
     ns['ren']        = oracle.GetRenderers(1)
+    ns['norm']       = np.linalg.norm
 
     gui_ctrl = ns['gui_ctrl']
     iren = ns['iren']

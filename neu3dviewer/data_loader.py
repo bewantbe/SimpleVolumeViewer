@@ -339,6 +339,9 @@ def LoadSWCTree(filepath):
     tr = (dtype_id(d[:,np.array([0,6,1])]),
           dtype_coor(d[:, 2:6]))
 
+    # Treat id==parent as root node (a very special convention)
+    tr[0][tr[0][:,0] == tr[0][:,1], 1] = -1
+
     # checking number of roots
     id_root = np.flatnonzero(tr[0][:,1] <= -1)
     n_tree = len(id_root)
