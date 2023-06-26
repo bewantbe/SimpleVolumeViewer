@@ -1,7 +1,8 @@
+IPython
+joblib
 numpy
 scipy
-tifffile
 vtk
-joblib
+tifffile
 h5py
-IPython
+zarr

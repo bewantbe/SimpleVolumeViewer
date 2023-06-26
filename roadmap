@@ -147,3 +147,24 @@ Under consideration:
 * SetInteractorStyle() switching
 * large render: vtkUnstructuredGrid  https://discourse.vtk.org/t/how-to-draw-10000-object/8438/15
 * seems usefull: AddRepresentation()  see https://vtk.org/wp-content/uploads/2021/08/VTKUsersGuide.pdf
+
+* Try `CropVolume` according to https://discourse.slicer.org/t/stitching-artifact-with-volume-rendering/20885
+
+# multivolume
+
+* vtkVolumeMapper
+
+vtkMultiVolume
+vtkGPUVolumeRayCastMapper
+
+vtkRenderer object using UseDepthPeelingOn
+UseDepthPeelingForVolumesOn
+
+
+https://discourse.slicer.org/t/stitching-artifact-with-volume-rendering-large-volumes-feb-17-2021-nightly/16390/18
+threeDViewWidget = slicer.app.layoutManager().threeDWidget(0)
+vrDisplayableManager = threeDViewWidget.threeDView().displayableManagerByClassName('vtkMRMLVolumeRenderingDisplayableManager')
+vrMapper = vrDisplayableManager.GetVolumeMapper(getNode('CTChest'))
+vrMapper.SetPartitions(2,2,2)
+
+

@@ -253,9 +253,11 @@ def ImportImageFile(file_name, extra_conf = None):
 
 class OnDemandVolumeLoader():
     """
-    Load image blocks upon request. TODO: add off-load.
+    Load image blocks upon request.
     Request parameters are a position and a radius.
     All image blocks intersect with the sphere will be loaded.
+    
+    TODO: add off-load.
     """
     def __init__(self):
         self.vol_list = []
@@ -319,6 +321,7 @@ class OnDemandVolumeLoader():
 #        print('origin:', self.vol_origin[idx_in_range, :])
 #        print('size  :', self.vol_size  [idx_in_range, :])
         selected_vol = [self.vol_list[it] for it in idx_in_range]
+        dbg_print(5, 'Volume(s) to be loaded: ', selected_vol)
         return selected_vol
 
 def LoadSWCTree(filepath):

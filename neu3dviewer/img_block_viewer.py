@@ -589,18 +589,22 @@ class GUIControl:
         focus_vols = self.volume_loader.LoadVolumeAt(point_pos, radius)
         scene_vols = self.scene_objects.copy()
         get_vol_name = lambda p: os.path.splitext(os.path.basename(p))[0]
+        # get object names of focus_vols
         focus_vols_name_set = set()
         for v in focus_vols:
             focus_vols_name_set.add('volume' + get_vol_name(v['image_path']))
+        # collect desired volumes that is not loaded into the scene
         add_set = []
         for vol in focus_vols:
             name = 'volume' + get_vol_name(vol['image_path'])
             if name not in scene_vols:
                 add_set.append(vol)
+        # scan and remove volumes that is not "focused" and not selected.
         for sv in scene_vols:
             if sv not in focus_vols_name_set and type(scene_vols[sv]) == self.translator.obj_volume:
                 if sv is not self.selected_objects[0]:
                     self.RemoveObject(sv)
+        # load the new volumes
         for each in add_set:
             self.AddObject(
                 'volume' + get_vol_name(each['image_path']),
