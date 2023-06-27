@@ -626,6 +626,8 @@ class ObjTranslator:
             "channel": "0",
             "time_point": "0",
             "range": "[10:100,10:100,10:100]"
+            # zarr specific
+            "range": "[10:100,10:100,10:100]"
         }
         """
 
@@ -657,24 +659,27 @@ class ObjTranslator:
                 return None
 
             file_path = obj_desc['img_path']
+            obj_conf = {
+                "type": "volume",
+                "view_point": "auto",
+                "file_path": file_path
+            }
             if file_path.endswith('.tif'):
-                # assume this a volume
-                obj_conf = {
-                    "type": "volume",
-                    "view_point": "auto",
-                    "file_path": file_path
-                }
+                # a tiff file
+                pass
             elif file_path.endswith('.ims') or file_path.endswith('.h5'):
-                # assume this a IMS volume
-                obj_conf = {
-                    "type": "volume",
-                    "view_point": "auto",
-                    "file_path": file_path,
+                # a IMS/HDF5 volume
+                obj_conf.update({
                     "level": obj_desc.get('level', '0'),
                     "channel": obj_desc.get('channel', '0'),
                     "time_point": obj_desc.get('time_point', '0'),
                     "range": obj_desc.get('range', '[:,:,:]')
-                }
+                })
+            elif os.path.isdir(file_path) and os.path.isfile(file_path + '/.zarray'):
+                # a zarr volume
+                obj_conf.update({
+                    "range": obj_desc.get('range', '[:,:,:]')
+                })
             else:
                 dbg_print(1, 'Unrecognized image format.')
                 return None

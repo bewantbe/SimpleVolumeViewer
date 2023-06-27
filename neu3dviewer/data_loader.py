@@ -20,6 +20,7 @@ import scipy.sparse
 
 import tifffile
 import h5py
+import zarr
 
 from .utils import (
     dbg_print,
@@ -126,13 +127,34 @@ def read_ims(ims_path, extra_conf = {}, cache_reader_obj = False):
 
     return img_clip, metadata
 
+def read_zarr(zarr_path, extra_conf = {}, cache_reader_obj = False):
+    """Read zarr from img_path, return image array and metadata."""
+    dbg_print(4, 'read_zarr(): extra_conf =', extra_conf)
+    str_ranges = str(extra_conf.get('range', '[:,:,:]'))
+    dim_ranges = slice_from_str(str_ranges)
+    dbg_print(4, '  Requested dim_range:', dim_ranges)
+
+    z = zarr.open(zarr_path, mode='r')
+    t0 = time.time()
+    img_clip = np.array(z[dim_ranges])         # actually read the data
+    dbg_print(4, 'read_zarr(): img read time: %6.3f sec.' % (time.time()-t0))
+
+    metadata = {'zarr': {'range': str_ranges}}
+    metadata['zarr'].update(z.attrs.asdict())
+    metadata['imagej'] = {'voxel_size_um': '(1.0, 1.0, 1.0)'}
+    metadata['oblique_image'] = False
+
+    return img_clip, metadata
+
 def Read3DImageDataFromFile(file_name, *item, **keys):
     if file_name.endswith('.tif') or file_name.endswith('.tiff'):
         img_arr, img_meta = read_tiff(file_name)
     elif file_name.endswith('.ims') or file_name.endswith('.h5'):
         img_arr, img_meta = read_ims(file_name, *item, **keys)
+    elif os.path.isdir(file_name) and os.path.isfile(file_name + '/.zarray'):
+        img_arr, img_meta = read_zarr(file_name, *item, **keys)
     else:
-        raise TypeError('file format not supported: ' + file_name)
+        raise TypeError('File format not supported: ' + file_name)
     dbg_print(5, pprint.pformat(img_meta))
     return img_arr, img_meta
 
