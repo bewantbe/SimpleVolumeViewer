@@ -4,6 +4,7 @@
     "Ctrl+2"   : "exec_script swc_rainbow.py",
     "Ctrl+3"   : "exec_script swc_depth_coloring.py",
     "Ctrl+4"   : "exec_script swc_filtering.py",
-    "Ctrl+9"   : "exec_script img_load_save.py"
+    "Ctrl+9"   : "exec_script img_load_save.py",
+    "Ctrl+5"   : "exec_script cmp_swc.py"
   }
 }
