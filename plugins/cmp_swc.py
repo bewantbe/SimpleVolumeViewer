@@ -17,7 +17,7 @@ def PluginMain(ren, iren, gui_ctrl):
         objs = gui_ctrl.GetObjectsByType('swc')
         gui_ctrl.RemoveBatchObj(list(objs.keys()))
 
-    k = idx_show
+    k = idx_show % len(swc_ids)
 
     root_dir = '/mnt/data_ext/swc_collect/RM009_manrefine/'
 
@@ -30,7 +30,7 @@ def PluginMain(ren, iren, gui_ctrl):
         "line_width": 2.0,
     }
 
-    # search for the last version
+    # search for the lastest version
     for v in version_list[::-1]:
         path2 = f"{root_dir}{v}/neuron#{swc_ids[k]}.lyp.swc"
         if os.path.isfile(path2):

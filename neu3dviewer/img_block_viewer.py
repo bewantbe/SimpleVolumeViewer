@@ -602,7 +602,7 @@ class GUIControl:
         # scan and remove volumes that is not "focused" and not selected.
         for sv in scene_vols:
             if sv not in focus_vols_name_set and type(scene_vols[sv]) == self.translator.obj_volume:
-                if sv is not self.selected_objects[0]:
+                if len(self.selected_objects) > 0 and (sv is not self.selected_objects[0]):
                     self.RemoveObject(sv)
         # load the new volumes
         for each in add_set:
