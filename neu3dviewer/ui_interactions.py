@@ -736,6 +736,17 @@ class UIActions():
         ren1.ResetCameraClippingRange()
         self.gui_ctrl.Render()
 
+    def scene_look_at(self, r_center, distance, direction = [1,1,1]):
+        """Look at coordinate `r_center` at `distance`."""
+        ren1 = self.GetRenderers(1)
+        cam = ren1.GetActiveCamera()
+        cam.SetFocalPoint(r_center)
+        direction = _a(direction)
+        new_p = r_center + direction / np.linalg.norm(direction) * distance
+        cam.SetPosition(new_p)
+        ren1.ResetCameraClippingRange()
+        self.gui_ctrl.LazyRender()
+
     def scene_object_traverse(self, direction):
         """Select next/previous scene object, usually a point on swc."""
         if self.gui_ctrl.selected_pid:

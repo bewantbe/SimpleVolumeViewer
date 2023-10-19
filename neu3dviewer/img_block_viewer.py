@@ -848,7 +848,7 @@ class GUIControl:
         with open('scene_saved.json', 'w') as f:
             json.dump(self.scene_saved, f, indent=4, ensure_ascii = False)
 
-    def Start(self):
+    def Start(self, run_fn = None):
         self.interactor.Initialize()  # must be called prior to creating timer
         self.GetMainRenderer().ResetCamera()   # bird's-eye view
         #self.GetMainRenderer().ResetCameraClippingRange()
@@ -856,6 +856,12 @@ class GUIControl:
         # self.UtilizerInit()
         self.focusController.SetGUIController(self)
         self.timer_handler.Initialize(self.interactor)
+
+        if run_fn:
+            if not isinstance(run_fn, list):
+                run_fn = [run_fn]
+            for fn in run_fn:
+                fn(self)
 
         for cg_conf in self.li_cg_conf:
             self.translator.translate(self, self.GetMainRenderer(),

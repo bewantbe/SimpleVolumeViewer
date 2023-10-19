@@ -1564,6 +1564,48 @@ class ObjTranslator:
                     self.gui_ctrl.ShotScreen( \
                         save_pic_path % (t_now))
 
+    class animation_look_at(TranslatorUnit):
+        """
+        prototype:
+        {
+            'type'           : 'init_look_at',
+            'center'         : '[1,2,3]',
+            'distance'       : 100,
+            'direction'      : '[1,1,1]',
+        }
+        """
+
+        @staticmethod
+        def add_argument_to(parser):
+            parser.add_argument('--look_at', metavar='POSITION',
+                    help='position of focus, e.g. "[1,2,3]".'
+            )
+            parser.add_argument('--look_distance', metavar='DISTANCE', type=float,
+                    help='distance from focal point, e.g. 10.0'
+            )
+            parser.add_argument('--look_direction', metavar='DIRECTION',
+                    help='direction of look, default="[1, 1, 1]".'
+            )
+            
+        @staticmethod
+        def parse_cmd_args(cmd_obj_desc):
+            if not 'look_at' in cmd_obj_desc:
+                return None
+            
+            cg_conf = {
+                'type'           : 'look_at',  # type name must match class name
+                'center'         : str2array(cmd_obj_desc['look_at']),
+                'distance'       : cmd_obj_desc['look_distance'],
+                'direction'      : str2array(cmd_obj_desc.get('look_direction', '[1,1,1]')),
+            }
+            return cg_conf
+
+        def parse(self, cg_conf):
+            if not cg_conf: return
+            #time.sleep(0.1)
+            self.gui_ctrl.interactor.style.ui_action.scene_look_at(
+                cg_conf['center'], cg_conf['distance'], cg_conf['direction'])
+
     class animation_take_shot(TranslatorUnit):
         """
         prototype:
