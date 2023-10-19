@@ -1288,9 +1288,9 @@ class MyInteractorStyle(vtkInteractorStyleTerrain):
         try:
             plugin_conf = json.loads(open(path).read())
         except Exception as inst:
-            dbg_print(2, 'Failed to read:', path)
-            dbg_print(1, inst)
-            traceback.print_exc()
+            dbg_print(2, 'Failed to load plugins through path:', path)
+            #dbg_print(1, inst)
+            #traceback.print_exc()
             return
         shortcuts = plugin_conf['shortcuts']
         # insert the bindings

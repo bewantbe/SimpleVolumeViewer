@@ -771,6 +771,9 @@ class GUIControl:
         tl_win.parse_post_renderers(win_conf)
         
         # so far, init_renderers, init_interactor do not have cmd options.
+        # except
+        if 'plugin_dir' in cmd_obj_desc:
+            self.interactor.style.refresh_key_bindings()
         
         scene_ext = self.translator.init_scene \
                     .parse_cmd_args(cmd_obj_desc)

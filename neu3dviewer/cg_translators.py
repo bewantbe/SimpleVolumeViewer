@@ -348,7 +348,9 @@ class ObjTranslator:
                 self.gui_ctrl.swc_loading_batch_size = win_conf['swc_loading_batch_size']
             if 'parallel_lib' in win_conf:
                 self.gui_ctrl.parallel_lib = win_conf['parallel_lib']
-            self.gui_ctrl.plugin_dir = win_conf.get('plugin_dir', './plugins/')
+            prog_dir = os.path.dirname(os.path.abspath(__file__))
+            self.default_plugin_dir = os.path.join(prog_dir, '..', 'plugins')
+            self.gui_ctrl.plugin_dir = win_conf.get('plugin_dir', self.default_plugin_dir)
             # The get DPI function in VTK is very unusable.
             #if render_window.DetectDPI():
             #    render_window.dpi = render_window.GetDPI()
