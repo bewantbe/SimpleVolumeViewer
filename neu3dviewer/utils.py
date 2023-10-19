@@ -241,6 +241,36 @@ def SetColorScale(obj_prop, scale):
     UpdatePropertyOTFScale(obj_prop, otf_s)
     UpdatePropertyCTFScale(obj_prop, ctf_s)
 
+def UpdateTransferFunction(obj_prop, prop_conf):
+    dbg_print(4, 'UpdateTransferFunction():')
+    # both obj_prop and prop_conf will be updated
+    if 'opacity_transfer_function' in prop_conf:
+        otf_conf = prop_conf['opacity_transfer_function']
+        if 'opacity_scale' in otf_conf:
+            otf_s = otf_conf['opacity_scale']
+            UpdatePropertyOTFScale(obj_prop, otf_s)
+        else:
+            pf = obj_prop.GetScalarOpacity()
+            pf.RemoveAllPoints()
+            for v in otf_conf['AddPoint']:
+                pf.AddPoint(*v)
+            if hasattr(obj_prop, 'prop_conf'):
+                obj_prop.prop_conf['opacity_transfer_function']['AddPoint'] \
+                    = otf_conf['AddPoint']
+    if 'color_transfer_function' in prop_conf:
+        ctf_conf = prop_conf['color_transfer_function']
+        if 'trans_scale' in ctf_conf:
+            ctf_s = ctf_conf['trans_scale']
+            UpdatePropertyCTFScale(obj_prop, ctf_s)
+        else:
+            ctf = obj_prop.GetRGBTransferFunction()
+            ctf.RemoveAllPoints()
+            for v in ctf_conf['AddRGBPoint']:
+                ctf.AddRGBPoint(*v)
+            if hasattr(obj_prop, 'prop_conf'):
+                obj_prop.prop_conf['color_transfer_function']['AddRGBPoint'] \
+                    = ctf_conf['AddRGBPoint']
+
 # copy from readtiff.py in 3dimg_cruncher
 # thanks https://stackoverflow.com/a/61343915/4620849
 def weighted_percentile(data, weights, perc):

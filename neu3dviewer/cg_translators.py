@@ -71,6 +71,7 @@ from .utils import (
     dbg_print,
     UpdatePropertyOTFScale,
     UpdatePropertyCTFScale,
+    UpdateTransferFunction,
     GetColorScale,
     SetColorScale,
     ConditionalAddItem,
@@ -551,21 +552,6 @@ class ObjTranslator:
             volume_property.prop_conf = prop_conf
             return volume_property
         
-        def modify(self, obj_prop, prop_conf):
-            dbg_print(4, 'ModifyObjectProperty():')
-            #if name.startswith('volume'):
-            # both obj_prop and prop_conf will be updated
-            if 'opacity_transfer_function' in prop_conf:
-                otf_conf = prop_conf['opacity_transfer_function']
-                if 'opacity_scale' in otf_conf:
-                    otf_s = otf_conf['opacity_scale']
-                    UpdatePropertyOTFScale(obj_prop, otf_s)
-            if 'color_transfer_function' in prop_conf:
-                ctf_conf = prop_conf['color_transfer_function']
-                if 'trans_scale' in ctf_conf:
-                    ctf_s = ctf_conf['trans_scale']
-                    UpdatePropertyCTFScale(obj_prop, ctf_s)
-
     class prop_lut(TranslatorUnit):
         """
         {
@@ -799,6 +785,33 @@ class ObjTranslator:
             #obj_prop = self.gui_ctrl.object_properties[vol_name]
             cs_o, cs_c = GetColorScale(obj_prop)
             SetColorScale(obj_prop, [cs_o*k, cs_c*k])
+
+        def set_bright_min_max_g(self, val_black, val_white, g = 2.0):
+            val_p = lambda w: val_black + w**(g) * (val_white - val_black)
+            otf_array = [
+                            [val_black,  0.1],
+                            [val_p(0.5), 0.5],
+                            [val_white,  0.9],
+                        ]
+            ctf_array = [
+                            [val_black,   0.0, 0.00, 0.0],
+                            [val_p(0.25), 0.0, 0.25, 0.0],
+                            [val_p(0.50), 0.0, 0.50, 0.0],
+                            [val_p(0.75), 0.0, 0.75, 0.1],
+                            [val_white,   0.0, 1.00, 0.2],
+                        ]
+
+            prop_conf = {
+                "opacity_transfer_function": {
+                    "AddPoint": otf_array
+                },
+                "color_transfer_function": {
+                    "AddRGBPoint": ctf_array
+                },
+            }
+            prop = self.actor.GetProperty()
+            UpdateTransferFunction(prop, prop_conf)
+            # TODO: update through prop_volume object, refactor it.
 
         def get_center(self):
             if not self.actor:

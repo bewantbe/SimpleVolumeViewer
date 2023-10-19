@@ -562,7 +562,7 @@ class UIActions():
         img_data = vtk_to_numpy(img3.GetPointData().GetScalars())
         stat = img_basic_stat(img_data)
         pprint.pprint(stat)
-        #vol.modify()
+        vol.set_bright_min_max_g(stat['q0.001'], stat['q0.999'], 2.0)
     
     def screen_shot(self):
         """Save a screenshot in current directory."""
