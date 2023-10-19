@@ -137,6 +137,8 @@ def read_zarr(zarr_path, extra_conf = {}, cache_reader_obj = False):
     z = zarr.open(zarr_path, mode='r')
     t0 = time.time()
     img_clip = np.array(z[dim_ranges])         # actually read the data
+    # we use xyz order in zarr, but in the rest of the program we use zyx
+    img_clip = img_clip.T
     dbg_print(4, 'read_zarr(): img read time: %6.3f sec.' % (time.time()-t0))
 
     metadata = {'zarr': {'range': str_ranges}}
@@ -206,7 +208,7 @@ def ImportImageArray(img_arr, img_meta):
         if 'voxel_size_um' in img_meta['imagej']:
             if isinstance(img_meta['imagej']['voxel_size_um'], str):
                 voxel_size_um = img_meta['imagej']['voxel_size_um'][1:-1]
-                voxel_size_um = tuple(map(float, voxel_size_um.split(', ')))
+                voxel_size_um = tuple(map(float, voxel_size_um.split(',')))
             else:  # assume array
                 voxel_size_um = img_meta['imagej']['voxel_size_um']
         elif ('spacing' in img_meta['imagej']) and \

@@ -167,4 +167,8 @@ vrDisplayableManager = threeDViewWidget.threeDView().displayableManagerByClassNa
 vrMapper = vrDisplayableManager.GetVolumeMapper(getNode('CTChest'))
 vrMapper.SetPartitions(2,2,2)
 
+1. auto move view port
+2. view port history: go back
+3. Go to random fiber point
+
 

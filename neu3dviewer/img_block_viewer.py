@@ -616,6 +616,9 @@ class GUIControl:
                 },
             )
 
+    def UpdataDynamicVolume(self, origin, block_sz, level = 0):
+        pass
+
     def ShowOnScreenHelp(self):
         if "_help_msg" not in self.scene_objects:
             # show help
@@ -667,6 +670,10 @@ class GUIControl:
 
     def LazyRender(self, frame_duration = 1/30):
         self.render_window.Modified()
+
+        if self.timer_handler.interactor is None:
+            # not ready (initialized)
+            return
 
         if not self._timer_lazy_render.finished:
             # just wait the scheduled render event

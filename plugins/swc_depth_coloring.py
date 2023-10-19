@@ -23,7 +23,7 @@ def PluginMain(ren, iren, gui_ctrl):
 
     # get a color map (list of rgba)
     max_depth = 32          # number of colors for depth up-to
-    n_depth_not_shown = 5   # n close to root, not to show
+    n_depth_not_shown = 0   # n close to root, not to show
     if 0:
         f_cm = mpl.cm.get_cmap('viridis', max_depth - n_depth_not_shown)
         cm_table = f_cm.colors

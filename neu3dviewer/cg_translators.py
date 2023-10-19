@@ -842,7 +842,7 @@ class ObjTranslator:
         prototype:
         "swc": {
             "type": "swc",
-            "file_path": "RM006-004-lychnis/F5.json.swc"
+            "file_path": "RM006-004-lychnis/F5.json.swc",
             "color": "Tomato",
             "opacity": 1.0,        # optional
             "line_width": 2.0,
