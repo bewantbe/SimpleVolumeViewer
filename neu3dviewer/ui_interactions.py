@@ -30,6 +30,7 @@ from vtkmodules.vtkRenderingCore import (
     vtkPropPicker,  # TODO: try them
     vtkPointPicker,
 )
+from vtkmodules.util.numpy_support import vtk_to_numpy
 
 from .utils import (
     dbg_print,
@@ -39,6 +40,7 @@ from .utils import (
     vtkMatrix2array,
     inject_swc_utils,
     IPython_embed,
+    img_basic_stat,
 )
 from .data_loader import (
     TreeNodeInfo,
@@ -547,6 +549,20 @@ class UIActions():
             k = 1.0 / k
         self.gui_ctrl.scene_objects[vol_name].set_color_scale_mul_by(k)
         self.gui_ctrl.Render()
+    
+    def auto_brightness(self, cmd):
+        """Auto set selected volumn brightness."""
+        if not self.gui_ctrl.selected_objects or \
+           len(self.gui_ctrl.selected_objects) == 0:
+            return
+        vol_name = self.gui_ctrl.selected_objects[0]  # active object
+        vol = self.gui_ctrl.scene_objects[vol_name]
+        img3 = vol.actor.GetMapper().GetDataObjectInput()
+        #dims = img3.GetDimensions()
+        img_data = vtk_to_numpy(img3.GetPointData().GetScalars())
+        stat = img_basic_stat(img_data)
+        pprint.pprint(stat)
+        #vol.modify()
     
     def screen_shot(self):
         """Save a screenshot in current directory."""

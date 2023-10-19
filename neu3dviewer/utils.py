@@ -6,6 +6,7 @@ import sys
 import datetime
 import numpy as np
 from numpy import eye, sin, cos
+import pprint
 
 # for array function
 from multiprocessing import Pool
@@ -239,6 +240,42 @@ def SetColorScale(obj_prop, scale):
         otf_s = ctf_s = scale
     UpdatePropertyOTFScale(obj_prop, otf_s)
     UpdatePropertyCTFScale(obj_prop, ctf_s)
+
+# copy from readtiff.py in 3dimg_cruncher
+# thanks https://stackoverflow.com/a/61343915/4620849
+def weighted_percentile(data, weights, perc):
+    """
+    perc : percentile in [0-1]!
+    """
+    ix = np.argsort(data)
+    data = data[ix] # sort data
+    weights = weights[ix] # sort weights
+    cdf = (np.cumsum(weights) - 0.5 * weights) / np.sum(weights) # 'like' a CDF function
+    return np.interp(perc, cdf, data)
+
+# copy from readtiff.py in 3dimg_cruncher
+def img_basic_stat(imgarr):
+    imgarr = imgarr.flatten()
+
+    x_max = np.max(imgarr)
+    bin_cnt = np.bincount(imgarr)
+    v_perce = list(weighted_percentile(np.arange(x_max+1), bin_cnt,
+                                       [0.001, 0.01, 0.5, 0.99, 0.999]))
+    stat = {
+        'min'    : np.min(imgarr),
+        'max'    : x_max,
+        'mean'   : np.mean(imgarr),
+        'median' : np.median(imgarr),
+        'n_unique_value' : np.sum(bin_cnt>0), # PS: np.unique is much slower
+        'q0.001' : v_perce[0],
+        'q0.01'  : v_perce[1],
+        'q0.5'   : v_perce[2],
+        'q0.99'  : v_perce[3],
+        'q0.999' : v_perce[4],
+        #'q0.001, q0.5, q0.999' : list(np.quantile(imgarr, [0.001, 0.5, 0.999]))
+    }
+    #pprint.pprint(stat)
+    return stat
 
 def ConditionalAddItem(name, cmd_obj_desc, key_name, win_conf):
     if key_name == '':
