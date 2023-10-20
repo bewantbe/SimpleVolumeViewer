@@ -7,6 +7,10 @@
 # Python Application
 # https://docs.python.org/3/using/windows.html#python-application
 
+from multiprocessing import Pool
+from multiprocessing import freeze_support
 from .img_block_viewer import main
 
-main()
+if __name__ == '__main__':
+    #freeze_support()
+    main()

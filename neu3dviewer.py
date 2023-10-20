@@ -12,6 +12,10 @@
 #file_path = realpath(__file__)
 #sys.path.insert(0, dirname(file_path))
 
+from multiprocessing import Pool
+from multiprocessing import freeze_support
 from neu3dviewer.img_block_viewer import main
 
-main()
+if __name__ == '__main__':
+    freeze_support()
+    main()

@@ -901,7 +901,7 @@ def get_program_parameters():
     return args
 
 def main():
-    freeze_support()
+    #freeze_support()
     cmd_obj_desc = get_program_parameters()
     gui = GUIControl()
     t1 = time.time()
