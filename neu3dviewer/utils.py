@@ -375,8 +375,8 @@ class Struct:
 
 def get_num_in_str(a):
     # Return what integer part in the string (usually filename)
-    #   a = 'fae#323-23.swc' is invalid
-    #   a = 'fae#323.swc' is valid
+    #   a = 'fae#323-23.swc' is invalid, exception
+    #   a = 'fae#323.swc' is valid, return 323
     u = np.array(bytearray(a, encoding='utf-8'))
     # consist of '0123456789'
     is_num = (48 <= u) & (u <= 57)
@@ -511,7 +511,7 @@ class ArrayfyList:
             # should be a swc file
             if index_style == 'numeric':
                 # try extract the numerical part.
-                if contain_int(s.swc_name):
+                if np.all(np.array([contain_int(o.swc_name) for o in self.obj_list], dtype=bool)):
                     fn = lambda j, o: str(get_num_in_str(o.swc_name))
                 else:  # give up
                     dbg_print(2, 'ArrayfyList::rebuild_index(): Not numeric indexable. Use swc name instead')
