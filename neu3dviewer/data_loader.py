@@ -394,7 +394,7 @@ def LoadSWCTree(filepath):
     #    dbg_print(3, 'SplitSWCTree(): Node id not sorted.')
     return tr
 
-def SWCNodeRelabel(tr):
+def SWCNodeRelabel(tr, output_map = False):
     """
     Re-label node id in tr, s.t. node id = index i.e. 0, 1, 2, ...
     """
@@ -408,7 +408,10 @@ def SWCNodeRelabel(tr):
     #map_id_idx = -1 * np.ones(max_id + 2, dtype = dtype_id)
     map_id_idx[tr_idx[:, 0]] = np.arange(n_id, dtype=dtype_id)
     tr_idx[:, 0:2] = map_id_idx[tr_idx[:, 0:2]]
-    return tr_idx
+    if output_map:
+        return tr_idx, map_id_idx
+    else:
+        return tr_idx
 
 def SplitSWCTree(tr):
     """
