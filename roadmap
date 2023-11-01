@@ -171,4 +171,6 @@ vrMapper.SetPartitions(2,2,2)
 2. view port history: go back
 3. Go to random fiber point
 
+* Add function to split ntree into dendrites and axons, and put the 'type' field with depth, negative for dendrites, positive for axons, zero for soma.
+
 
