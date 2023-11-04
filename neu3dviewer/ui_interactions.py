@@ -55,10 +55,11 @@ _point_set_dtype_ = np.float32
 def DefaultKeyBindings():
     """GUI keyboard and mouse actions."""
     # See class UIAction for all available actions.
-    # Not that if there are multiple modifiers, i.e. Ctrl, Alt, Shift, they have to appear in
+    # Note that if there are multiple modifiers, i.e. Ctrl, Alt, Shift, they have to appear in
     # the order Ctrl, Alt and Shift, and it is case sensitive.
     d = {
         'q'            : 'exit_program',
+        'Alt+X'        : 'hide_window',
         'h'            : 'toggle_help_message',
         'p'            : 'screen_shot',
         'MouseLeftButton'               : 'camera_rotate_around',
@@ -527,6 +528,10 @@ class UIActions():
         """Exit the program."""
         self.iren.TerminateApp()
         #self.ExitCallback()
+
+    def hide_window(self, b = 1):
+        """Hide the window. 1: hide, 0: restore."""
+        self.gui_ctrl.render_window.SetShowWindow(not b)
 
     def auto_rotate(self):
         """Animate rotate camera around the focal point."""
@@ -1454,7 +1459,7 @@ class MyInteractorStyle(vtkInteractorStyleTerrain):
         #super().OnChar()
         #super(MyInteractorStyle, obj).OnChar()
         if key_code == 'u':
-            # Could InvokeEvent() be call by different thread?
+            # Could InvokeEvent() be call by a different thread?
             self.InvokeEvent(self.user_event_cmd_id)   
 
     def OnKeyPress(self, obj, event):
