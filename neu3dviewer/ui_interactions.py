@@ -3,6 +3,7 @@
 # Keyboard and mouse interaction.
 # All "actions" in the UI are here.
 
+import os.path
 import time
 import pprint
 import json
@@ -717,7 +718,7 @@ class UIActions():
         """Run a specific script."""
         ren1 = self.GetRenderers(1)
         iren = self.iren
-        script_path = self.gui_ctrl.plugin_dir + script_name
+        script_path = os.path.join(self.gui_ctrl.plugin_dir, script_name)
         self.gui_ctrl.StatusBar(f' Running script: {script_name}')
         self.gui_ctrl.Render()
         dbg_print(3, 'Running script:', script_name)
