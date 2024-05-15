@@ -1,0 +1,360 @@
+VTK-VR compilation
+
+https://salsa.debian.org/science-team/vtk9/-/blob/master/Documentation/dev/build.md#building-vtk
+
+Compile OpenXR-SDK
+==================
+https://docs.vtk.org/en/latest/modules/vtk-modules/Rendering/OpenXR/README.html
+
+git clone git@github.com:KhronosGroup/OpenXR-SDK.git
+
+mkdir OpenXR-SDK-build
+cd OpenXR-SDK-build
+
+cmake ../OpenXR-SDK
+cmake --build . --config "Release"
+
+
+
+Build VTK
+=========
+src\Documentation\dev\build_windows_vs.md
+https://github.com/Kitware/VTK/blob/master/Documentation/dev/build_windows_vs.md
+
+cmake-gui
+---------
+
+source dir:    D:\src-build\vtk-9.3.0\src
+binaries dir:  D:\src-build\vtk-9.3.0\build
+
+[configure]
+
+CMAKE_CXX_MP_FLAG on
+VTK_WRAP_PYTHON   on
+
+[Configure]
+
+[Generate]
+
+[Open project]
+
+
+MSVS
+----
+
+Set the configuration to "Release"
+Build the "ALL_BUILD" project.
+
+
+Install
+-------
+
+[configure]
+
+CMAKE_INSTALL_PREFIX     E:/soft/VTK930
+
+[Generate]
+
+[Open project]
+
+MSVS: Build the "ALL_BUILD"
+MSVS: Build the "INSTALL" project.
+
+
+
+With VR
+-------
+# trying `git checkout release-1.0.26`
+
+
+VTK_MODULE_ENABLE_VTK_RenderingOpenXR	YES
+OpenXR_INCLUDE_DIR   D:\src-build\openxr\OpenXR-SDK\include\openxr
+OpenXR_LIBRARY       D:\src-build\openxr\OpenXR-SDK-build\src\loader\Release\openxr_loader.lib
+
+
+XR
+VR
+
+
+cmake --build . --config "Release"
+
+
+
+Test
+----
+
+.cxx  +  CMakeLists.txt
+
+CMake
+
+src:  D:\src-build\vtk-9.3.0\test_HighlightPickedActor
+dest: D:\src-build\vtk-9.3.0\test_HighlightPickedActor\build
+
+src:  D:/src-build/vtk-9.3.0/test_VR
+dest: D:/src-build/vtk-9.3.0/test_VR/build
+
+[Configure]
+
+VTK_DIR  E:\soft\VTK930\lib\cmake\vtk-9.3
+
+[Configure]
+[Generate]
+[Open Project]
+
+Select the example (HighlightPickedActor) as start-up project. (right click -> set as start-up project)
+
+prj(Alt+F7), Property->Debugging  Environment  PATH=%PATH%;E:\soft\VTK930\bin
+
+Pick release (if debug, bug may occur)
+
+Run!
+
+
+
+Test
+----
+
+VTK-build > cmake -DVTK_BUILD_TESTING:BOOL=ON path/to/VTK
+VTK-build > cmake --build . --config "Release"
+VTK-build > ctest -C Release -R <name_of_test>
+
+
+
+Problems
+========
+
+summary: cannot test VR
+
+VTK + OpenXR compiled without error.
+
+Tried1: A customized OpenXR test .cxx compiled, but run and failed to start enter, with error message:
+  2024-05-12 04:38:57.512 (   0.413s) [E218EEE38A3A7042]   vtkOpenXRManager.cxx:461    ERR| (nullptr): Failed to wait frame. [XR_ERROR_SESSION_NOT_RUNNING].
+
+Tried2: Compile VTK tests failed, because:
+  VTK_BUILD_TESTING is ON, but there is no ExternalData directory! Please
+  download VTKData, which contains an .ExternalData directory that must go
+  into your VTK source directory (including the leading dot).
+
+
+Solve try 1
+-----------
+
+Failed to create XR instance
+   https://discourse.vtk.org/t/openxr-1-1-36-crash/13744
+Solution: use older version
+
+
+
+Solve try 2
+-----------
+
+Info in Testing data:
+  https://docs.vtk.org/en/latest/developers_guide/git/test.html
+
+Download from
+  https://src.fedoraproject.org/repo/pkgs/vtk/VTKData-9.3.0.tar.gz/
+
+Not work:
+ExternalData_OBJECT_STORES=D:\src-build\vtk-9.3.0\.ExternalData
+
+work: put to
+D:\src-build\vtk-9.3.0\src\.ExternalData
+
+Need gcov, also was need make, so decide to include the tooltrain
+Use MSYS2
+  https://www.msys2.org/
+Usage:
+  https://www.msys2.org/docs/updating/
+Install tools
+  pacman -S mingw-w64-ucrt-x86_64-gcc
+Add MSYS2 to terminal
+  https://www.msys2.org/docs/terminals/
+
+
+Not usable in win cmd!!! -- failed
+
+But still
+
+VTK_OPENXR_TESTING_ENABLE_INTERACTIVE_TESTS  NO
+VTK_OPENXR_TESTING_ENABLE_RUNTIME_TESTS      YES
+
+COVERAGE_COMMAND-NOTFOUND
+RMANTREE-NOTFOUND
+VTK_WKHTMLTOIMAGE_EXECUTABLE-NOTFOUND
+
+[Configure] anyway
+
+[Genreate]
+
+[Open...]
+
+Now
+
+OpenXR with VTK
+
+waiting...
+
+
+Solve: Use Meta Quest Link for OpenXR runtime.
+
+Now we have box, although some warning
+
+(   7.435s) [main thread     ]vtkOpenXRRenderWindow.c:177   WARN| vtkOpenXRRenderWindow (0000022E0D6F35F0): Not rendered
+
+
+(   5.706s) [main thread     ]vtkOpenXRRenderWindow.c:177   WARN| vtkOpenXRRenderWindow (000001A9A9C31300): Not rendered
+(   5.720s) [main thread     ]vtkOpenXRRenderWindow.c:177   WARN| vtkOpenXRRenderWindow (000001A9A9C31300): Not rendered
+(   5.756s) [main thread     ]vtkTransformPolyDataFil:70     ERR| vtkTransformPolyDataFilter (000001A9ABAF4660): No input data
+
+
+MSVS build: Install
+
+
+
+
+
+Use in Python
+=============
+
+Compile options:
+
+CMAKE_CXX_MP_FLAG on
+VTK_WRAP_PYTHON   ON
+INSTALL_PATH      E:/soft/VTK930py
+VTK_MODULE_ENABLE_VTK_RenderingOpenXR	YES
+OpenXR_INCLUDE_DIR   D:\src-build\openxr\OpenXR-SDK\include\openxr
+OpenXR_LIBRARY       D:\src-build\openxr\OpenXR-SDK-build\src\loader\Release\openxr_loader.lib
+
+
+They are here:
+  E:\soft\VTK930\bin\Lib\site-packages
+  Not convenience
+
+Try this:
+  Building Python Wheels
+  https://docs.vtk.org/en/latest/advanced/build_python_wheels.html
+
+Add
+VTK_WHEEL_BUILD   YES
+
+#VTK_DIST_NAME_SUFFIX    xr
+dev0
+
+cmake
+make/MSVS (Release)
+#python3 setup.py bdist_wheel
+
+pyenv: 
+
+D:\pyenv\vtkvr\Scripts\Activate.ps1
+
+Desp
+python setup.py build      will build the package underneath 'build/'
+python setup.py install    will install the package
+
+#use this
+pip install wheel
+python setup.py bdist_wheel
+pip install "D:\src-build\vtk-9.3.0\buildpy\dist\vtk-9.3.0.dev0-cp311-cp311-win_amd64.whl"
+
+Now we have
+vtk-xr            9.3.0.dev0
+
+Or
+vtk            9.3.0.dev0
+
+
+
+Failed case (no wheel)
+----------------------
+
+(vtkvr) PS D:\src-build\vtk-9.3.0\buildpy> ipython
+Python 3.11.6 (tags/v3.11.6:8b6ee5b, Oct  2 2023, 14:57:12) [MSC v.1935 64 bit (AMD64)]
+Type 'copyright', 'credits' or 'license' for more information
+IPython 8.24.0 -- An enhanced Interactive Python. Type '?' for help.
+
+In [1]: import vtk
+---------------------------------------------------------------------------
+ImportError                               Traceback (most recent call last)
+Cell In[1], line 1
+----> 1 import vtk
+
+File D:\src-build\vtk-9.3.0\buildpy\vtk.py:4
+      1 """This is the vtk module"""
+      3 # this module has the same contents as vtkmodules.all
+----> 4 from vtkmodules.vtkCommonCore import *
+      5 from vtkmodules.vtkCommonMath import *
+      6 from vtkmodules.vtkCommonTransforms import *
+
+ImportError: DLL load failed while importing vtkCommonCore: 找不到指定的模块。
+
+
+
+VTK with OpenVR, OpenXR, Python
+===============================
+
+Prepare:
+
+https://help.steampowered.com/en/faqs/view/46C3-050A-2E52-12D6#sdk
+https://github.com/ValveSoftware/openvr/releases/tag/v2.5.1
+
+
+Configuration flags:
+
+CMAKE_CXX_MP_FLAG     ON
+VTK_WRAP_PYTHON       ON
+CMAKE_INSTALL_PREFIX  E:/soft/VTK930x
+VTK_MODULE_ENABLE_VTK_RenderingOpenXR	YES
+VTK_WHEEL_BUILD      ON
+VTK_DLL_PATHS        E:/soft/VTK930x/bin
+VTK_ENABLE_EXTRA_BUILD_WARNINGS   ON
+
+OpenXR_INCLUDE_DIR   D:\src-build\openxr\OpenXR-SDK\include\openxr
+OpenXR_LIBRARY       D:\src-build\openxr\OpenXR-SDK-build\src\loader\Release\openxr_loader.lib
+#VTK_DIST_NAME_SUFFIX       xr
+
+VTK_MODULE_ENABLE_VTK_RenderingOpenVR     YES
+
+OpenVR_INCLUDE_DIR    D:/src-build/openvr-2.5.1/headers
+OpenVR_LIBRARY        D:/src-build/openvr-2.5.1/lib/win64/openvr_api.lib
+
+
+#SURFEX
+#VTK_INSTALL_SDK           OFF
+#VTK_INSTALL_PYTHON_EXES   OFF
+
+
+# otherwise   OpenVR_INCLUDE_DIR   OpenVR_LIBRARY
+2 fail  (18:54)
+========== Build: 411 succeeded, 2 failed, 0 up-to-date, 0 skipped ==========
+
+
+
+[Release]
+
+build [ALL_BUILD]
+
+build [INSTALL]
+
+cd D:\src-build\vtk-9.3.0\build4
+pip install wheel
+
+# go into pyenv
+D:\pyenv\vtkvr\Scripts\Activate.ps1
+
+python setup.py bdist_wheel
+
+#pip install "D:\src-build\vtk-9.3.0\buildpy3\dist\vtk-9.3.0.dev0-cp311-cp311-win_amd64.whl"
+pip install .\dist\vtk-9.3.0.dev0-cp311-cp311-win_amd64.whl
+
+cp D:\src-build\openvr-2.5.1\bin\win64\openvr_api.dll E:\soft\VTK930x\bin
+
+# set env PATH
+
+
+# try rebuild all
+
+# a
+https://packages.debian.org/sid/python3-vtk9
+https://salsa.debian.org/science-team/vtk9
+
