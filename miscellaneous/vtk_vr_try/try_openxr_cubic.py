@@ -10,27 +10,57 @@
 import time
 
 import numpy
-import vtk
+#import vtk
+
+from vtkmodules.vtkRenderingCore import (
+    vtkActor,
+)
+from vtkmodules.vtkFiltersSources import (
+    vtkSphereSource,
+    vtkCubeSource
+)
+from vtkmodules.vtkRenderingOpenGL2 import vtkOpenGLPolyDataMapper
+from vtkmodules.vtkCommonMath import (
+    vtkMatrix4x4,
+)
 
 from vtkmodules.util.numpy_support import vtk_to_numpy
 
 ENABLE_VR = "OpenXR"
 
 if ENABLE_VR == "OpenXR":
-    XRenderer = vtk.vtkOpenXRRenderer
-    XRenderWindow = vtk.vtkOpenXRRenderWindow
-    XCamera = vtk.vtkOpenXRCamera
-    XRenderWindowInteractor = vtk.vtkOpenXRRenderWindowInteractor
+    from vtkmodules.vtkRenderingOpenXR import (
+        vtkOpenXRRenderer,
+        vtkOpenXRRenderWindow,
+        vtkOpenXRCamera,
+        vtkOpenXRRenderWindowInteractor,
+    )
+    XRenderer = vtkOpenXRRenderer
+    XRenderWindow = vtkOpenXRRenderWindow
+    XCamera = vtkOpenXRCamera
+    XRenderWindowInteractor = vtkOpenXRRenderWindowInteractor
 elif ENABLE_VR == "OpenVR":
-    XRenderer = vtk.vtkOpenVRRenderer
-    XRenderWindow = vtk.vtkOpenVRRenderWindow
-    XCamera = vtk.vtkOpenVRCamera
-    XRenderWindowInteractor = vtk.vtkOpenVRRenderWindowInteractor
+    from vtkmodules.vtkRenderingOpenVR import (
+        vtkOpenVRRenderer,
+        vtkOpenVRRenderWindow,
+        vtkOpenVRCamera,
+        vtkOpenVRRenderWindowInteractor,
+    )
+    XRenderer = vtkOpenVRRenderer
+    XRenderWindow = vtkOpenVRRenderWindow
+    XCamera = vtkOpenVRCamera
+    XRenderWindowInteractor = vtkOpenVRRenderWindowInteractor
 else:
-    XRenderer = vtk.vtkRenderer
-    XRenderWindow = vtk.vtkRenderWindow
-    XCamera = vtk.vtkCamera
-    XRenderWindowInteractor = vtk.vtkRenderWindowInteractor
+    from vtkmodules.vtkRenderingCore import (
+        vtkRenderer,
+        vtkRenderWindow,
+        vtkCamera,
+        vtkRenderWindowInteractor,
+    )
+    XRenderer = vtkRenderer
+    XRenderWindow = vtkRenderWindow
+    XCamera = vtkCamera
+    XRenderWindowInteractor = vtkRenderWindowInteractor
 
 def main():
     renderWindow = XRenderWindow()
@@ -42,21 +72,21 @@ def main():
     renderer.SetBackground(0.2, 0.3, 0.4)
 
     if 0:
-        doll = vtk.vtkSphereSource()
+        doll = vtkSphereSource()
         doll.SetPhiResolution(80)
         doll.SetThetaResolution(80)
         doll.SetRadius(100)
         doll.Update()
     else:  # cube
-        doll = vtk.vtkCubeSource()
+        doll = vtkCubeSource()
         doll.SetXLength(200)
         doll.SetYLength(200)
         doll.SetZLength(200)
         doll.Update()
 
-    mapper = vtk.vtkOpenGLPolyDataMapper()
+    mapper = vtkOpenGLPolyDataMapper()
     mapper.SetInputConnection(doll.GetOutputPort())
-    actor = vtk.vtkActor()
+    actor = vtkActor()
     actor.SetMapper(mapper)
     actor.GetProperty().SetOpacity(0.2)
 
@@ -80,7 +110,7 @@ def main():
         iren.DoOneEvent(renderWindow, renderer)
         iren.DoOneEvent(renderWindow, renderer)  # Needed by monado so that it starts to render
 
-    mat_p_P2W = vtk.vtkMatrix4x4()
+    mat_p_P2W = vtkMatrix4x4()
     renderWindow.GetPhysicalToWorldMatrix(mat_p_P2W)
     #print('mat_p_P2W', mat_p_P2W)
     # convert to numpy matrix
