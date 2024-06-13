@@ -19,8 +19,9 @@ np_typecodes_map = {np.float32:'f', np.float64:'d', np.int32:'l', np.int64:'q'}
 import scipy.sparse
 
 import tifffile
-import h5py
-import zarr
+# ondemond load, reduce load time, reduce message in logger
+#import h5py
+#import zarr
 
 from .utils import (
     dbg_print,
@@ -85,6 +86,8 @@ def read_ims(ims_path, extra_conf = {}, cache_reader_obj = False):
     Read Imaris compatible (HDF5) image file.
     Return image array and metadata.
     """
+    import h5py         # will only load at the first time
+
     dbg_print(4, 'read_ims(): extra_conf =', extra_conf)
     dim_ranges = slice_from_str(str(extra_conf.get('range', '[:,:,:]')))
     dbg_print(4, '  Requested dim_range:', dim_ranges)
@@ -129,6 +132,8 @@ def read_ims(ims_path, extra_conf = {}, cache_reader_obj = False):
 
 def read_zarr(zarr_path, extra_conf = {}, cache_reader_obj = False):
     """Read zarr from img_path, return image array and metadata."""
+    import zarr     # will only actually load at the first time
+
     dbg_print(4, 'read_zarr(): extra_conf =', extra_conf)
     str_ranges = str(extra_conf.get('range', '[:,:,:]'))
     dim_ranges = slice_from_str(str_ranges)
