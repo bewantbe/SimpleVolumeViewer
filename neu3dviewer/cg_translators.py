@@ -652,7 +652,8 @@ class ObjTranslator:
                 "view_point": "auto",
                 "file_path": file_path
             }
-            if file_path.endswith('.tif'):
+            if file_path.endswith('.tif') or \
+               file_path.endswith('.tiff'):
                 # a tiff file
                 pass
             elif file_path.endswith('.ims') or file_path.endswith('.h5'):

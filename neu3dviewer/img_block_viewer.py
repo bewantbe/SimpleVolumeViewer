@@ -802,6 +802,7 @@ class GUIControl:
             if file_path.endswith('.swc'):
                 swc_file_list.append(file_path)
             elif file_path.endswith('.tif') \
+              or file_path.endswith('.tiff') \
               or file_path.endswith('.ims') \
               or file_path.endswith('.h5'):
                 img_file_list.append(file_path)
